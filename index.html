@@ -164,6 +164,150 @@
   .cal-day:hover{background:rgba(255,255,255,0.06);} .cal-day.today{background:var(--accent-dim);color:var(--accent);font-weight:700;}
   .cal-day.has-event::after{content:'';position:absolute;bottom:4px;width:4px;height:4px;border-radius:50%;background:var(--accent);}
   .cal-day.other-month{opacity:0.3;}
+
+  /* ══════════════════════════════
+     모바일 반응형 (768px 이하)
+  ══════════════════════════════ */
+  @media(max-width:768px){
+    /* 사이드바 숨기고 하단 탭바로 대체 */
+    .sidebar{ display:none; }
+    .app{ flex-direction:column; }
+    .main{ padding-bottom:70px; }
+    .page{ padding:16px; }
+
+    /* 페이지 헤더 */
+    .page-header{ margin-bottom:16px; }
+    .page-title{ font-size:20px; }
+
+    /* 그리드 조정 */
+    .grid-4{ grid-template-columns:repeat(2,1fr); gap:10px; }
+    .grid-2{ grid-template-columns:1fr; gap:12px; }
+    .form-row{ grid-template-columns:1fr; }
+
+    /* 통계 카드 */
+    .stat-card{ padding:14px; }
+    .stat-value{ font-size:26px; }
+
+    /* 카드 */
+    .card{ padding:14px; border-radius:12px; }
+
+    /* 테이블 → 카드형으로 변환 */
+    .tbl-mobile thead{ display:none; }
+    .tbl-mobile tr{
+      display:block;
+      background:var(--surface2);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:12px 14px;
+      margin-bottom:10px;
+    }
+    .tbl-mobile tr:hover{ background:var(--surface2); }
+    .tbl-mobile td{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:5px 0;
+      border-bottom:1px solid var(--border);
+      font-size:13px;
+    }
+    .tbl-mobile td:last-child{ border-bottom:none; padding-bottom:0; }
+    .tbl-mobile td::before{
+      content:attr(data-label);
+      font-size:11px;
+      color:var(--text3);
+      letter-spacing:0.5px;
+      flex-shrink:0;
+      margin-right:8px;
+    }
+    /* 관리 버튼 행은 가득 차게 */
+    .tbl-mobile td.td-actions{
+      justify-content:flex-end;
+      gap:8px;
+      padding-top:8px;
+      margin-top:2px;
+    }
+    .tbl-mobile td.td-actions::before{ display:none; }
+
+    /* 버튼 */
+    .btn{ padding:8px 12px; font-size:12px; }
+    .btn-sm{ padding:6px 10px; font-size:11px; }
+
+    /* 출석 그리드 */
+    .att-grid{ grid-template-columns:repeat(3,1fr); gap:8px; }
+    .att-card{ padding:10px 6px; }
+    .att-name{ font-size:12px; }
+    .avatar{ width:28px; height:28px; font-size:11px; }
+
+    /* 모달 */
+    .modal{ margin:8px; max-height:90vh; overflow-y:auto; }
+    .modal-body{ padding:16px; }
+    .modal-footer{ padding:12px 16px; }
+
+    /* AI 패널 모바일 */
+    .ai-panel{ width:calc(100vw - 24px); left:12px; right:12px; bottom:80px; }
+    .ai-fab{ bottom:80px; }
+    .toast{ bottom:80px; left:12px; right:12px; max-width:none; }
+
+    /* 출석 날짜 네비 */
+    #att-date-label{ min-width:120px; font-size:12px; }
+
+    /* Firestore 안내 배너 */
+    #firestore-guide{ padding:10px 14px; }
+  }
+
+  /* 하단 탭바 */
+  .bottom-nav{
+    display:none;
+    position:fixed;
+    bottom:0; left:0; right:0;
+    height:64px;
+    background:var(--surface);
+    border-top:1px solid var(--border);
+    z-index:500;
+    justify-content:space-around;
+    align-items:center;
+    padding:0 4px;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .bottom-nav-item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+    padding:6px 10px;
+    cursor:pointer;
+    border-radius:10px;
+    transition:all 0.15s;
+    color:var(--text3);
+    flex:1;
+    font-size:10px;
+  }
+  .bottom-nav-item .bn-icon{ font-size:20px; line-height:1; }
+  .bottom-nav-item.active{ color:var(--accent); }
+  .bottom-nav-item.active .bn-icon{ transform:scale(1.1); }
+
+  /* 모바일에서만 하단탭 표시 */
+  @media(max-width:768px){
+    .bottom-nav{ display:flex; }
+  }
+
+  /* 모바일 상단 헤더 */
+  .mobile-header{
+    display:none;
+    position:sticky;
+    top:0;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+    padding:12px 16px;
+    align-items:center;
+    justify-content:space-between;
+    z-index:100;
+  }
+  .mobile-header-title{ font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; color:var(--accent); }
+  .mobile-header-right{ display:flex; align-items:center; gap:8px; }
+  @media(max-width:768px){
+    .mobile-header{ display:flex; }
+  }
 </style>
 </head>
 <body>
@@ -194,6 +338,46 @@ service cloud.firestore {
 </div>
 
 <div class="app" id="app" style="display:none">
+
+  <!-- 모바일 상단 헤더 -->
+  <div class="mobile-header">
+    <div class="mobile-header-title">ISATOK 🏓</div>
+    <div class="mobile-header-right">
+      <div id="db-status-mobile" style="font-size:10px;color:var(--text3)">●</div>
+      <button class="btn btn-primary btn-sm" onclick="openAI()" style="padding:6px 10px;font-size:11px;">🤖 AI</button>
+    </div>
+  </div>
+
+  <!-- 하단 탭바 -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-item active" onclick="nav('dashboard')" data-page="dashboard">
+      <span class="bn-icon">⊞</span><span>홈</span>
+    </div>
+    <div class="bottom-nav-item" onclick="nav('members')" data-page="members">
+      <span class="bn-icon">◎</span><span>회원</span>
+    </div>
+    <div class="bottom-nav-item" onclick="nav('attendance')" data-page="attendance">
+      <span class="bn-icon">✓</span><span>출석</span>
+    </div>
+    <div class="bottom-nav-item" onclick="nav('ranking')" data-page="ranking">
+      <span class="bn-icon">▲</span><span>랭킹</span>
+    </div>
+    <div class="bottom-nav-item" onclick="nav('notice')" data-page="notice">
+      <span class="bn-icon">☆</span><span>공지</span>
+    </div>
+    <div class="bottom-nav-item" onclick="showMoreMenu()" data-page="more">
+      <span class="bn-icon">≡</span><span>더보기</span>
+    </div>
+  </nav>
+
+  <!-- 더보기 메뉴 (모바일) -->
+  <div id="more-menu" style="display:none;position:fixed;bottom:64px;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:400;padding:8px 0;">
+    <div onclick="nav('schedule');closeMoreMenu()" style="padding:14px 20px;font-size:14px;color:var(--text2);display:flex;align-items:center;gap:12px;"><span>▦</span> 경기 일정</div>
+    <div onclick="nav('bracket');closeMoreMenu()" style="padding:14px 20px;font-size:14px;color:var(--text2);display:flex;align-items:center;gap:12px;"><span>⊳</span> 대진표</div>
+    <div onclick="nav('score');closeMoreMenu()" style="padding:14px 20px;font-size:14px;color:var(--text2);display:flex;align-items:center;gap:12px;"><span>◉</span> 경기 결과 입력</div>
+    <div onclick="nav('board');closeMoreMenu()" style="padding:14px 20px;font-size:14px;color:var(--text2);display:flex;align-items:center;gap:12px;"><span>≡</span> 자유게시판</div>
+    <div onclick="location.reload();closeMoreMenu()" style="padding:14px 20px;font-size:14px;color:var(--text3);display:flex;align-items:center;gap:12px;border-top:1px solid var(--border);"><span>🔄</span> 새로고침</div>
+  </div>
   <!-- SIDEBAR -->
   <nav class="sidebar">
     <div class="logo">
@@ -269,7 +453,7 @@ service cloud.firestore {
             <option>고급</option><option>중급</option><option>초급</option>
           </select>
         </div>
-        <table><thead><tr><th>이름</th><th>등급</th><th>Elo</th><th>출석률</th><th>등록일</th><th>상태</th><th style="text-align:right">관리</th></tr></thead>
+        <table class="tbl-mobile"><thead><tr><th>이름</th><th>등급</th><th>Elo</th><th>출석률</th><th>등록일</th><th>상태</th><th style="text-align:right">관리</th></tr></thead>
         <tbody id="member-tbody"></tbody></table>
       </div>
     </div>
@@ -631,7 +815,10 @@ async function seedSampleData(){
 
 function setDbStatus(ok, msg){
   const el = document.getElementById('db-status');
-  el.innerHTML = ok ? `<span style="color:var(--accent)">● Firebase 연결됨</span>` : `<span style="color:var(--amber)">● ${msg}</span>`;
+  const el2 = document.getElementById('db-status-mobile');
+  const html = ok ? `<span style="color:var(--accent)">● Firebase 연결됨</span>` : `<span style="color:var(--amber)">● ${msg}</span>`;
+  if(el) el.innerHTML = html;
+  if(el2) el2.innerHTML = ok ? `<span style="color:var(--accent)">●</span>` : `<span style="color:var(--amber)">●</span>`;
 }
 
 // ── 날짜 유틸 ──
@@ -848,13 +1035,13 @@ function renderDashboard(){
 function renderMembers(list){
   document.getElementById('member-tbody').innerHTML=list.map((m,i)=>`
     <tr>
-      <td style="color:var(--text)"><div style="display:flex;align-items:center;gap:10px"><div class="avatar ${avatarColor(i)}">${initials(m.name)}</div><div><div>${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--text3)">${m.phone}</div>`:''}</div></div></td>
-      <td><span class="badge ${m.grade==='고급'?'badge-green':m.grade==='중급'?'badge-amber':'badge-gray'}">${m.grade}</span></td>
-      <td style="color:var(--accent);font-weight:600">${m.elo}</td>
-      <td style="color:var(--text2)">${m.att}%</td>
-      <td style="color:var(--text3)">${m.joined||''}</td>
-      <td><span class="badge ${m.status==='활성'?'badge-green':'badge-red'}">${m.status}</span></td>
-      <td><div style="display:flex;gap:6px;justify-content:flex-end">
+      <td data-label="이름" style="color:var(--text)"><div style="display:flex;align-items:center;gap:10px"><div class="avatar ${avatarColor(i)}">${initials(m.name)}</div><div><div>${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--text3)">${m.phone}</div>`:''}</div></div></td>
+      <td data-label="등급"><span class="badge ${m.grade==='고급'?'badge-green':m.grade==='중급'?'badge-amber':'badge-gray'}">${m.grade}</span></td>
+      <td data-label="Elo" style="color:var(--accent);font-weight:600">${m.elo}</td>
+      <td data-label="출석률" style="color:var(--text2)">${m.att}%</td>
+      <td data-label="등록일" style="color:var(--text3)">${m.joined||''}</td>
+      <td data-label="상태"><span class="badge ${m.status==='활성'?'badge-green':'badge-red'}">${m.status}</span></td>
+      <td class="td-actions"><div style="display:flex;gap:6px;justify-content:flex-end">
         <button class="btn btn-ghost btn-sm" onclick="openEditModal('${m.id}')">✏️ 수정</button>
         <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${m.id}')">🗑 삭제</button>
       </div></td>
@@ -995,10 +1182,34 @@ window.nav = function(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id)?.classList.add('active');
+  // PC 사이드바 active
   const labels={dashboard:'대시보드',members:'회원 관리',attendance:'출석 체크',schedule:'경기 일정',bracket:'대진표',ranking:'랭킹 & 리그',score:'경기 결과 입력',notice:'공지사항',board:'자유게시판'};
   document.querySelectorAll('.nav-item').forEach(item=>{if(item.textContent.trim()===labels[id])item.classList.add('active');});
+  // 모바일 하단탭 active
+  document.querySelectorAll('.bottom-nav-item').forEach(el=>{
+    el.classList.toggle('active', el.dataset.page===id);
+  });
   if(id==='attendance') renderAttHistory();
+  // 스크롤 상단으로
+  document.querySelector('.main')?.scrollTo(0,0);
 }
+
+window.showMoreMenu = function(){
+  const m=document.getElementById('more-menu');
+  m.style.display = m.style.display==='none'?'block':'none';
+}
+window.closeMoreMenu = function(){
+  document.getElementById('more-menu').style.display='none';
+}
+// 더보기 메뉴 외부 클릭 시 닫기
+document.addEventListener('click',e=>{
+  const menu=document.getElementById('more-menu');
+  if(menu && menu.style.display!=='none'){
+    if(!menu.contains(e.target) && !e.target.closest('.bottom-nav-item[data-page="more"]')){
+      menu.style.display='none';
+    }
+  }
+});
 
 // ── 전화번호 포맷 ──
 window.fmtPhone = function(el){
