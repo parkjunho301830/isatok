@@ -471,6 +471,21 @@ service cloud.firestore {
           <button class="btn btn-primary btn-sm" onclick="saveAttendance()">💾 저장</button>
         </div>
       </div>
+
+      <!-- 노션 자동 연동 상태 배너 -->
+      <div id="notion-sync-banner" style="background:rgba(99,99,190,0.08);border:1px solid rgba(99,99,190,0.25);border-radius:10px;padding:11px 16px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="notion-sync-icon" style="font-size:16px">🔄</span>
+          <div>
+            <div style="color:#a09fd8;font-weight:500;font-size:12px">𝑵 노션 자동 연동 중</div>
+            <div id="notion-sync-msg" style="color:var(--text3);font-size:11px;margin-top:1px">초기화 중...</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="notion-next-sync" style="font-size:11px;color:var(--text3)"></span>
+          <button onclick="syncNotionAttendance(true)" style="background:rgba(99,99,190,0.15);border:1px solid rgba(99,99,190,0.3);border-radius:6px;padding:4px 10px;font-size:11px;color:#a09fd8;cursor:pointer;font-family:inherit;">지금 동기화</button>
+        </div>
+      </div>
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
         <div class="stat-card green" style="flex:1;min-width:100px"><div class="stat-label">출석</div><div class="stat-value green" id="att-present">0</div></div>
         <div class="stat-card red" style="flex:1;min-width:100px"><div class="stat-label">결석</div><div class="stat-value red" id="att-absent">0</div></div>
@@ -785,6 +800,7 @@ function finishInit(){
   initAttDate();
   renderCalendar();
   initScorePlayers();
+  startNotionAutoSync(); // 노션 자동 동기화 시작
 }
 
 // ── 첫 실행 시 샘플 데이터 적재 ──
@@ -850,6 +866,215 @@ async function fbAdd(col, data){ if(db) return await addDoc(collection(db,col),d
 async function fbUpdate(col, id, data){ if(db) await updateDoc(doc(db,col,id),data); }
 async function fbDelete(col, id){ if(db) await deleteDoc(doc(db,col,id)); }
 async function fbGetAll(col){ if(!db) return []; const s=await getDocs(collection(db,col)); return s.docs.map(d=>({id:d.id,...d.data()})); }
+
+// ══════════════════════════════════════════════
+//  노션 자동 연동 설정
+// ══════════════════════════════════════════════
+const NOTION_TOKEN = 'ntn_h905912975970Blg3ZOszbqPTrAwhLExrvgvEAnikh07Gt';
+const NOTION_DB_ID = '2f521bf7599f802b959ee9324713c095';
+const NOTION_PROXY = 'https://corsproxy.io/?';
+const POLL_INTERVAL_MS = 30000; // 30초마다 자동 동기화
+
+let notionPollTimer   = null;  // 폴링 타이머
+let notionCountdown   = 0;     // 다음 동기화까지 남은 초
+let notionCountTimer  = null;  // 카운트다운 타이머
+let lastSyncedNames   = new Set(); // 직전 동기화 결과 (변경 감지용)
+
+// 노션 API 호출 헬퍼
+async function notionFetch(path, method='GET', body=null){
+  const url = NOTION_PROXY + encodeURIComponent('https://api.notion.com/v1/' + path);
+  const opts = {
+    method,
+    headers: {
+      'Authorization': `Bearer ${NOTION_TOKEN}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if(!res.ok) throw new Error(`${res.status}`);
+  return res.json();
+}
+
+// 노션 셀 값 추출 헬퍼
+function getNotionText(prop){
+  if(!prop) return '';
+  if(prop.type==='title')        return prop.title?.map(t=>t.plain_text).join('') || '';
+  if(prop.type==='rich_text')    return prop.rich_text?.map(t=>t.plain_text).join('') || '';
+  if(prop.type==='select')       return prop.select?.name || '';
+  if(prop.type==='date')         return prop.date?.start || '';
+  if(prop.type==='checkbox')     return prop.checkbox ? '참석' : '';
+  if(prop.type==='multi_select') return prop.multi_select?.map(s=>s.name).join(', ') || '';
+  return '';
+}
+
+// 배너 상태 업데이트 헬퍼
+function setNotionBanner(icon, msg, sub=''){
+  const iconEl = document.getElementById('notion-sync-icon');
+  const msgEl  = document.getElementById('notion-sync-msg');
+  if(iconEl) iconEl.textContent = icon;
+  if(msgEl)  msgEl.textContent  = sub ? `${msg} — ${sub}` : msg;
+}
+
+// 카운트다운 타이머
+function startCountdown(){
+  clearInterval(notionCountTimer);
+  notionCountdown = POLL_INTERVAL_MS / 1000;
+  const el = document.getElementById('notion-next-sync');
+  notionCountTimer = setInterval(()=>{
+    notionCountdown--;
+    if(el) el.textContent = `다음 동기화 ${notionCountdown}초 후`;
+    if(notionCountdown <= 0) clearInterval(notionCountTimer);
+  }, 1000);
+}
+
+// ── 노션 → 출석 동기화 핵심 함수 ──
+window.syncNotionAttendance = async function(manual=false){
+  // 카운트다운 리셋
+  clearTimeout(notionPollTimer);
+  clearInterval(notionCountTimer);
+  const nextEl = document.getElementById('notion-next-sync');
+  if(nextEl) nextEl.textContent = '동기화 중...';
+
+  try {
+    setNotionBanner('🔄', '노션 DB 조회 중', '');
+
+    // 1. DB 구조 파악 (속성명 자동 감지)
+    const dbInfo   = await notionFetch(`databases/${NOTION_DB_ID}`);
+    const nameProp = Object.entries(dbInfo.properties).find(([,v])=>v.type==='title');
+    const dateProp = Object.entries(dbInfo.properties).find(([,v])=>v.type==='date');
+
+    // 2. 오늘 날짜 기준 쿼리
+    const today = dateStr(attDate);
+    let queryBody = { page_size: 100 };
+    if(dateProp){
+      queryBody.filter = { property: dateProp[0], date: { equals: today } };
+    }
+
+    const result = await notionFetch(`databases/${NOTION_DB_ID}/query`, 'POST', queryBody);
+    const pages  = result.results || [];
+
+    // 3. 참석자 이름 추출
+    const notionNames = new Set();
+    for(const page of pages){
+      const props = page.properties;
+      let name = '';
+      // title 속성 우선
+      if(nameProp) name = getNotionText(props[nameProp[0]]);
+      // 없으면 모든 속성 탐색
+      if(!name){
+        for(const v of Object.values(props)){
+          const val = getNotionText(v);
+          if(val && val.length >= 2 && val.length <= 6){ name = val; break; }
+        }
+      }
+      if(name) notionNames.add(name.trim());
+    }
+
+    // 4. 변경 감지 (이전과 동일하면 UI 갱신 스킵)
+    const namesStr = [...notionNames].sort().join(',');
+    const lastStr  = [...lastSyncedNames].sort().join(',');
+    const changed  = namesStr !== lastStr;
+
+    if(changed || manual){
+      // 5. 회원 이름 매칭 → 출석 상태 반영
+      // 오늘 날짜일 때만 자동 반영 (과거 날짜는 덮어쓰지 않음)
+      const isToday = dateStr(attDate) === todayStr();
+      let matched = 0;
+      const unmatched = [];
+
+      if(isToday){
+        for(const m of MEMBERS){
+          const present = [...notionNames].some(n=>
+            n===m.name || n.replace(/\s/g,'')===m.name.replace(/\s/g,'') ||
+            n.includes(m.name) || m.name.includes(n)
+          );
+          if(present){
+            attState[m.name] = 'checked';
+            matched++;
+          }
+          // 노션에 없는 회원은 pending 유지 (수동 체크 보존)
+        }
+
+        // 미매칭 노션 이름 수집
+        for(const n of notionNames){
+          const found = MEMBERS.some(m=>
+            n===m.name || n.replace(/\s/g,'')===m.name.replace(/\s/g,'') ||
+            n.includes(m.name) || m.name.includes(n)
+          );
+          if(!found) unmatched.push(n);
+        }
+
+        renderAttendance();
+        updateAttCounts();
+        renderDashboard();
+
+        // Firebase 자동 저장 (변경이 있을 때만)
+        if(changed) await saveAttendanceQuiet();
+      }
+
+      lastSyncedNames = notionNames;
+
+      const unmatchedMsg = unmatched.length > 0
+        ? ` | 미매칭: ${unmatched.join(', ')}`
+        : '';
+
+      if(notionNames.size === 0){
+        setNotionBanner('📭', `오늘(${today}) 노션 참석자 없음`, '대기 중');
+      } else {
+        setNotionBanner('✅',
+          `노션 ${notionNames.size}명 → ${matched}명 출석 반영`,
+          manual ? '수동 동기화 완료' : `자동 동기화 완료${unmatchedMsg}`
+        );
+        if(manual) showToast(`✅ 노션 동기화 완료! ${matched}명 출석 처리`);
+      }
+    } else {
+      // 변경 없음
+      setNotionBanner('✅',
+        `노션 ${notionNames.size}명 참석 (변경 없음)`,
+        new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'}) + ' 확인'
+      );
+    }
+
+  } catch(e){
+    setNotionBanner('⚠️', '노션 연동 오류', e.message);
+    if(manual) showToast('❌ 노션 연동 실패: ' + e.message);
+  }
+
+  // 30초 후 자동 재실행
+  startCountdown();
+  notionPollTimer = setTimeout(()=> window.syncNotionAttendance(false), POLL_INTERVAL_MS);
+}
+
+// Firebase 저장 (토스트 없이 조용히)
+async function saveAttendanceQuiet(){
+  if(!db) return;
+  const dateKey = dateStr(attDate);
+  const p = Object.values(attState).filter(v=>v==='checked').length;
+  const a = Object.values(attState).filter(v=>v==='absent').length;
+  try {
+    for(const m of MEMBERS){
+      const docId = `${dateKey}_${m.id}`;
+      await setDoc(doc(db,'attendance',docId),{
+        date: dateKey, memberId: m.id, memberName: m.name,
+        status: attState[m.name]||'pending',
+        updatedAt: new Date().toISOString()
+      });
+    }
+    await setDoc(doc(db,'attendance_summary',dateKey),{
+      date: dateKey, present: p, absent: a,
+      total: MEMBERS.length,
+      rate: MEMBERS.length>0?Math.round(p/MEMBERS.length*100):0
+    });
+  } catch(e){}
+}
+
+// 앱 시작 시 노션 자동 동기화 시작
+function startNotionAutoSync(){
+  // 3초 후 첫 동기화 (앱 로딩 완료 대기)
+  setTimeout(()=> window.syncNotionAttendance(false), 3000);
+}
 
 // ── 출석 저장/로드 ──
 async function loadAttendance(dateKey){
