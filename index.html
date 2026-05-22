@@ -103,9 +103,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
 .mchip-sub{font-size:10px;color:var(--text3);margin-top:2px;}
 .mchip.sel .mchip-sub,.mchip.sel-purple .mchip-sub{color:inherit;opacity:0.7;}
 /* type selector */
-.type-btn{flex:1;padding:14px 10px;border-radius:10px;border:2px solid var(--border2);text-align:center;cursor:pointer;transition:all 0.15s;}
+.type-btn{flex:1;padding:10px 6px;border-radius:10px;border:2px solid var(--border2);text-align:center;cursor:pointer;transition:all 0.15s;}
 .type-btn.active-singles{border-color:var(--accent);background:var(--accent-dim);}
 .type-btn.active-doubles{border-color:var(--purple);background:rgba(167,139,250,0.08);}
+.type-btn.active-female{border-color:var(--red);background:rgba(255,77,109,0.08);}
+.type-btn.active-mixed{border-color:var(--amber);background:rgba(255,179,71,0.08);}
+.type-lbl{font-size:11px;font-weight:600;color:var(--text2);}
 .elo-info-box{background:var(--accent-dim);border:1px solid rgba(0,229,160,0.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--accent);}
 /* 모바일 */
 .mobile-header{display:none;position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;align-items:center;justify-content:space-between;z-index:100;}
@@ -238,24 +241,21 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
     <div class="modal-body">
       <div class="form-group">
         <label>대결 유형</label>
-        <div style="display:flex;gap:10px">
-          <div id="t-singles" class="type-btn active-singles" onclick="setType('singles')">
-            <div style="font-size:22px;margin-bottom:4px">🏓</div>
-            <div style="font-size:14px;font-weight:600;color:var(--accent)">단식 1:1</div>
-          </div>
-          <div id="t-doubles" class="type-btn" onclick="setType('doubles')">
-            <div style="font-size:22px;margin-bottom:4px">🤝</div>
-            <div style="font-size:14px;font-weight:600;color:var(--text2)">복식 2:2</div>
-          </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+          <div id="t-m_singles"   class="type-btn active-singles" onclick="setType('m_singles')">   <div style="font-size:18px;margin-bottom:3px">🏓</div><div class="type-lbl" style="color:var(--accent)">남 단식</div></div>
+          <div id="t-m_doubles"   class="type-btn" onclick="setType('m_doubles')">   <div style="font-size:18px;margin-bottom:3px">🏓🏓</div><div class="type-lbl">남 복식</div></div>
+          <div id="t-f_singles"   class="type-btn" onclick="setType('f_singles')">   <div style="font-size:18px;margin-bottom:3px">🎀</div><div class="type-lbl">여 단식</div></div>
+          <div id="t-f_doubles"   class="type-btn" onclick="setType('f_doubles')">   <div style="font-size:18px;margin-bottom:3px">🎀🎀</div><div class="type-lbl">여 복식</div></div>
+          <div id="t-mixed"       class="type-btn" onclick="setType('mixed')">       <div style="font-size:18px;margin-bottom:3px">🤝</div><div class="type-lbl">혼합복식</div></div>
         </div>
       </div>
       <div class="form-group">
-        <label id="lbl-my">내 팀 (1명 선택)</label>
+        <label id="lbl-my">내 팀 선택</label>
         <div class="member-select-grid" id="grid-my"></div>
         <div class="error-msg" id="err-my">선택해주세요</div>
       </div>
       <div class="form-group">
-        <label id="lbl-opp">상대 팀 (1명 선택)</label>
+        <label id="lbl-opp">상대 팀 선택</label>
         <div class="member-select-grid" id="grid-opp"></div>
         <div class="error-msg" id="err-opp">선택해주세요</div>
       </div>
@@ -367,6 +367,20 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
   </div>
 </div>
 
+<!-- 공지 수정 모달 -->
+<div class="modal-overlay" id="notice-edit-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">공지 <span>수정</span></div><button class="modal-close" onclick="closeNoticeEditModal()">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="notice-edit-id">
+      <div class="form-group"><label>분류</label><select id="notice-edit-type"><option>일반</option><option>필독</option><option>일정</option><option>안내</option></select></div>
+      <div class="form-group"><label>제목 <span class="field-required">*</span></label><input type="text" id="notice-edit-title" placeholder="제목"><div class="error-msg" id="err-notice-edit-title">필수 입력</div></div>
+      <div class="form-group" style="margin-bottom:0"><label>내용</label><textarea id="notice-edit-body" placeholder="내용..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeNoticeEditModal()">취소</button><button class="btn btn-primary" onclick="saveNoticeEdit()">저장</button></div>
+  </div>
+</div>
+
 <!-- 게시글 작성 모달 -->
 <div class="modal-overlay" id="board-modal">
   <div class="modal">
@@ -377,6 +391,20 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,0.0
       <div class="form-group" style="margin-bottom:0"><label>내용</label><textarea id="board-body-inp" placeholder="내용..."></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeBoardModal()">취소</button><button class="btn btn-primary" onclick="submitBoard()">등록</button></div>
+  </div>
+</div>
+
+<!-- 게시글 수정 모달 -->
+<div class="modal-overlay" id="board-edit-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">게시글 <span>수정</span></div><button class="modal-close" onclick="closeBoardEditModal()">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="board-edit-id">
+      <div class="form-group"><label>작성자</label><input type="text" id="board-edit-author" placeholder="이름"></div>
+      <div class="form-group"><label>제목 <span class="field-required">*</span></label><input type="text" id="board-edit-title" placeholder="제목"><div class="error-msg" id="err-board-edit-title">필수 입력</div></div>
+      <div class="form-group" style="margin-bottom:0"><label>내용</label><textarea id="board-edit-body" placeholder="내용..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeBoardEditModal()">취소</button><button class="btn btn-primary" onclick="saveBoardEdit()">저장</button></div>
   </div>
 </div>
 
@@ -475,6 +503,18 @@ function renderChallenges(){
   else if(_chFilter==='pending') data=data.filter(c=>c.status==='pending');
   if(!data.length){list.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
+  const typeBadgeMap={
+    m_singles:'badge-green',m_doubles:'badge-blue',
+    f_singles:'badge-red',  f_doubles:'badge-purple',
+    mixed:'badge-amber',
+    singles:'badge-green',doubles:'badge-purple' // 기존 데이터 호환
+  };
+  const typeLabelMap={
+    m_singles:'🏓 남 단식',m_doubles:'🏓 남 복식',
+    f_singles:'🎀 여 단식',f_doubles:'🎀 여 복식',
+    mixed:'🤝 혼합복식',
+    singles:'🏓 단식',doubles:'🤝 복식'
+  };
   const statusLbl={pending:'⏳ 수락 대기',accepted:'✅ 수락됨',rejected:'❌ 거절됨',completed:'🏆 완료'};
   const statusBadge={pending:'badge-amber',accepted:'badge-green',rejected:'badge-red',completed:'badge-gray'};
   list.innerHTML=data.map(c=>{
@@ -486,9 +526,9 @@ function renderChallenges(){
     if(c.status==='pending')actions=`<button class="btn btn-primary btn-sm" onclick="acceptCh('${c.id}')">✅ 수락</button><button class="btn btn-danger btn-sm" onclick="rejectCh('${c.id}')">❌ 거절</button>`;
     else if(c.status==='accepted')actions=`<button class="btn btn-ghost btn-sm" onclick="openResultModal('${c.id}')">🏆 결과 입력</button>`;
     actions+=`<button class="btn btn-ghost btn-sm" onclick="deleteCh('${c.id}')" style="margin-left:auto;color:var(--text3)">🗑</button>`;
-    return `<div class="ch-card ${c.type} ${c.status}">
+    return `<div class="ch-card ${c.type||'m_singles'} ${c.status}">
       <div class="ch-top">
-        <span class="badge ${c.type==='singles'?'badge-green':'badge-purple'}">${c.type==='singles'?'🏓 단식':'🤝 복식'}</span>
+        <span class="badge ${typeBadgeMap[c.type]||'badge-gray'}">${typeLabelMap[c.type]||'단식'}</span>
         <span class="badge ${statusBadge[c.status]||'badge-gray'}">${statusLbl[c.status]||c.status}</span>
       </div>
       <div class="ch-vs">
@@ -510,7 +550,7 @@ function renderChallenges(){
 
 window.openChallengeModal=function(){
   _myTeam=[];_oppTeam=[];
-  setType('singles');
+  setType('m_singles');
   document.getElementById('ch-msg').value='';
   document.getElementById('ch-place').value='';
   ['err-my','err-opp'].forEach(id=>document.getElementById(id).classList.remove('show'));
@@ -519,36 +559,90 @@ window.openChallengeModal=function(){
 window.closeChallengeModal=function(){document.getElementById('ch-modal').classList.remove('open');}
 document.getElementById('ch-modal').addEventListener('click',e=>{if(e.target===document.getElementById('ch-modal'))window.closeChallengeModal();});
 
+// 유형 메타 정보
+const TYPE_META={
+  m_singles:{label:'남 단식',emoji:'🏓',    color:'var(--accent)',  cls:'active-singles', maxMy:1, maxOpp:1, genderMy:'남성',  genderOpp:'남성'},
+  m_doubles:{label:'남 복식',emoji:'🏓🏓',  color:'var(--blue)',    cls:'active-doubles', maxMy:2, maxOpp:2, genderMy:'남성',  genderOpp:'남성'},
+  f_singles:{label:'여 단식',emoji:'🎀',    color:'var(--red)',     cls:'active-female',  maxMy:1, maxOpp:1, genderMy:'여성',  genderOpp:'여성'},
+  f_doubles:{label:'여 복식',emoji:'🎀🎀',  color:'var(--purple)',  cls:'active-female',  maxMy:2, maxOpp:2, genderMy:'여성',  genderOpp:'여성'},
+  mixed:     {label:'혼합복식',emoji:'🤝',  color:'var(--amber)',   cls:'active-mixed',   maxMy:2, maxOpp:2, genderMy:null,    genderOpp:null,  mixedRule:true},
+};
+
 window.setType=function(type){
   _type=type;_myTeam=[];_oppTeam=[];
-  const max=type==='singles'?1:2;
-  document.getElementById('lbl-my').textContent=type==='singles'?'나 선택 (1명)':'내 팀 선택 (2명, 나 포함)';
-  document.getElementById('lbl-opp').textContent=type==='singles'?'상대 선택 (1명)':'상대 팀 선택 (2명)';
-  const s=document.getElementById('t-singles'),d=document.getElementById('t-doubles');
-  if(type==='singles'){
-    s.className='type-btn active-singles';s.querySelector('div:last-child').style.color='var(--accent)';
-    d.className='type-btn';d.querySelector('div:last-child').style.color='var(--text2)';
-  }else{
-    d.className='type-btn active-doubles';d.querySelector('div:last-child').style.color='var(--purple)';
-    s.className='type-btn';s.querySelector('div:last-child').style.color='var(--text2)';
+  const meta=TYPE_META[type];
+  // 버튼 스타일 초기화 후 활성화
+  Object.keys(TYPE_META).forEach(k=>{
+    const el=document.getElementById('t-'+k);
+    if(!el)return;
+    el.className='type-btn';
+    el.querySelector('.type-lbl').style.color='var(--text2)';
+  });
+  const activeEl=document.getElementById('t-'+type);
+  if(activeEl){
+    activeEl.className='type-btn '+meta.cls;
+    activeEl.querySelector('.type-lbl').style.color=meta.color;
   }
+  // 라벨 업데이트
+  const isSingles=meta.maxMy===1;
+  document.getElementById('lbl-my').textContent=
+    meta.mixedRule?'내 팀 (남1+여1 선택)':
+    isSingles?`나 선택 (${meta.genderMy?meta.genderMy+' ':''}1명)`:`내 팀 (${meta.genderMy?meta.genderMy+' ':''}2명)`;
+  document.getElementById('lbl-opp').textContent=
+    meta.mixedRule?'상대 팀 (남1+여1 선택)':
+    isSingles?`상대 선택 (${meta.genderOpp?meta.genderOpp+' ':''}1명)`:`상대 팀 (${meta.genderOpp?meta.genderOpp+' ':''}2명)`;
   renderGrids();
 }
 function renderGrids(){
-  renderGrid('grid-my',_myTeam,_oppTeam,_type==='singles'?1:2,true);
-  renderGrid('grid-opp',_oppTeam,_myTeam,_type==='singles'?1:2,false);
+  const meta=TYPE_META[_type]||TYPE_META['m_singles'];
+  renderGrid('grid-my',_myTeam,_oppTeam,meta.maxMy,true,meta);
+  renderGrid('grid-opp',_oppTeam,_myTeam,meta.maxOpp,false,meta);
 }
-function renderGrid(gid,sel,other,max,isMy){
+function renderGrid(gid,sel,other,max,isMy,meta){
   const g=document.getElementById(gid);if(!g)return;
-  g.innerHTML=MEMBERS.filter(m=>m.status!=='비활성').map(m=>{
-    const isSel=sel.includes(m.name),isOther=other.includes(m.name);
-    const full=!isSel&&sel.length>=max,dim=isOther||full;
-    const cls=`mchip${isSel?(isMy?' sel':' sel-purple'):''}${dim?' dim':''}`;
-    return `<div class="${cls}" onclick="${dim?'':'toggleTeam(\''+gid+'\',\''+m.name+'\','+max+','+isMy+')'}">
+  // 성별 필터
+  let members=MEMBERS.filter(m=>m.status!=='비활성');
+  if(meta.mixedRule){
+    // 혼합복식: 내 팀에 남1여1 — 이미 고른 성별 반대만 활성화
+    const myMales=_myTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='남성';});
+    const myFemales=_myTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='여성';});
+    const oppMales=_oppTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='남성';});
+    const oppFemales=_oppTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='여성';});
+    members=members.map(m=>{
+      let dim=other.includes(m.name);
+      if(!dim&&isMy){
+        if(sel.includes(m.name)){/* 이미 선택됨 — 허용 */}
+        else if(myMales.length>=1&&m.gender==='남성')dim=true;
+        else if(myFemales.length>=1&&m.gender==='여성')dim=true;
+        else if(sel.length>=max)dim=true;
+      }
+      if(!dim&&!isMy){
+        if(sel.includes(m.name)){/* 이미 선택됨 */}
+        else if(oppMales.length>=1&&m.gender==='남성')dim=true;
+        else if(oppFemales.length>=1&&m.gender==='여성')dim=true;
+        else if(sel.length>=max)dim=true;
+      }
+      return {...m,_dim:dim};
+    });
+  } else {
+    // 일반: 성별 필터 + 최대 인원 제한
+    const genderFilter=isMy?meta.genderMy:meta.genderOpp;
+    members=members.map(m=>{
+      const wrongGender=genderFilter&&m.gender&&m.gender!==genderFilter;
+      const isInOther=other.includes(m.name);
+      const isFull=!sel.includes(m.name)&&sel.length>=max;
+      return {...m,_dim:wrongGender||isInOther||isFull};
+    });
+  }
+  g.innerHTML=members.map(m=>{
+    const isSel=sel.includes(m.name);
+    const cls=`mchip${isSel?(isMy?' sel':' sel-purple'):''}${m._dim?' dim':''}`;
+    const genderIcon=m.gender==='남성'?'♂':'♀';
+    return `<div class="${cls}" onclick="${m._dim?'':'toggleTeam(\''+gid+'\',\''+m.name+'\','+max+','+isMy+')'}">
       <div class="mchip-name">${m.name}</div>
-      <div class="mchip-sub">${m.grade||'초급'}${m.gender?' · '+m.gender:''}</div>
+      <div class="mchip-sub">${m.grade||'초급'} ${m.gender?genderIcon+m.gender:''}</div>
     </div>`;
-  }).join('');
+  }).join('')||'<div style="color:var(--text3);font-size:12px;padding:8px">해당하는 회원이 없습니다</div>';
 }
 window.toggleTeam=function(gid,name,max,isMy){
   const arr=isMy?_myTeam:_oppTeam;
@@ -559,10 +653,24 @@ window.toggleTeam=function(gid,name,max,isMy){
   renderGrids();
 }
 window.submitChallenge=async function(){
-  const need=_type==='singles'?1:2;
+  const meta=TYPE_META[_type]||TYPE_META['m_singles'];
   let ok=true;
-  if(_myTeam.length<need){document.getElementById('err-my').classList.add('show');ok=false;}else document.getElementById('err-my').classList.remove('show');
-  if(_oppTeam.length<need){document.getElementById('err-opp').classList.add('show');ok=false;}else document.getElementById('err-opp').classList.remove('show');
+  // 혼합복식: 남1+여1 각각 검증
+  if(meta.mixedRule){
+    const myM=_myTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='남성';}).length;
+    const myF=_myTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='여성';}).length;
+    const opM=_oppTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='남성';}).length;
+    const opF=_oppTeam.filter(n=>{const m=MEMBERS.find(x=>x.name===n);return m?.gender==='여성';}).length;
+    if(myM<1||myF<1){document.getElementById('err-my').classList.add('show');ok=false;}
+    else document.getElementById('err-my').classList.remove('show');
+    if(opM<1||opF<1){document.getElementById('err-opp').classList.add('show');ok=false;}
+    else document.getElementById('err-opp').classList.remove('show');
+  } else {
+    if(_myTeam.length<meta.maxMy){document.getElementById('err-my').classList.add('show');ok=false;}
+    else document.getElementById('err-my').classList.remove('show');
+    if(_oppTeam.length<meta.maxOpp){document.getElementById('err-opp').classList.add('show');ok=false;}
+    else document.getElementById('err-opp').classList.remove('show');
+  }
   if(!ok)return;
   const data={type:_type,myTeam:[..._myTeam],oppTeam:[..._oppTeam],date:document.getElementById('ch-date').value,time:document.getElementById('ch-time').value,place:document.getElementById('ch-place').value.trim(),message:document.getElementById('ch-msg').value.trim(),status:'pending',createdAt:new Date().toISOString(),winner:null,score:null};
   window.closeChallengeModal();
@@ -664,13 +772,21 @@ function renderNotices(){
   if(!NOTICES.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3)">공지사항이 없습니다</div>';return;}
   const cm={필독:'badge-red',일정:'badge-amber',안내:'badge-blue',일반:'badge-gray'};
   el.innerHTML=NOTICES.map(n=>`<div class="notice-item">
-    <div class="notice-title-row"><span class="badge ${cm[n.type]||'badge-gray'}">${n.type||'일반'}</span><span class="notice-title">${n.title}</span></div>
+    <div class="notice-title-row">
+      <span class="badge ${cm[n.type]||'badge-gray'}">${n.type||'일반'}</span>
+      <span class="notice-title">${n.title}</span>
+      <div style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="openNoticeEditModal('${n.id}')" style="padding:4px 8px;font-size:11px">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNotice('${n.id}')" style="padding:4px 8px;font-size:11px">🗑</button>
+      </div>
+    </div>
     <div class="notice-meta">${n.createdAt?new Date(n.createdAt).toLocaleDateString('ko-KR'):''}</div>
     ${n.body?`<div class="notice-body">${n.body}</div>`:''}
   </div>`).join('');
 }
 window.openNoticeModal=function(){
   document.getElementById('notice-title-inp').value='';document.getElementById('notice-body-inp').value='';
+  document.getElementById('notice-type').selectedIndex=0;
   document.getElementById('err-notice-title').classList.remove('show');document.getElementById('notice-modal').classList.add('open');
 }
 window.closeNoticeModal=function(){document.getElementById('notice-modal').classList.remove('open');}
@@ -683,13 +799,45 @@ window.submitNotice=async function(){
   try{if(db)await addDoc(collection(db,'notices'),data);else{NOTICES.unshift({id:'l'+Date.now(),...data});renderNotices();}showToast('📢 공지 등록 완료');}
   catch(e){showToast('❌'+e.message);}
 }
+window.openNoticeEditModal=function(id){
+  const n=NOTICES.find(n=>n.id===id);if(!n)return;
+  document.getElementById('notice-edit-id').value=id;
+  document.getElementById('notice-edit-type').value=n.type||'일반';
+  document.getElementById('notice-edit-title').value=n.title;
+  document.getElementById('notice-edit-body').value=n.body||'';
+  document.getElementById('err-notice-edit-title').classList.remove('show');
+  document.getElementById('notice-edit-modal').classList.add('open');
+}
+window.closeNoticeEditModal=function(){document.getElementById('notice-edit-modal').classList.remove('open');}
+document.getElementById('notice-edit-modal').addEventListener('click',e=>{if(e.target===document.getElementById('notice-edit-modal'))window.closeNoticeEditModal();});
+window.saveNoticeEdit=async function(){
+  const id=document.getElementById('notice-edit-id').value;
+  const title=document.getElementById('notice-edit-title').value.trim();
+  if(!title){document.getElementById('err-notice-edit-title').classList.add('show');return;}
+  const u={type:document.getElementById('notice-edit-type').value,title,body:document.getElementById('notice-edit-body').value.trim(),updatedAt:new Date().toISOString()};
+  window.closeNoticeEditModal();
+  try{if(db)await updateDoc(doc(db,'notices',id),u);else{const i=NOTICES.findIndex(n=>n.id===id);if(i>-1)NOTICES[i]={...NOTICES[i],...u};renderNotices();}showToast('✅ 공지 수정 완료');}
+  catch(e){showToast('❌'+e.message);}
+}
+window.deleteNotice=async function(id){
+  if(!confirm('이 공지를 삭제하시겠습니까?'))return;
+  try{if(db)await deleteDoc(doc(db,'notices',id));else{NOTICES=NOTICES.filter(n=>n.id!==id);renderNotices();}showToast('🗑 공지 삭제 완료');}
+  catch(e){showToast('❌'+e.message);}
+}
 
 // ════ 게시판 ════
 function renderBoards(){
   const el=document.getElementById('board-list');
   if(!BOARDS.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text3)">게시글이 없습니다</div>';return;}
   el.innerHTML=BOARDS.map(b=>`<div class="notice-item">
-    <div class="notice-title-row"><span style="font-size:12px;color:var(--text3);margin-right:4px">${b.author||'익명'}</span><span class="notice-title" style="font-size:14px">${b.title}</span></div>
+    <div class="notice-title-row">
+      <span style="font-size:12px;color:var(--text3);margin-right:4px">${b.author||'익명'}</span>
+      <span class="notice-title" style="font-size:14px">${b.title}</span>
+      <div style="margin-left:auto;display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="openBoardEditModal('${b.id}')" style="padding:4px 8px;font-size:11px">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBoard('${b.id}')" style="padding:4px 8px;font-size:11px">🗑</button>
+      </div>
+    </div>
     <div class="notice-meta">${b.createdAt?new Date(b.createdAt).toLocaleDateString('ko-KR'):''}</div>
     ${b.body?`<div class="notice-body">${b.body}</div>`:''}
   </div>`).join('');
@@ -710,6 +858,31 @@ window.submitBoard=async function(){
   const data={author,title,body:document.getElementById('board-body-inp').value.trim(),createdAt:new Date().toISOString()};
   window.closeBoardModal();
   try{if(db)await addDoc(collection(db,'boards'),data);else{BOARDS.unshift({id:'l'+Date.now(),...data});renderBoards();}showToast('✅ 게시글 등록 완료');}
+  catch(e){showToast('❌'+e.message);}
+}
+window.openBoardEditModal=function(id){
+  const b=BOARDS.find(b=>b.id===id);if(!b)return;
+  document.getElementById('board-edit-id').value=id;
+  document.getElementById('board-edit-author').value=b.author||'';
+  document.getElementById('board-edit-title').value=b.title;
+  document.getElementById('board-edit-body').value=b.body||'';
+  document.getElementById('err-board-edit-title').classList.remove('show');
+  document.getElementById('board-edit-modal').classList.add('open');
+}
+window.closeBoardEditModal=function(){document.getElementById('board-edit-modal').classList.remove('open');}
+document.getElementById('board-edit-modal').addEventListener('click',e=>{if(e.target===document.getElementById('board-edit-modal'))window.closeBoardEditModal();});
+window.saveBoardEdit=async function(){
+  const id=document.getElementById('board-edit-id').value;
+  const title=document.getElementById('board-edit-title').value.trim();
+  if(!title){document.getElementById('err-board-edit-title').classList.add('show');return;}
+  const u={author:document.getElementById('board-edit-author').value.trim(),title,body:document.getElementById('board-edit-body').value.trim(),updatedAt:new Date().toISOString()};
+  window.closeBoardEditModal();
+  try{if(db)await updateDoc(doc(db,'boards',id),u);else{const i=BOARDS.findIndex(b=>b.id===id);if(i>-1)BOARDS[i]={...BOARDS[i],...u};renderBoards();}showToast('✅ 게시글 수정 완료');}
+  catch(e){showToast('❌'+e.message);}
+}
+window.deleteBoard=async function(id){
+  if(!confirm('이 게시글을 삭제하시겠습니까?'))return;
+  try{if(db)await deleteDoc(doc(db,'boards',id));else{BOARDS=BOARDS.filter(b=>b.id!==id);renderBoards();}showToast('🗑 게시글 삭제 완료');}
   catch(e){showToast('❌'+e.message);}
 }
 
