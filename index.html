@@ -35,19 +35,51 @@ body::before{
 }
 
 /* ── LAYOUT ── */
-body{display:flex;min-height:100dvh;}
-.app{display:flex;min-height:100dvh;position:relative;z-index:1;}
-.sidebar{
-  width:240px;height:100dvh;background:var(--c1);
-  border-right:1px solid var(--b1);display:flex;flex-direction:column;
-  padding:28px 0;flex-shrink:0;position:sticky;top:0;overflow-y:auto;
+html,body{height:100%;margin:0;padding:0;}
+body{
+  background:var(--bg);color:var(--t1);
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  -webkit-text-size-adjust:100%;
+  display:block; /* flex 제거 — app-layout이 담당 */
 }
+/* PC: 사이드바 + 콘텐츠 가로 배치 */
+.app-layout{
+  display:flex;
+  min-height:100vh;
+  position:relative;z-index:1;
+}
+.sidebar{
+  width:240px;flex-shrink:0;
+  background:var(--c1);
+  border-right:1px solid var(--b1);
+  display:flex;flex-direction:column;
+  padding:28px 0;
+  position:sticky;top:0;height:100vh;
+  overflow-y:auto;
+}
+.logo{padding:0 24px 24px;border-bottom:1px solid var(--b1);margin-bottom:18px;}
+.logo-t{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;color:var(--a);line-height:1;}
+.logo-s{font-size:11px;color:var(--t3);letter-spacing:1.2px;margin-top:5px;}
+.nav-g{font-size:10px;letter-spacing:1.8px;color:var(--t3);padding:20px 24px 7px;text-transform:uppercase;}
+.nav-i{
+  display:flex;align-items:center;gap:12px;padding:13px 24px;
+  cursor:pointer;border-left:3px solid transparent;
+  font-size:15px;font-weight:500;color:var(--t2);transition:all .15s;
+}
+.nav-i:hover{color:var(--t1);background:rgba(255,255,255,.03);}
+.nav-i.on{color:var(--a);border-left-color:var(--a);background:var(--adim);font-weight:700;}
+.ni-icon{font-size:18px;width:24px;text-align:center;}
+.db-w{padding:0 24px 20px;margin-top:auto;}
+/* 콘텐츠 영역 */
 .app-wrap{
-  flex:1;min-width:0;display:flex;flex-direction:column;
-  min-height:100dvh;position:relative;z-index:1;
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;
+  min-height:100vh;
 }
 /* ── MAIN ── */
-.main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
+.main{flex:1;width:100%;overflow-x:hidden;}
 .page{display:none;animation:fi .2s ease;}
 .page.on{display:block;}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -388,115 +420,92 @@ tr:last-child td{border-bottom:none;}
 .ai-send{background:var(--a);border:none;border-radius:10px;padding:10px 14px;color:#000;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;white-space:nowrap;}
 
 /* ════════════════════════════
-   📱 MOBILE ONLY (≤768px)
+   📱 MOBILE (≤768px)
 ════════════════════════════ */
 @media(max-width:768px){
-  /* ★ 핵심: 사이드바 완전 제거, 전체 너비 사용 */
-  .app{display:block;}
+  /* 레이아웃: 사이드바 숨기고 앱랩 풀너비 */
+  .app-layout{display:block;}
   .sidebar{display:none !important;}
-  .main{
-    display:block;
-    width:100%;
-    min-height:100dvh;
-    padding-bottom:calc(68px + var(--sb));
-  }
+  .app-wrap{min-height:100dvh;width:100%;display:block;}
+  .main{width:100%;padding-bottom:calc(68px + var(--sb));}
+
+  /* 모바일 헤더/탭/FAB 표시 */
   .mhdr{display:flex;}
   .bnav{display:flex;}
   .fab{display:flex;}
-  .page{padding:16px 16px 28px;width:100%;}
+
+  /* 페이지 */
+  .page{padding:14px 14px 24px;width:100%;}
   .ph-t{font-size:22px;}
-  .ph{margin-bottom:16px;}
+  .ph{margin-bottom:14px;}
+  .pc-only{display:none !important;}
 
   /* 카드 */
-  .card-p{padding:16px;}
+  .card-p{padding:14px;}
 
-  /* 폼: 모바일 친화 */
+  /* 폼 */
   .fr{grid-template-columns:1fr;}
   input,select,textarea{font-size:16px;padding:14px;border-radius:12px;}
   label{font-size:14px;}
 
   /* 모달 */
   .mw{max-height:95dvh;}
-  .mb{padding:16px 20px;}
-  .mf{padding:12px 20px;}
-  .mh{padding:6px 20px 16px;}
+  .mb{padding:16px 18px;}
+  .mf{padding:12px 18px;}
+  .mh{padding:6px 18px 14px;}
 
-  /* 테이블 → 카드형 */
+  /* 테이블 → 카드 */
   .tm thead{display:none;}
-  .tm tr{
-    display:flex;flex-direction:column;
-    background:var(--c2);
-    border:1px solid var(--b1);border-radius:var(--r);
-    padding:16px;margin-bottom:12px;
-  }
-  .tm td{
-    display:flex;justify-content:space-between;align-items:center;
-    padding:8px 0;border-bottom:1px solid var(--b1);
-    font-size:14px;
-  }
+  .tm tr{display:flex;flex-direction:column;background:var(--c2);border:1px solid var(--b1);border-radius:var(--r);padding:14px;margin-bottom:10px;}
+  .tm td{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--b1);font-size:13px;}
   .tm td:last-child{border-bottom:none;padding-bottom:0;}
-  .tm td::before{
-    content:attr(data-label);
-    font-size:12px;font-weight:700;color:var(--t3);
-    flex-shrink:0;margin-right:10px;
-  }
-  .tm td.ta{justify-content:flex-end;border-bottom:none;padding-top:12px;gap:8px;}
+  .tm td::before{content:attr(data-label);font-size:11px;font-weight:700;color:var(--t3);flex-shrink:0;margin-right:8px;}
+  .tm td.ta{justify-content:flex-end;border-bottom:none;padding-top:10px;gap:8px;}
   .tm td.ta::before{display:none;}
-  .tm td.ta .btn{min-height:40px;}
 
   /* 대결 카드 */
-  .cc{padding:14px 16px;margin-bottom:12px;}
-  .vs-row{
-    flex-direction:column;gap:10px;
-    padding:14px 16px;
-  }
+  .cc{padding:14px 14px;margin-bottom:10px;border-radius:16px;}
+  .vs-row{flex-direction:column;gap:8px;padding:12px 14px;}
   .vs-team{width:100%;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;}
   .vs-mid{flex-direction:row;width:100%;justify-content:center;margin:2px 0;}
-  .vs-txt{padding:5px 20px;width:auto;}
-  .vs-name{font-size:15px;}
-  .pill{font-size:12px;padding:5px 10px;}
+  .vs-txt{padding:5px 20px;}
+  .vs-name{font-size:14px;}
+  .cc-pills{gap:6px;}
+  .pill{font-size:12px;padding:4px 9px;}
   .cc-acts{gap:8px;}
-  .cc-acts .btn{min-height:44px;font-size:14px;flex:1;justify-content:center;}
+  .cc-acts .btn{min-height:44px;font-size:14px;flex:1;}
   .cc-acts .btn:last-child{flex:0;min-width:44px;}
 
   /* 유형 선택 */
-  .tg{gap:5px;}
-  .tb{padding:10px 3px;border-radius:10px;}
+  .tb{padding:9px 3px;border-radius:10px;}
   .te{font-size:16px;}
   .tl{font-size:9px;}
 
-  /* 회원 선택 */
-  .mc2{padding:10px 5px;}
-  .mn{font-size:12px;}
-
-  /* 공지/게시판 아이템 */
-  .ni{padding:18px 0;}
-  .ni-title{font-size:16px;}
-  .ni-body{font-size:14px;line-height:1.7;}
-
-  /* 필터 칩 */
-  .fc{font-size:13px;padding:7px 14px;}
+  /* 필터 */
+  .fscroll{margin-bottom:14px;}
+  .fc{font-size:13px;padding:7px 13px;}
 
   /* AI */
-  .aip{width:calc(100vw - 28px);left:14px;right:14px;}
+  .aip{width:calc(100vw - 24px);left:12px;right:12px;}
 
   /* Toast */
-  .toast{font-size:13px;padding:11px 18px;}
+  .toast{font-size:13px;padding:10px 16px;}
 }
 
 /* ════════ 작은 폰 (≤380px) ════════ */
 @media(max-width:380px){
-  .page{padding:14px 12px 26px;}
+  .page{padding:12px 12px 24px;}
   .ph-t{font-size:20px;}
-  .tg{grid-template-columns:repeat(5,1fr);gap:4px;}
   .tl{font-size:8px;}
   .vs-name{font-size:13px;}
-  .ni-title{font-size:15px;}
-  .btn-sm{font-size:13px;padding:8px 13px;}
 }
 
-/* PC에서 FAB 숨김 */
-@media(min-width:769px){.fab{display:none!important;}}
+/* PC에서 모바일 전용 숨김 */
+@media(min-width:769px){
+  .mhdr{display:none !important;}
+  .bnav{display:none !important;}
+  .fab{display:none !important;}
+}
 </style>
 </head>
 <body>
@@ -507,19 +516,21 @@ tr:last-child td{border-bottom:none;}
   <div style="color:var(--t2);font-size:15px;font-weight:600;margin-top:4px">Firebase 연결 중...</div>
 </div>
 
-<!-- PC 전용 사이드바 (모바일에서 display:none) -->
-<nav class="sidebar" id="sidebar">
-  <div class="logo"><div class="logo-t">ISATOK</div><div class="logo-s">이사탁 탁구 동호회</div></div>
-  <span class="nav-g">메뉴</span>
-  <div class="nav-i on"  onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
-  <div class="nav-i"     onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
-  <div class="nav-i"     onclick="nav('notice')"><span class="ni-icon">📢</span>공지사항</div>
-  <div class="nav-i"     onclick="nav('board')"><span class="ni-icon">💬</span>자유게시판</div>
-  <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
-</nav>
+<div class="app-layout">
 
-<!-- 메인 래퍼 (사이드바 오른쪽 or 모바일 전체) -->
-<div class="app-wrap" id="app" style="display:none">
+  <!-- PC 전용 사이드바 -->
+  <nav class="sidebar" id="sidebar" style="display:none">
+    <div class="logo"><div class="logo-t">ISATOK</div><div class="logo-s">이사탁 탁구 동호회</div></div>
+    <span class="nav-g">메뉴</span>
+    <div class="nav-i on"  onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
+    <div class="nav-i"     onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
+    <div class="nav-i"     onclick="nav('notice')"><span class="ni-icon">📢</span>공지사항</div>
+    <div class="nav-i"     onclick="nav('board')"><span class="ni-icon">💬</span>자유게시판</div>
+    <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
+  </nav>
+
+  <!-- 콘텐츠 영역 -->
+  <div class="app-wrap" id="app" style="display:none">
 
   <!-- 모바일 헤더 -->
   <div class="mhdr">
@@ -603,7 +614,8 @@ tr:last-child td{border-bottom:none;}
     </div>
 
   </main>
-</div>
+</div><!-- /app-wrap -->
+</div><!-- /app-layout -->
 
 <!-- 하단 탭바 -->
 <nav class="bnav">
@@ -828,8 +840,7 @@ async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
     db=getFirestore(initializeApp(FB));
-    setDb(true);
-    onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));renderM();renderGrids();});
+    setDb(true);    onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));renderM();renderGrids();});
     onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{CHAL=s.docs.map(d=>({id:d.id,...d.data()}));renderC();});
     onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
     onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
@@ -838,9 +849,9 @@ async function init(){
 }
 function finish(){
   g('ls').style.display='none';
-  g('app').style.display='flex';
-  // PC에서 신청 버튼 표시
-  if(window.innerWidth>768)g('pc-new-btn').style.display='';
+  g('app').style.display='flex';        // app-wrap 표시
+  const sb=g('sidebar');
+  if(sb) sb.style.display='';           // 사이드바 표시 (CSS가 모바일에서 숨김)
   const d=new Date();d.setDate(d.getDate()+1);
   g('ch-date').value=d.toISOString().slice(0,10);
 }
