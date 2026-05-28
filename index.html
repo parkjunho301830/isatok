@@ -1275,19 +1275,78 @@ window.toast=function(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2800);
 }
-window.openAI=function(){const p=g('aip');p.style.display=p.style.display==='flex'?'none':'flex';if(p.style.display==='flex')setTimeout(()=>g('ai-inp').focus(),100);}
+// ════ AI 서기 (Google Gemini - 무료) ════
+const GEMINI_KEY = 'AIzaSyCauKmm3sET7tAQgHStiD-OXCDroM3zXHk';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+
+window.openAI=function(){
+  const p=g('aip');
+  p.style.display=p.style.display==='flex'?'none':'flex';
+  if(p.style.display==='flex') setTimeout(()=>g('ai-inp').focus(),100);
+}
 window.closeAI=function(){g('aip').style.display='none';}
+
 window.sendAI=async function(){
-  const inp=g('ai-inp'),msgs=g('aim');
-  const tx=inp.value.trim();if(!tx)return;inp.value='';
-  const uEl=document.createElement('div');uEl.style.cssText='background:rgba(0,229,160,.1);border-radius:12px 4px 12px 12px;padding:10px 12px;font-size:13px;color:var(--a);max-width:90%;align-self:flex-end;';uEl.textContent=tx;msgs.appendChild(uEl);
-  const lEl=document.createElement('div');lEl.style.cssText='background:var(--s2);border-radius:4px 12px 12px 12px;padding:10px 12px;font-size:13px;color:var(--t3);max-width:90%;font-style:italic;';lEl.textContent='생각 중...';msgs.appendChild(lEl);msgs.scrollTop=msgs.scrollHeight;
+  const inp=g('ai-inp'), msgs=g('aim');
+  const tx=inp.value.trim();
+  if(!tx) return;
+  inp.value=''; inp.disabled=true;
+
+  // 사용자 메시지 버블
+  const uEl=document.createElement('div');
+  uEl.style.cssText='background:rgba(0,229,160,.12);border-radius:14px 4px 14px 14px;padding:11px 14px;font-size:14px;color:var(--a);max-width:85%;align-self:flex-end;line-height:1.5;word-break:keep-all;';
+  uEl.textContent=tx;
+  msgs.appendChild(uEl);
+
+  // 로딩 버블
+  const lEl=document.createElement('div');
+  lEl.style.cssText='background:var(--c2);border-radius:4px 14px 14px 14px;padding:11px 14px;font-size:14px;color:var(--t3);max-width:85%;font-style:italic;';
+  lEl.textContent='생각 중... 🤔';
+  msgs.appendChild(lEl);
+  msgs.scrollTop=msgs.scrollHeight;
+
+  // 동호회 컨텍스트
+  const ctx=`당신은 "이사탁 탁구 동호회"의 AI 서기입니다.
+
+현재 동호회 현황:
+- 전체 회원: ${MEMBERS.length}명 (활성: ${MEMBERS.filter(m=>m.status==='활성').length}명)
+- 대결 신청: 전체 ${CHAL.length}건 / 수락대기 ${CHAL.filter(c=>c.status==='pending').length}건 / 수락됨 ${CHAL.filter(c=>c.status==='accepted').length}건 / 완료 ${CHAL.filter(c=>c.status==='completed').length}건
+- 공지사항: ${NOTICES.length}건 / 게시글: ${BOARDS.length}건
+- 회원: ${MEMBERS.slice(0,8).map(m=>m.name+'('+m.grade+')').join(', ')}${MEMBERS.length>8?` 외 ${MEMBERS.length-8}명`:''}
+
+답변 규칙:
+1. 반드시 한국어로 답변
+2. 친절하고 밝은 말투 (이모지 적절히 사용)
+3. 3~4문장으로 간결하게`;
+
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,system:`이사탁 탁구 동호회 AI 서기. 한국어, 간결하게. 회원 ${MEMBERS.length}명, 대결 ${CHAL.length}건(대기 ${CHAL.filter(c=>c.status==='pending').length}건). 2-3문장.`,messages:[{role:'user',content:tx}]})});
+    const res = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        system_instruction: {parts:[{text: ctx}]},
+        contents: [{role:'user', parts:[{text: tx}]}],
+        generationConfig: {maxOutputTokens:800, temperature:0.7}
+      })
+    });
+
+    if(!res.ok){
+      const err=await res.json();
+      throw new Error(err?.error?.message || 'API 오류 '+res.status);
+    }
+
     const data=await res.json();
-    lEl.style.cssText='background:var(--s2);border-radius:4px 12px 12px 12px;padding:10px 12px;font-size:13px;color:var(--t1);max-width:90%;';
-    lEl.textContent=data.content?.[0]?.text||'응답 없음';
-  }catch(e){lEl.textContent='연결 오류';}
+    const answer=data?.candidates?.[0]?.content?.parts?.[0]?.text || '응답을 받지 못했습니다.';
+
+    lEl.style.cssText='background:var(--c2);border-radius:4px 14px 14px 14px;padding:11px 14px;font-size:14px;color:var(--t1);max-width:85%;line-height:1.65;word-break:keep-all;white-space:pre-wrap;';
+    lEl.textContent=answer;
+
+  }catch(e){
+    lEl.style.cssText='background:rgba(255,77,109,.1);border-radius:4px 14px 14px 14px;padding:11px 14px;font-size:13px;color:var(--red);max-width:85%;';
+    lEl.textContent='⚠️ 오류: '+e.message;
+  }
+
+  inp.disabled=false;
   msgs.scrollTop=msgs.scrollHeight;
 }
 
@@ -1295,8 +1354,5 @@ window.sendAI=async function(){
 window.setF('all');
 init();
 </script>
-</body>
-</html>
-
 </body>
 </html>
