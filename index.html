@@ -176,6 +176,14 @@ tr:last-child td{border-bottom:none;}
   opacity:0;pointer-events:none;transition:opacity .22s;
 }
 .mo.on{opacity:1;pointer-events:all;}
+/* 작성용 모달(공지/게시판): 키보드 위 고정 */
+.mo.write-mo{align-items:flex-start;padding-top:max(env(safe-area-inset-top,0px), 8px);}
+.mo.write-mo .mw{
+  border-radius:var(--rxl);
+  margin:0 10px;
+  max-width:620px;
+  width:calc(100% - 20px);
+}
 .mw{
   background:var(--c1);border:1px solid var(--b2);
   border-radius:var(--rxl) var(--rxl) 0 0;
@@ -192,6 +200,7 @@ tr:last-child td{border-bottom:none;}
   background:var(--b2);border-radius:3px;
   margin:16px auto 8px;
 }
+.mo.write-mo .mw::before{display:none;}
 .mo.on .mw{transform:translateY(0);}
 .mh{
   padding:8px 24px 18px;border-bottom:1px solid var(--b1);
@@ -211,12 +220,44 @@ tr:last-child td{border-bottom:none;}
 .mf{
   padding:14px 24px;border-top:1px solid var(--b1);
   display:flex;gap:10px;justify-content:flex-end;
-  position:sticky;bottom:0;background:var(--c1);
+  position:sticky;bottom:0;background:var(--c1);z-index:1;
 }
 /* 모달 버튼 풀너비 (모바일) */
 @media(max-width:500px){
-  .mf{flex-direction:column-reverse;}
-  .mf .btn{width:100%;}
+  .mf .btn{flex:1;}
+}
+/* 모바일: 작성 모달 전체화면 대응 */
+@media(max-width:768px){
+  .mo.write-mo{
+    align-items:stretch;
+    padding:0;
+  }
+  .mo.write-mo .mw{
+    border-radius:0;
+    margin:0;
+    width:100%;
+    max-width:100%;
+    max-height:100dvh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  .mo.write-mo .mb{
+    flex:1;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  /* textarea: 모바일에서 충분한 높이 */
+  .mo.write-mo textarea{
+    min-height:120px;
+    font-size:16px;
+  }
+  /* 버튼 풀너비 */
+  .mo.write-mo .mf{
+    flex-direction:row;
+    gap:10px;
+  }
+  .mo.write-mo .mf .btn{flex:1;}
 }
 
 /* ── 공지/게시판 아이템 ── */
@@ -744,7 +785,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ══ 공지 작성 모달 ══ -->
-<div class="mo" id="mo-notice">
+<div class="mo write-mo" id="mo-notice">
   <div class="mw">
     <div class="mh"><div class="mt">공지 <em>작성</em></div><button class="mc-btn" onclick="closeMo('mo-notice')">✕</button></div>
     <div class="mb">
@@ -757,7 +798,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ══ 공지 수정 모달 ══ -->
-<div class="mo" id="mo-nedit">
+<div class="mo write-mo" id="mo-nedit">
   <div class="mw">
     <div class="mh"><div class="mt">공지 <em>수정</em></div><button class="mc-btn" onclick="closeMo('mo-nedit')">✕</button></div>
     <div class="mb">
@@ -771,7 +812,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ══ 게시글 작성 모달 ══ -->
-<div class="mo" id="mo-board">
+<div class="mo write-mo" id="mo-board">
   <div class="mw">
     <div class="mh"><div class="mt">게시글 <em>작성</em></div><button class="mc-btn" onclick="closeMo('mo-board')">✕</button></div>
     <div class="mb">
@@ -784,7 +825,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ══ 게시글 수정 모달 ══ -->
-<div class="mo" id="mo-bedit">
+<div class="mo write-mo" id="mo-bedit">
   <div class="mw">
     <div class="mh"><div class="mt">게시글 <em>수정</em></div><button class="mc-btn" onclick="closeMo('mo-bedit')">✕</button></div>
     <div class="mb">
@@ -861,9 +902,26 @@ function setDb(ok){
 }
 
 // ── 모달 헬퍼 ──
-function openMo(id){g(id).classList.add('on');}
-window.closeMo=function(id){g(id).classList.remove('on');}
-document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on');}));
+function openMo(id){
+  const el = g(id);
+  el.classList.add('on');
+  // 작성 모달: 첫 번째 입력 필드로 포커스
+  if(el.classList.contains('write-mo')){
+    setTimeout(()=>{
+      const first = el.querySelector('input:not([type=hidden]), textarea');
+      if(first) first.focus();
+    }, 320);
+  }
+  // 스크롤 잠금
+  document.body.style.overflow = 'hidden';
+}
+window.closeMo=function(id){
+  g(id).classList.remove('on');
+  document.body.style.overflow = '';
+}
+document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
+  if(e.target===m){ m.classList.remove('on'); document.body.style.overflow=''; }
+}));
 
 // ── 네비 ──
 window.nav=function(id){
@@ -1126,8 +1184,10 @@ function renderN(){
   </div>`).join('');
 }
 window.openNoticeModal=function(){
-  ['ntitle','nbody'].forEach(id=>g(id).value='');g('ntype').selectedIndex=0;
-  g('e-nt').classList.remove('on');openMo('mo-notice');
+  ['ntitle','nbody'].forEach(id=>g(id).value='');
+  g('ntype').selectedIndex=0;
+  g('e-nt').classList.remove('on');
+  openMo('mo-notice');
 }
 window.submitNotice=async function(){
   const title=g('ntitle').value.trim();
@@ -1175,7 +1235,8 @@ function renderB(){
 }
 window.openBoardModal=function(){
   ['bauthor','btitle','bbody'].forEach(id=>g(id).value='');
-  ['e-ba','e-bt'].forEach(id=>g(id).classList.remove('on'));openMo('mo-board');
+  ['e-ba','e-bt'].forEach(id=>g(id).classList.remove('on'));
+  openMo('mo-board');
 }
 window.submitBoard=async function(){
   const author=g('bauthor').value.trim(),title=g('btitle').value.trim();
