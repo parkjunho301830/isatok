@@ -1277,7 +1277,7 @@ window.toast=function(msg){
 }
 // ════ AI 서기 (Google Gemini - 무료) ════
 const GEMINI_KEY = 'AIzaSyCauKmm3sET7tAQgHStiD-OXCDroM3zXHk';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`;
 
 window.openAI=function(){
   const p=g('aip');
@@ -1324,8 +1324,9 @@ window.sendAI=async function(){
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        system_instruction: {parts:[{text: ctx}]},
-        contents: [{role:'user', parts:[{text: tx}]}],
+        contents: [
+          {role:'user', parts:[{text: ctx + '\n\n사용자 질문: ' + tx}]}
+        ],
         generationConfig: {maxOutputTokens:800, temperature:0.7}
       })
     });
