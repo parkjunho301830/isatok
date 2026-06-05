@@ -1377,7 +1377,8 @@ function _setShareHint(){
     hint.innerHTML='💡 카카오톡에서 열려 있습니다.<br>📋 복사 버튼으로 메시지를 복사한 후<br>채팅방에 붙여넣기 하세요.';
   } else if(_isMobile()&&navigator.share){
     // 모바일 + Web Share API 지원 (Android Chrome, iOS Safari 등)
-    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>공유 시트에서 카카오톡을 선택하세요.';
+    // [수정] Android에서 Intent URL 대신 Web Share API(OS 공유 시트) 사용 안내로 변경
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>공유 시트가 열립니다. 카카오톡을 선택하세요.';
   } else if(_isMobile()){
     // 모바일이지만 Web Share API 미지원
     hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 눌러주세요.<br>카카오톡 앱이 없으면 📋 복사 후 붙여넣기 하세요.';
@@ -1405,67 +1406,32 @@ window.shareKakao=function(id){
   openShareModal(c);
 }
 
-// ── 실제 카카오톡 공유 처리 (3단계 Fallback)
-// 1단계: Android - Intent URL로 카카오톡 앱 직접 호출
-// 2단계: 모바일 - Web Share API (OS 공유 시트 → 카카오톡 선택)
-// 3단계: PC/미지원 - 클립보드 복사 후 안내
+// ── 실제 카카오톡 공유 처리 (2단계 Fallback)
+// [수정] Android Intent URL 방식 제거 (카카오톡 미지원으로 "알 수 없는 오류" 발생)
+// 1단계: 모바일(Android/iOS) - Web Share API (OS 공유 시트 → 카카오톡 선택)
+// 2단계: PC/미지원 - 클립보드 복사 후 안내
 window.doKakaoShare=function(){
   var txt=window._shareText||'';
   if(!txt)return;
 
-  var ua=navigator.userAgent;
-  var isAndroid=/Android/i.test(ua);
-  var isIOS=/iPhone|iPad|iPod/i.test(ua);
-
-  // ── Android: Intent URL 스킴으로 카카오톡 앱 직접 호출
-  // 카카오톡이 설치된 경우 앱이 열리고, 미설치 시 Play Store로 이동
-  if(isAndroid){
-    // 메시지를 URL 인코딩하여 카카오톡 Intent로 전달
-    // sendText 액션은 카카오톡 채팅방 선택 화면을 띄워 텍스트 공유
-    var encoded=encodeURIComponent(txt);
-    var intentUrl='intent://send?text='+encoded+'#Intent;scheme=kakaolink;package=com.kakao.talk;end';
-    // a 태그를 동적 생성하여 Intent URL 실행
-    var a=document.createElement('a');
-    a.href=intentUrl;
-    // 실제 이동 전에 Web Share API도 함께 시도 (더 안정적)
-    if(navigator.share){
-      navigator.share({
-        title:'🏓 이사탁 탁구 동호회 대결 신청',
-        text:txt
-      }).then(function(){
-        toast('✅ 공유 완료!');
-      }).catch(function(err){
-        if(err&&err.name!=='AbortError'){
-          // Web Share 실패 시 클립보드 복사로 최종 fallback
-          _copyToClipboard(txt);
-          toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
-        }
-      });
-    } else {
-      // Web Share 미지원 시 Intent URL 직접 이동
-      window.location.href=intentUrl;
-      // 앱 미설치 대비 1.5초 후 클립보드 복사 fallback
-      setTimeout(function(){
-        _copyToClipboard(txt);
-        toast('📋 카카오톡 앱이 없으면 복사 후 붙여넣기 하세요');
-      },1500);
-    }
-    return;
-  }
-
-  // ── iOS / 기타 모바일: Web Share API (공유 시트에서 카카오톡 선택)
+  // ── 모바일(Android/iOS): Web Share API 사용 (OS 공유 시트에서 카카오톡 선택)
+  // [수정] Android Intent URL(kakaolink scheme)은 카카오 SDK 없이 텍스트 공유 미지원
+  //        → navigator.share() 사용 시 OS 공유 시트가 뜨고 카카오톡 선택 가능
   if(navigator.share){
     navigator.share({
       title:'🏓 이사탁 탁구 동호회 대결 신청',
       text:txt
     }).then(function(){
+      // 공유 완료 (사용자가 공유 시트에서 카카오톡 선택 후 전송)
       toast('✅ 공유 완료!');
     }).catch(function(err){
-      // AbortError(사용자 취소)는 무시, 그 외 오류만 fallback 처리
-      if(err&&err.name!=='AbortError'){
-        _copyToClipboard(txt);
-        toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
+      if(!err || err.name === 'AbortError'){
+        // 사용자가 공유 시트를 직접 닫은 경우 → 아무 처리 없음
+        return;
       }
+      // Web Share API 자체 오류 → 클립보드 복사 fallback
+      _copyToClipboard(txt);
+      toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
     });
     return;
   }
