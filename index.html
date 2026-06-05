@@ -754,22 +754,21 @@ tr:last-child td{border-bottom:none;}
     <div class="mb">
       <div class="share-box">
         <div class="share-box-t">📣 도전장이 등록됐어요!</div>
-        <div class="share-box-p">아래 메시지를 카카오톡으로 상대방에게 전달하세요.<br>버튼을 누르면 카카오톡이 열립니다.</div>
+        <div class="share-box-p">아래 버튼을 눌러 카카오톡으로 상대방에게 바로 전달하세요!</div>
         <!-- 공유 메시지 미리보기 -->
         <div class="share-preview" id="kakao-preview"></div>
-        <!-- 버튼 영역 -->
+        <!-- 버튼 영역: 카카오톡 직접 열기 + 복사 -->
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn-kakao" style="flex:1" onclick="doKakaoShare()">
-            <span class="kt-icon">💬</span> 공유하기 (카카오톡 선택)
+            <span class="kt-icon">💬</span> 카카오톡으로 공유
           </button>
           <button class="btn btn-g" style="min-height:44px;padding:10px 16px;font-size:14px" onclick="copyShareMsg()" title="클립보드에 복사">
             📋 복사
           </button>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.6">
-        ※ 모바일에서 [공유하기] 버튼을 누르면 공유 시트가 열립니다<br>카카오톡을 선택하면 친구에게 바로 전달할 수 있어요<br>PC에서는 📋 복사 후 카카오톡에 붙여넣기 하세요
-      </div>
+      <!-- 환경별 안내 문구 (JS로 동적 표시) -->
+      <div id="share-hint" style="font-size:12px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.6"></div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-kakao')">닫기</button>
@@ -1337,17 +1336,18 @@ window.delBd=async function(id){
 }
 
 // ════ 카카오톡 공유 ════
-// 공유 메시지 텍스트 생성 함수
+
+// ── 공유 메시지 텍스트 생성 함수
 function buildShareText(c){
-  const tm=TM[c.type]||TM.ms;
-  const myT=(c.myTeam||[]).join(' · ');
-  const opT=(c.oppTeam||[]).join(' · ');
-  const dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
-  const lines=[
+  var tm=TM[c.type]||TM.ms;
+  var myT=(c.myTeam||[]).join(' · ');
+  var opT=(c.oppTeam||[]).join(' · ');
+  var dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
+  var lines=[
     '🏓 이사탁 탁구 동호회 대결 신청',
     '─────────────────',
-    `🏅 유형: ${tm.lb}`,
-    `⚔️ ${myT} VS ${opT}`,
+    '🏅 유형: '+tm.lb,
+    '⚔️ '+myT+' VS '+opT,
     '',
   ];
   if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
@@ -1358,62 +1358,131 @@ function buildShareText(c){
   return lines.join('\n');
 }
 
-// 대결 신청 완료 직후 공유 모달 열기 (submitCh 에서 호출)
+// ── 현재 환경이 모바일인지 판별 (User-Agent 기반)
+function _isMobile(){
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+// ── 현재 환경이 카카오톡 인앱 브라우저인지 판별
+function _isKakaoInApp(){
+  return /KAKAOTALK/i.test(navigator.userAgent);
+}
+
+// ── 환경에 따라 공유 모달 하단 힌트 텍스트를 동적으로 세팅
+function _setShareHint(){
+  var hint=g('share-hint');
+  if(!hint)return;
+  if(_isKakaoInApp()){
+    // 카카오톡 인앱 브라우저: 공유 시트 미지원 → 복사 안내
+    hint.innerHTML='💡 카카오톡에서 열려 있습니다.<br>📋 복사 버튼으로 메시지를 복사한 후<br>채팅방에 붙여넣기 하세요.';
+  } else if(_isMobile()&&navigator.share){
+    // 모바일 + Web Share API 지원 (Android Chrome, iOS Safari 등)
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>공유 시트에서 카카오톡을 선택하세요.';
+  } else if(_isMobile()){
+    // 모바일이지만 Web Share API 미지원
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 눌러주세요.<br>카카오톡 앱이 없으면 📋 복사 후 붙여넣기 하세요.';
+  } else {
+    // PC 환경
+    hint.innerHTML='💻 PC에서는 📋 복사 후<br>카카오톡 PC 버전 또는 모바일에 붙여넣기 하세요.';
+  }
+}
+
+// ── 대결 신청 완료 직후 공유 모달 열기 (submitCh 에서 호출)
 window.openShareModal=function(c){
-  const txt=buildShareText(c);
+  var txt=buildShareText(c);
   g('kakao-preview').textContent=txt;
-  // _shareText 에 텍스트 저장해 두고, doKakaoShare / copyShareMsg 에서 사용
+  // _shareText에 텍스트 저장해 두고, doKakaoShare / copyShareMsg 에서 사용
   window._shareText=txt;
+  // 환경별 힌트 표시
+  _setShareHint();
   openMo('mo-kakao');
 }
 
-// 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
+// ── 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
 window.shareKakao=function(id){
-  const c=CHAL.find(c=>c.id===id);
+  var c=CHAL.find(function(c){return c.id===id;});
   if(!c){toast('❌ 대결 정보를 찾을 수 없습니다');return;}
   openShareModal(c);
 }
 
-// 실제 카카오톡 전송 처리
-// ※ kakaolink:// URL 스킴은 공식 미지원 → 오류 발생
-//   대신 Web Share API(navigator.share)를 우선 사용하고,
-//   미지원 환경(PC 등)에서는 클립보드 복사로 fallback 처리
+// ── 실제 카카오톡 공유 처리 (3단계 Fallback)
+// 1단계: Android - Intent URL로 카카오톡 앱 직접 호출
+// 2단계: 모바일 - Web Share API (OS 공유 시트 → 카카오톡 선택)
+// 3단계: PC/미지원 - 클립보드 복사 후 안내
 window.doKakaoShare=function(){
-  const txt=window._shareText||'';
+  var txt=window._shareText||'';
   if(!txt)return;
 
-  // Web Share API 지원 여부 확인 (모바일 Chrome/Safari 등 지원)
-  // navigator.share 호출 시 OS 공유 시트가 뜨고, 카카오톡 선택 가능
+  var ua=navigator.userAgent;
+  var isAndroid=/Android/i.test(ua);
+  var isIOS=/iPhone|iPad|iPod/i.test(ua);
+
+  // ── Android: Intent URL 스킴으로 카카오톡 앱 직접 호출
+  // 카카오톡이 설치된 경우 앱이 열리고, 미설치 시 Play Store로 이동
+  if(isAndroid){
+    // 메시지를 URL 인코딩하여 카카오톡 Intent로 전달
+    // sendText 액션은 카카오톡 채팅방 선택 화면을 띄워 텍스트 공유
+    var encoded=encodeURIComponent(txt);
+    var intentUrl='intent://send?text='+encoded+'#Intent;scheme=kakaolink;package=com.kakao.talk;end';
+    // a 태그를 동적 생성하여 Intent URL 실행
+    var a=document.createElement('a');
+    a.href=intentUrl;
+    // 실제 이동 전에 Web Share API도 함께 시도 (더 안정적)
+    if(navigator.share){
+      navigator.share({
+        title:'🏓 이사탁 탁구 동호회 대결 신청',
+        text:txt
+      }).then(function(){
+        toast('✅ 공유 완료!');
+      }).catch(function(err){
+        if(err&&err.name!=='AbortError'){
+          // Web Share 실패 시 클립보드 복사로 최종 fallback
+          _copyToClipboard(txt);
+          toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
+        }
+      });
+    } else {
+      // Web Share 미지원 시 Intent URL 직접 이동
+      window.location.href=intentUrl;
+      // 앱 미설치 대비 1.5초 후 클립보드 복사 fallback
+      setTimeout(function(){
+        _copyToClipboard(txt);
+        toast('📋 카카오톡 앱이 없으면 복사 후 붙여넣기 하세요');
+      },1500);
+    }
+    return;
+  }
+
+  // ── iOS / 기타 모바일: Web Share API (공유 시트에서 카카오톡 선택)
   if(navigator.share){
     navigator.share({
       title:'🏓 이사탁 탁구 동호회 대결 신청',
       text:txt
     }).then(function(){
-      // 공유 성공 (사용자가 앱 선택 완료)
       toast('✅ 공유 완료!');
     }).catch(function(err){
-      // 사용자가 공유 취소한 경우(AbortError)는 무시,
-      // 그 외 오류는 클립보드 복사로 대체
-      if(err && err.name !== 'AbortError'){
+      // AbortError(사용자 취소)는 무시, 그 외 오류만 fallback 처리
+      if(err&&err.name!=='AbortError'){
         _copyToClipboard(txt);
         toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
       }
     });
-  } else {
-    // PC 또는 Web Share API 미지원 환경 → 클립보드 복사 안내
-    _copyToClipboard(txt);
-    toast('📋 메시지가 복사됐습니다! 카카오톡에 붙여넣기 하세요');
+    return;
   }
+
+  // ── PC 또는 Web Share API 미지원 환경: 클립보드 복사
+  _copyToClipboard(txt);
+  toast('📋 메시지가 복사됐습니다! 카카오톡에 붙여넣기 하세요');
 }
 
-// 클립보드 복사 버튼
+// ── 클립보드 복사 버튼
 window.copyShareMsg=function(){
-  const txt=window._shareText||'';
+  var txt=window._shareText||'';
   _copyToClipboard(txt);
   toast('📋 복사 완료! 카카오톡에 붙여넣기 하세요');
 }
 
-// 클립보드 복사 내부 헬퍼
+// ── 클립보드 복사 내부 헬퍼 (Clipboard API → execCommand fallback)
 function _copyToClipboard(txt){
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).catch(function(){_fallbackCopy(txt);});
@@ -1421,10 +1490,18 @@ function _copyToClipboard(txt){
     _fallbackCopy(txt);
   }
 }
+
+// ── execCommand 방식 클립보드 복사 (구형 브라우저 대응)
 function _fallbackCopy(txt){
   var ta=document.createElement('textarea');
-  ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
-  document.body.appendChild(ta);ta.focus();ta.select();
+  ta.value=txt;
+  ta.style.position='fixed';
+  ta.style.opacity='0';
+  ta.style.top='0';
+  ta.style.left='0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
   try{document.execCommand('copy');}catch(e){}
   document.body.removeChild(ta);
 }
