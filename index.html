@@ -6,6 +6,10 @@
 <meta name="theme-color" content="#0a0a0f">
 <title>이사탁 탁구 동호회</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<!-- 카카오 JavaScript SDK (채팅방 선택 후 직접 전송 기능) -->
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+  integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+  crossorigin="anonymous"></script>
 <style>
 /* ── 변수 ── */
 :root{
@@ -1373,18 +1377,14 @@ function _setShareHint(){
   var hint=g('share-hint');
   if(!hint)return;
   if(_isKakaoInApp()){
-    // 카카오톡 인앱 브라우저: 공유 시트 미지원 → 복사 안내
-    hint.innerHTML='💡 카카오톡에서 열려 있습니다.<br>📋 복사 버튼으로 메시지를 복사한 후<br>채팅방에 붙여넣기 하세요.';
-  } else if(_isMobile()&&navigator.share){
-    // 모바일 + Web Share API 지원 (Android Chrome, iOS Safari 등)
-    // [수정] Android에서 Intent URL 대신 Web Share API(OS 공유 시트) 사용 안내로 변경
-    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>공유 시트가 열립니다. 카카오톡을 선택하세요.';
+    // 카카오톡 인앱 브라우저: SDK 공유 피커가 바로 열릴 수 있음
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방 선택 화면이 열립니다.';
   } else if(_isMobile()){
-    // 모바일이지만 Web Share API 미지원
-    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 눌러주세요.<br>카카오톡 앱이 없으면 📋 복사 후 붙여넣기 하세요.';
+    // 모바일: SDK가 카카오톡 채팅방 선택 피커를 직접 오픈
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방을 선택해서 바로 전송할 수 있어요!';
   } else {
-    // PC 환경
-    hint.innerHTML='💻 PC에서는 📋 복사 후<br>카카오톡 PC 버전 또는 모바일에 붙여넣기 하세요.';
+    // PC 환경: SDK가 카카오톡 공유 창 오픈 (카카오 계정 로그인 필요할 수 있음)
+    hint.innerHTML='💻 [카카오톡으로 공유] 버튼을 누르면<br>카카오톡 공유 창이 열립니다.<br>또는 📋 복사 후 카카오톡에 붙여넣기 하세요.';
   }
 }
 
@@ -1406,39 +1406,49 @@ window.shareKakao=function(id){
   openShareModal(c);
 }
 
+// ── 카카오 SDK 초기화 (앱 JS 키)
+// Kakao.Share.sendDefault() 사용 시 채팅방 선택 피커가 뜨고 직접 전송 가능
+var _kakaoReady = false;
+function _initKakao(){
+  if(_kakaoReady) return true;
+  if(typeof Kakao === 'undefined'){
+    console.warn('카카오 SDK 로드 실패');
+    return false;
+  }
+  // 중복 초기화 방지
+  if(!Kakao.isInitialized()){
+    Kakao.init('7da5c6757ca9aa96c346e1349a7cbce1');
+  }
+  _kakaoReady = true;
+  return true;
+}
+
 // ── 실제 카카오톡 공유 처리 (2단계 Fallback)
-// [수정] Android Intent URL 방식 제거 (카카오톡 미지원으로 "알 수 없는 오류" 발생)
-// 1단계: 모바일(Android/iOS) - Web Share API (OS 공유 시트 → 카카오톡 선택)
-// 2단계: PC/미지원 - 클립보드 복사 후 안내
+// 1단계: 카카오 SDK sendDefault → 채팅방 선택 피커 → 직접 전송
+// 2단계: SDK 미지원(구형 브라우저 등) → 클립보드 복사 후 안내
 window.doKakaoShare=function(){
   var txt=window._shareText||'';
   if(!txt)return;
 
-  // ── 모바일(Android/iOS): Web Share API 사용 (OS 공유 시트에서 카카오톡 선택)
-  // [수정] Android Intent URL(kakaolink scheme)은 카카오 SDK 없이 텍스트 공유 미지원
-  //        → navigator.share() 사용 시 OS 공유 시트가 뜨고 카카오톡 선택 가능
-  if(navigator.share){
-    navigator.share({
-      title:'🏓 이사탁 탁구 동호회 대결 신청',
-      text:txt
-    }).then(function(){
-      // 공유 완료 (사용자가 공유 시트에서 카카오톡 선택 후 전송)
-      toast('✅ 공유 완료!');
-    }).catch(function(err){
-      if(!err || err.name === 'AbortError'){
-        // 사용자가 공유 시트를 직접 닫은 경우 → 아무 처리 없음
-        return;
+  // ── 카카오 SDK 초기화 시도
+  if(_initKakao()){
+    // sendDefault: 텍스트 메시지 템플릿으로 카카오톡 채팅방 선택 피커 오픈
+    // 사용자가 채팅방(또는 친구)을 선택하면 해당 대화방으로 메시지가 직접 전송됨
+    Kakao.Share.sendDefault({
+      objectType: 'text',
+      text: txt,
+      link: {
+        // 메시지 내 링크 클릭 시 이동할 URL (현재 GitHub Pages 주소)
+        mobileWebUrl: window.location.href,
+        webUrl: window.location.href
       }
-      // Web Share API 자체 오류 → 클립보드 복사 fallback
-      _copyToClipboard(txt);
-      toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
     });
     return;
   }
 
-  // ── PC 또는 Web Share API 미지원 환경: 클립보드 복사
+  // ── SDK 로드 실패 시 fallback: 클립보드 복사
   _copyToClipboard(txt);
-  toast('📋 메시지가 복사됐습니다! 카카오톡에 붙여넣기 하세요');
+  toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
 }
 
 // ── 클립보드 복사 버튼
