@@ -460,6 +460,34 @@ tr:last-child td{border-bottom:none;}
 .ai-in input{flex:1;padding:10px 14px;font-size:14px;border-radius:10px;}
 .ai-send{background:var(--a);border:none;border-radius:10px;padding:10px 14px;color:#000;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;white-space:nowrap;}
 
+/* ── 카카오톡 공유 버튼 ── */
+.btn-kakao{
+  background:#FEE500;color:#191919;
+  border:none;border-radius:12px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:44px;padding:10px 18px;
+  font-size:15px;font-weight:800;cursor:pointer;
+  transition:all .13s;font-family:inherit;
+  box-shadow:0 4px 16px rgba(254,229,0,0.28);
+}
+.btn-kakao:active{transform:scale(.96);background:#f0d800;}
+.btn-kakao .kt-icon{font-size:20px;line-height:1;}
+/* 도전장 완료 후 공유 안내 모달 */
+.share-box{
+  background:rgba(254,229,0,.08);
+  border:1.5px solid rgba(254,229,0,.25);
+  border-radius:14px;padding:16px 18px;
+  margin-bottom:4px;
+}
+.share-box-t{font-size:14px;font-weight:700;color:#FEE500;margin-bottom:4px;}
+.share-box-p{font-size:13px;color:var(--t2);line-height:1.6;margin-bottom:12px;}
+.share-preview{
+  background:var(--c2);border-radius:10px;padding:12px 14px;
+  font-size:13px;color:var(--t2);line-height:1.7;
+  white-space:pre-wrap;word-break:keep-all;
+  margin-bottom:12px;border:1px solid var(--b1);
+}
+
 /* ════════════════════════════
    📱 MOBILE (≤768px)
 ════════════════════════════ */
@@ -713,6 +741,39 @@ tr:last-child td{border-bottom:none;}
       <div class="fg" style="margin-bottom:0"><label>스코어 (선택)</label><input type="text" id="rs" placeholder="예: 3:1 또는 21:18"></div>
     </div>
     <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-result')">취소</button><button class="btn btn-p" onclick="submitResult()">저장</button></div>
+  </div>
+</div>
+
+<!-- ══ 카카오톡 공유 모달 ══ -->
+<div class="mo" id="mo-kakao">
+  <div class="mw">
+    <div class="mh">
+      <div class="mt">💬 카카오톡 <em>공유</em></div>
+      <button class="mc-btn" onclick="closeMo('mo-kakao')">✕</button>
+    </div>
+    <div class="mb">
+      <div class="share-box">
+        <div class="share-box-t">📣 도전장이 등록됐어요!</div>
+        <div class="share-box-p">아래 메시지를 카카오톡으로 상대방에게 전달하세요.<br>버튼을 누르면 카카오톡이 열립니다.</div>
+        <!-- 공유 메시지 미리보기 -->
+        <div class="share-preview" id="kakao-preview"></div>
+        <!-- 버튼 영역 -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-kakao" style="flex:1" onclick="doKakaoShare()">
+            <span class="kt-icon">💬</span> 카카오톡으로 보내기
+          </button>
+          <button class="btn btn-g" style="min-height:44px;padding:10px 16px;font-size:14px" onclick="copyShareMsg()" title="클립보드에 복사">
+            📋 복사
+          </button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.6">
+        ※ 모바일에서는 카카오톡 앱이 직접 열립니다<br>PC에서는 메시지를 복사해 붙여넣기 하세요
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-kakao')">닫기</button>
+    </div>
   </div>
 </div>
 
@@ -971,8 +1032,8 @@ function renderC(){
     const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.place?`<span class="pill">📍 ${c.place}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
     const res=c.status==='completed'&&c.winner?`<div class="cc-result">🏆 ${c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·')} 팀 승리${c.score?' · '+c.score:''}</div>`:'';
     let acts='';
-    if(c.status==='pending')acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button>`;
-    else if(c.status==='accepted')acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button>`;
+    if(c.status==='pending')acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    else if(c.status==='accepted')acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
     return `<div class="cc ${tm.cls} ${c.status}">
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span><span class="badge ${SB[c.status]||'bz'}">${SL[c.status]||c.status}</span></div></div>
@@ -1070,7 +1131,14 @@ window.submitCh=async function(){
   if(!ok)return;
   const data={type:_type,myTeam:[..._my],oppTeam:[..._opp],date:g('ch-date').value,time:g('ch-time').value,place:g('ch-place').value.trim(),message:g('ch-msg').value.trim(),status:'pending',createdAt:new Date().toISOString(),winner:null,score:null};
   closeMo('mo-ch');
-  try{if(db)await addDoc(collection(db,'challenges'),data);else{CHAL.unshift({id:'l'+Date.now(),...data});renderC();}toast('🏓 도전장을 보냈습니다!');}
+  try{
+    let newId='l'+Date.now();
+    if(db){const ref=await addDoc(collection(db,'challenges'),data);newId=ref.id;}
+    else{CHAL.unshift({id:newId,...data});renderC();}
+    toast('🏓 도전장을 보냈습니다!');
+    // 도전장 등록 완료 후 카카오 공유 모달 오픈
+    setTimeout(()=>openShareModal({id:newId,...data}),700);
+  }
   catch(e){toast('❌ '+e.message);}
 }
 window.acceptC=async function(id){
@@ -1266,6 +1334,100 @@ window.delBd=async function(id){
   if(!confirm('게시글을 삭제할까요?'))return;
   try{if(db)await deleteDoc(doc(db,'boards',id));else{BOARDS=BOARDS.filter(b=>b.id!==id);renderB();}toast('🗑 게시글 삭제');}
   catch(e){toast('❌ '+e.message);}
+}
+
+// ════ 카카오톡 공유 ════
+// 공유 메시지 텍스트 생성 함수
+function buildShareText(c){
+  const tm=TM[c.type]||TM.ms;
+  const myT=(c.myTeam||[]).join(' · ');
+  const opT=(c.oppTeam||[]).join(' · ');
+  const dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
+  const lines=[
+    '🏓 이사탁 탁구 동호회 대결 신청',
+    '─────────────────',
+    `🏅 유형: ${tm.lb}`,
+    `⚔️ ${myT} VS ${opT}`,
+    '',
+  ];
+  if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
+  if(c.place)         lines.push('📍 장소: '+c.place);
+  if(c.message)       lines.push('💬 한마디: '+c.message);
+  lines.push('─────────────────');
+  lines.push('이사탁 앱에서 수락/거절해주세요! 🙏');
+  return lines.join('\n');
+}
+
+// 대결 신청 완료 직후 공유 모달 열기 (submitCh 에서 호출)
+window.openShareModal=function(c){
+  const txt=buildShareText(c);
+  g('kakao-preview').textContent=txt;
+  // _shareText 에 텍스트 저장해 두고, doKakaoShare / copyShareMsg 에서 사용
+  window._shareText=txt;
+  openMo('mo-kakao');
+}
+
+// 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
+window.shareKakao=function(id){
+  const c=CHAL.find(c=>c.id===id);
+  if(!c){toast('❌ 대결 정보를 찾을 수 없습니다');return;}
+  openShareModal(c);
+}
+
+// 실제 카카오톡 전송 처리
+window.doKakaoShare=function(){
+  const txt=window._shareText||'';
+  if(!txt)return;
+
+  // 모바일: 카카오톡 앱 URL 스킴으로 직접 열기
+  // kakaolink:// 스킴 → 카카오톡 채팅 목록 열고 텍스트 준비
+  // 지원 환경: iOS / Android 카카오톡 설치된 경우
+  const encoded=encodeURIComponent(txt);
+  const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if(isMobile){
+    // 카카오톡 앱 URL 스킴 시도 후, 실패 시 클립보드 복사로 fallback
+    const appUrl='kakaolink://send?text='+encoded;
+    const timer=setTimeout(function(){
+      // 앱이 없거나 실행 안 된 경우 → 클립보드 복사 후 안내
+      _copyToClipboard(txt);
+      toast('📋 카카오톡 앱이 없어 클립보드에 복사했습니다');
+    },1500);
+    window.location.href=appUrl;
+    // 앱이 열리면 타이머 취소 (페이지가 blur됨)
+    window.addEventListener('blur',function onBlur(){
+      clearTimeout(timer);
+      window.removeEventListener('blur',onBlur);
+    },{once:true});
+  } else {
+    // PC: 카카오톡 웹 공유 URL 오픈 (카카오톡 PC 앱이 있으면 열림)
+    // 텍스트 전용 공유는 웹에서 지원 제한 → 클립보드 복사 + 안내
+    _copyToClipboard(txt);
+    toast('📋 메시지가 복사됐습니다! 카카오톡에 붙여넣기 하세요');
+  }
+}
+
+// 클립보드 복사 버튼
+window.copyShareMsg=function(){
+  const txt=window._shareText||'';
+  _copyToClipboard(txt);
+  toast('📋 복사 완료! 카카오톡에 붙여넣기 하세요');
+}
+
+// 클립보드 복사 내부 헬퍼
+function _copyToClipboard(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).catch(function(){_fallbackCopy(txt);});
+  } else {
+    _fallbackCopy(txt);
+  }
+}
+function _fallbackCopy(txt){
+  var ta=document.createElement('textarea');
+  ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
 }
 
 // ════ 공통 ════
