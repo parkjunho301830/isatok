@@ -1373,6 +1373,9 @@ function buildShareText(c){
   var myT=(c.myTeam||[]).join(' · ');
   var opT=(c.oppTeam||[]).join(' · ');
   var dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
+  // 텍스트 본문에 직접 삽입할 URL: 클릭 시 대결 신청 탭 + 수락 대기중 필터 자동 이동
+  var baseUrl = window.location.href.split('#')[0];
+  var appUrl = baseUrl + '#challenge?filter=pending';
   var lines=[
     '🏓 이사탁 탁구 동호회 대결 신청',
     '─────────────────',
@@ -1384,7 +1387,8 @@ function buildShareText(c){
   if(c.place)         lines.push('📍 장소: '+c.place);
   if(c.message)       lines.push('💬 한마디: '+c.message);
   lines.push('─────────────────');
-  lines.push('이사탁 앱에서 수락/거절해주세요! 🙏');
+  lines.push('아래 링크에서 수락/거절해주세요! 🙏');
+  lines.push(appUrl);  // URL을 텍스트로 직접 삽입 → 카카오톡이 자동으로 링크 처리
   return lines.join('\n');
 }
 
