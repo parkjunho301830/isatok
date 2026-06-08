@@ -388,7 +388,6 @@ tr:last-child td{border-bottom:none;}
 }
 .mhdr-logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;color:var(--a);}
 .mhdr-r{display:flex;align-items:center;gap:14px;}
-.mhdr-ai{background:none;border:none;font-size:26px;cursor:pointer;padding:5px;line-height:1;}
 
 /* ── 하단 탭바 ── */
 .bnav{
@@ -447,22 +446,6 @@ tr:last-child td{border-bottom:none;}
 .ls{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
 .sp{width:46px;height:46px;border:3px solid var(--b1);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* ── AI 패널 ── */
-.aip{
-  display:none;position:fixed;
-  bottom:calc(82px + var(--sb));right:18px;
-  width:320px;background:var(--c1);
-  border:1px solid rgba(0,229,160,.28);
-  border-radius:var(--rl);
-  box-shadow:0 20px 50px rgba(0,0,0,.6);
-  z-index:1000;flex-direction:column;overflow:hidden;max-height:400px;
-}
-.aih{padding:14px 16px;background:linear-gradient(135deg,rgba(0,229,160,.1),rgba(77,159,255,.05));border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;}
-.aim{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;max-height:250px;}
-.ai-in{padding:10px;border-top:1px solid var(--b1);display:flex;gap:8px;}
-.ai-in input{flex:1;padding:10px 14px;font-size:14px;border-radius:10px;}
-.ai-send{background:var(--a);border:none;border-radius:10px;padding:10px 14px;color:#000;font-weight:800;cursor:pointer;font-size:14px;font-family:inherit;white-space:nowrap;}
 
 /* ── 카카오톡 공유 버튼 ── */
 .btn-kakao{
@@ -558,9 +541,6 @@ tr:last-child td{border-bottom:none;}
   .fscroll{margin-bottom:14px;}
   .fc{font-size:13px;padding:7px 13px;}
 
-  /* AI */
-  .aip{width:calc(100vw - 24px);left:12px;right:12px;}
-
   /* Toast */
   .toast{font-size:13px;padding:10px 16px;}
 }
@@ -593,7 +573,7 @@ tr:last-child td{border-bottom:none;}
 
   <!-- PC 전용 사이드바 -->
   <nav class="sidebar" id="sidebar" style="display:none">
-    <div class="logo"><div class="logo-t">ISATOK</div><div class="logo-s">이사탁 탁구 동호회</div></div>
+    <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div></div>
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
     <div class="nav-i"     onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
@@ -607,10 +587,9 @@ tr:last-child td{border-bottom:none;}
 
   <!-- 모바일 헤더 -->
   <div class="mhdr">
-    <div class="mhdr-logo">🏓 ISATOK</div>
+    <div class="mhdr-logo">🏓 이사탁</div>
     <div class="mhdr-r">
       <span id="dbm" title="연결 상태">🟢</span>
-      <button class="mhdr-ai" onclick="openAI()" title="AI 서기">🤖</button>
     </div>
   </div>
 
@@ -902,20 +881,6 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
-<!-- ══ AI 패널 ══ -->
-<div id="aip" class="aip">
-  <div class="aih">
-    <div style="font-size:14px;font-weight:800;color:var(--a)">🤖 AI 서기</div>
-    <button onclick="closeAI()" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer;line-height:1;padding:4px">✕</button>
-  </div>
-  <div class="aim" id="aim">
-    <div style="background:var(--c2);border-radius:4px 14px 14px 14px;padding:12px 14px;font-size:14px;color:var(--t1);max-width:92%;align-self:flex-start;line-height:1.6">안녕하세요! 이사탁 AI 서기입니다 🏓<br>무엇이든 물어보세요!</div>
-  </div>
-  <div class="ai-in">
-    <input type="text" id="ai-inp" placeholder="물어보세요..." onkeydown="if(event.key==='Enter')sendAI()">
-    <button class="ai-send" onclick="sendAI()">전송</button>
-  </div>
-</div>
 
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -1526,81 +1491,6 @@ window.toast=function(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2800);
 }
-// ════ AI 서기 (Google Gemini - 무료) ════
-const GEMINI_KEY = 'AIzaSyCauKmm3sET7tAQgHStiD-OXCDroM3zXHk';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-
-window.openAI=function(){
-  const p=g('aip');
-  p.style.display=p.style.display==='flex'?'none':'flex';
-  if(p.style.display==='flex') setTimeout(()=>g('ai-inp').focus(),100);
-}
-window.closeAI=function(){g('aip').style.display='none';}
-
-window.sendAI=async function(){
-  const inp=g('ai-inp'), msgs=g('aim');
-  const tx=inp.value.trim();
-  if(!tx) return;
-  inp.value=''; inp.disabled=true;
-
-  // 사용자 메시지 버블
-  const uEl=document.createElement('div');
-  uEl.style.cssText='background:rgba(0,229,160,.12);border-radius:14px 4px 14px 14px;padding:11px 14px;font-size:14px;color:var(--a);max-width:85%;align-self:flex-end;line-height:1.5;word-break:keep-all;';
-  uEl.textContent=tx;
-  msgs.appendChild(uEl);
-
-  // 로딩 버블
-  const lEl=document.createElement('div');
-  lEl.style.cssText='background:var(--c2);border-radius:4px 14px 14px 14px;padding:11px 14px;font-size:14px;color:var(--t3);max-width:85%;font-style:italic;';
-  lEl.textContent='생각 중... 🤔';
-  msgs.appendChild(lEl);
-  msgs.scrollTop=msgs.scrollHeight;
-
-  // 동호회 컨텍스트
-  const ctx=`당신은 "이사탁 탁구 동호회"의 AI 서기입니다.
-
-현재 동호회 현황:
-- 전체 회원: ${MEMBERS.length}명 (활성: ${MEMBERS.filter(m=>m.status==='활성').length}명)
-- 대결 신청: 전체 ${CHAL.length}건 / 수락대기 ${CHAL.filter(c=>c.status==='pending').length}건 / 수락됨 ${CHAL.filter(c=>c.status==='accepted').length}건 / 완료 ${CHAL.filter(c=>c.status==='completed').length}건
-- 공지사항: ${NOTICES.length}건 / 게시글: ${BOARDS.length}건
-- 회원: ${MEMBERS.slice(0,8).map(m=>m.name+'('+m.grade+')').join(', ')}${MEMBERS.length>8?` 외 ${MEMBERS.length-8}명`:''}
-
-답변 규칙:
-1. 반드시 한국어로 답변
-2. 친절하고 밝은 말투 (이모지 적절히 사용)
-3. 3~4문장으로 간결하게`;
-
-  try{
-    const res = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        system_instruction: {parts:[{text: ctx}]},
-        contents: [{role:'user', parts:[{text: tx}]}],
-        generationConfig: {maxOutputTokens:800, temperature:0.7}
-      })
-    });
-
-    if(!res.ok){
-      const err=await res.json();
-      throw new Error(err?.error?.message || 'API 오류 '+res.status);
-    }
-
-    const data=await res.json();
-    const answer=data?.candidates?.[0]?.content?.parts?.[0]?.text || '응답을 받지 못했습니다.';
-
-    lEl.style.cssText='background:var(--c2);border-radius:4px 14px 14px 14px;padding:11px 14px;font-size:14px;color:var(--t1);max-width:85%;line-height:1.65;word-break:keep-all;white-space:pre-wrap;';
-    lEl.textContent=answer;
-
-  }catch(e){
-    lEl.style.cssText='background:rgba(255,77,109,.1);border-radius:4px 14px 14px 14px;padding:11px 14px;font-size:13px;color:var(--red);max-width:85%;';
-    lEl.textContent='⚠️ 오류: '+e.message;
-  }
-
-  inp.disabled=false;
-  msgs.scrollTop=msgs.scrollHeight;
-}
-
 // 시작
 window.setF('all');
 init();
