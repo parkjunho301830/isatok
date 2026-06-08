@@ -285,8 +285,12 @@ tr:last-child td{border-bottom:none;}
 .cc.fs::before{background:var(--red);}
 .cc.fd::before{background:var(--purple);}
 .cc.mx::before{background:var(--amber);}
+.cc.open::before{background:linear-gradient(180deg,var(--amber),#ff8c00);}
 .cc.rejected{opacity:.5;}
 .cc.completed{opacity:.7;}
+/* 오픈 챌린지 펄스 효과 */
+@keyframes openPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,179,71,0);}60%{box-shadow:0 0 0 6px rgba(255,179,71,0.18);}}
+.cc.open{animation:openPulse 2.4s ease-in-out infinite;}
 
 .cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
 .cc-badges{display:flex;gap:7px;flex-wrap:wrap;}
@@ -447,7 +451,47 @@ tr:last-child td{border-bottom:none;}
 .sp{width:46px;height:46px;border:3px solid var(--b1);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── 카카오톡 공유 버튼 ── */
+/* ── 오픈 챌린지 토글 스위치 ── */
+.oc-toggle-wrap{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,179,71,0.08);
+  border:1.5px solid rgba(255,179,71,0.22);
+  border-radius:14px;padding:14px 16px;
+  margin-bottom:18px;cursor:pointer;
+  transition:all .15s;
+}
+.oc-toggle-wrap.on{background:rgba(255,179,71,0.16);border-color:rgba(255,179,71,0.45);}
+.oc-toggle-label{display:flex;align-items:center;gap:10px;}
+.oc-toggle-label .oc-icon{font-size:20px;}
+.oc-toggle-label .oc-text{font-size:14px;font-weight:700;color:var(--amber);}
+.oc-toggle-label .oc-desc{font-size:12px;color:var(--t3);margin-top:2px;}
+/* 스위치 본체 */
+.sw{position:relative;width:46px;height:26px;flex-shrink:0;}
+.sw input{opacity:0;width:0;height:0;position:absolute;}
+.sw-track{
+  position:absolute;inset:0;
+  background:var(--c3);border-radius:13px;
+  transition:background .2s;border:1.5px solid var(--b2);
+}
+.sw-track::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--t3);transition:transform .2s, background .2s;
+}
+.sw input:checked~.sw-track{background:var(--amber);border-color:var(--amber);}
+.sw input:checked~.sw-track::after{transform:translateX(20px);background:#fff;}
+
+/* ── 오픈 챌린지 수락 모달 내 내 팀 선택 안내 배너 ── */
+.oc-banner{
+  background:rgba(255,179,71,0.10);
+  border:1px solid rgba(255,179,71,0.28);
+  border-radius:12px;padding:12px 16px;
+  font-size:13px;color:var(--amber);
+  font-weight:600;margin-bottom:18px;
+  display:flex;align-items:center;gap:9px;
+}
+
+/* ── 카카오 공유 버튼 ── */
 .btn-kakao{
   background:#FEE500;color:#191919;
   border:none;border-radius:12px;
@@ -575,10 +619,10 @@ tr:last-child td{border-bottom:none;}
   <nav class="sidebar" id="sidebar" style="display:none">
     <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div></div>
     <span class="nav-g">메뉴</span>
-    <div class="nav-i on"  onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
-    <div class="nav-i"     onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
-    <div class="nav-i"     onclick="nav('notice')"><span class="ni-icon">📢</span>공지사항</div>
-    <div class="nav-i"     onclick="nav('board')"><span class="ni-icon">💬</span>자유게시판</div>
+    <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
+    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
+    <div class="nav-i"     data-page="notice" onclick="nav('notice')"><span class="ni-icon">📢</span>공지사항</div>
+    <div class="nav-i"     data-page="board" onclick="nav('board')"><span class="ni-icon">💬</span>자유게시판</div>
     <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
   </nav>
 
@@ -606,6 +650,7 @@ tr:last-child td{border-bottom:none;}
       </div>
       <div class="fscroll">
         <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
+        <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈 챌린지</button>
         <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기중</button>
         <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 수락됨</button>
         <button class="fc"    id="f-ms"         onclick="setF('ms')">🏓 남단식</button>
@@ -682,6 +727,20 @@ tr:last-child td{border-bottom:none;}
   <div class="mw">
     <div class="mh"><div class="mt">🏓 대결 <em>신청</em></div><button class="mc-btn" onclick="closeMo('mo-ch')">✕</button></div>
     <div class="mb">
+      <!-- 오픈 챌린지 토글 -->
+      <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
+        <div class="oc-toggle-label">
+          <span class="oc-icon">🔥</span>
+          <div>
+            <div class="oc-text">오픈 챌린지</div>
+            <div class="oc-desc">상대 팀 미지정 — 누구나 수락 가능</div>
+          </div>
+        </div>
+        <div class="sw">
+          <input type="checkbox" id="oc-chk" onchange="toggleOC()">
+          <span class="sw-track"></span>
+        </div>
+      </label>
       <div class="fg">
         <label>대결 유형</label>
         <div class="tg">
@@ -693,7 +752,8 @@ tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div class="fg"><label id="lbl-my">내 팀 선택</label><div class="msg" id="gmy"></div><div class="emsg" id="e-my">선택해주세요</div></div>
-      <div class="fg"><label id="lbl-opp">상대 팀 선택</label><div class="msg" id="gopp"></div><div class="emsg" id="e-opp">선택해주세요</div></div>
+      <!-- 상대 팀 영역: 오픈 챌린지 ON이면 숨김 -->
+      <div id="opp-section" class="fg"><label id="lbl-opp">상대 팀 선택</label><div class="msg" id="gopp"></div><div class="emsg" id="e-opp">선택해주세요</div></div>
       <div class="fr" style="margin-bottom:18px">
         <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
         <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
@@ -703,7 +763,7 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-ch')">취소</button>
-      <button class="btn btn-p" onclick="submitCh()">🏓 도전장 보내기</button>
+      <button class="btn btn-p" id="ch-submit-btn" onclick="submitCh()">🏓 도전장 보내기</button>
     </div>
   </div>
 </div>
@@ -755,6 +815,39 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-kakao')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 오픈 챌린지 수락 모달 ══ -->
+<!-- 오픈 챌린지 수락 시: 수락자가 자신의 팀을 구성하는 모달 -->
+<div class="mo" id="mo-accept-open">
+  <div class="mw">
+    <div class="mh">
+      <div class="mt">🔥 오픈 챌린지 <em>수락</em></div>
+      <button class="mc-btn" onclick="closeMo('mo-accept-open')">✕</button>
+    </div>
+    <div class="mb">
+      <!-- 도전자 정보 표시 배너 -->
+      <div class="oc-banner">
+        <span>🏓</span>
+        <div id="oc-challenger-info">챌린저 정보 로딩 중...</div>
+      </div>
+      <!-- 수락팀 선택 -->
+      <div class="fg">
+        <label id="lbl-accept-team">내 팀 선택</label>
+        <div class="msg" id="g-accept"></div>
+        <div class="emsg" id="e-accept">선택해주세요</div>
+      </div>
+      <!-- 수락자 한마디 -->
+      <div class="fg" style="margin-bottom:0">
+        <label>한마디 (선택)</label>
+        <input type="text" id="accept-msg" placeholder="💬 좋아요, 한번 붙어봅시다!">
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-accept-open')">취소</button>
+      <button class="btn btn-p" onclick="submitAcceptOpen()">✅ 수락 확정</button>
     </div>
   </div>
 </div>
@@ -982,9 +1075,8 @@ document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
 window.nav=function(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   g('page-'+id)?.classList.add('on');
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('on'));
-  const lbl={challenge:'대결 신청',members:'회원 관리',notice:'공지사항',board:'자유게시판'};
-  document.querySelectorAll('.nav-item').forEach(n=>{if(n.textContent.trim()===lbl[id])n.classList.add('on');});
+  // ── 사이드바 nav-i 하이라이트: data-page 속성 기준 ──
+  document.querySelectorAll('.nav-i').forEach(n=>n.classList.toggle('on',n.dataset.page===id));
   document.querySelectorAll('.bni').forEach(n=>n.classList.toggle('on',n.dataset.p===id));
   document.querySelector('.main')?.scrollTo(0,0);
   // FAB: 대결 탭에서만
@@ -1012,7 +1104,9 @@ window.setF=function(f){
 function renderC(){
   const list=g('ch-list'),empty=g('ch-empty');
   let data=[...CHAL];
-  if(_cf==='pending')        data=data.filter(c=>c.status==='pending');
+  // ── 필터 적용 ──
+  if(_cf==='pending')        data=data.filter(c=>c.status==='pending'&&!c.isOpen);
+  else if(_cf==='open')      data=data.filter(c=>c.isOpen&&c.status==='pending'); // 오픈 챌린지 필터
   else if(_cf==='accepted')  data=data.filter(c=>c.status==='accepted');
   else if(_cf==='completed') data=data.filter(c=>c.status==='completed');
   else if(_cf==='ms') data=data.filter(c=>c.type==='ms'||c.type==='singles');
@@ -1025,17 +1119,35 @@ function renderC(){
   empty.style.display='none';
   list.innerHTML=data.map(c=>{
     const tm=TM[c.type]||TM.ms;
+    // ── 오픈 챌린지 여부 판단 ──
+    const isOpen=!!c.isOpen&&c.status==='pending';
     const myH=(c.myTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
-    const opH=(c.oppTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
+    // 오픈 챌린지: 상대팀이 없으면 "누구나 도전 가능" 표시
+    const opH=isOpen
+      ?`<div class="vs-player" style="opacity:.55"><div class="av avA" style="width:34px;height:34px;font-size:16px">?</div><span class="vs-name" style="color:var(--amber)">누구나 도전 가능!</span></div>`
+      :(c.oppTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
     const dt=c.date?$ko(c.date+'T00:00'):'';
     const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.place?`<span class="pill">📍 ${c.place}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
     const res=c.status==='completed'&&c.winner?`<div class="cc-result">🏆 ${c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·')} 팀 승리${c.score?' · '+c.score:''}</div>`:'';
+    // ── 오픈 챌린지 뱃지 ──
+    const openBadge=isOpen?`<span class="badge ba">🔥 오픈 챌린지</span>`:'';
+    // ── 액션 버튼 ──
     let acts='';
-    if(c.status==='pending')acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
-    else if(c.status==='accepted')acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    if(isOpen){
+      // 오픈 챌린지 대기 상태: "수락하기(내 팀 선택)" + 거절 + 카톡 공유
+      acts=`<button class="btn btn-p btn-sm" onclick="openAcceptOpen('${c.id}')">🔥 수락하기</button>`
+          +`<button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button>`
+          +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    } else if(c.status==='pending'){
+      acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    } else if(c.status==='accepted'){
+      acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    }
     acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
-    return `<div class="cc ${tm.cls} ${c.status}">
-      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span><span class="badge ${SB[c.status]||'bz'}">${SL[c.status]||c.status}</span></div></div>
+    // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
+    const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
+    return `<div class="${cardClass}">
+      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
       <div class="vs-row">
         <div class="vs-team">${myH}</div>
         <div class="vs-mid"><span class="vs-txt">VS</span></div>
@@ -1050,10 +1162,42 @@ function renderC(){
 
 window.openChallengeModal=function(){
   _my=[];_opp=[];
+  // ── 오픈 챌린지 초기화: 토글 OFF 상태로 시작 ──
+  var chk=g('oc-chk');
+  if(chk) chk.checked=false;
+  var wrap=g('oc-toggle-wrap');
+  if(wrap) wrap.classList.remove('on');
+  var oppSec=g('opp-section');
+  if(oppSec) oppSec.style.display='';
+  var submitBtn=g('ch-submit-btn');
+  if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
   setType('ms');
   ['ch-msg','ch-place'].forEach(id=>g(id).value='');
   ['e-my','e-opp'].forEach(id=>g(id).classList.remove('on'));
   openMo('mo-ch');
+}
+
+// ── 오픈 챌린지 토글 처리 ──
+window.toggleOC=function(){
+  var chk=g('oc-chk');
+  var wrap=g('oc-toggle-wrap');
+  var oppSec=g('opp-section');
+  var submitBtn=g('ch-submit-btn');
+  // checkbox 직접 클릭이면 label의 onclick이 중복 호출되므로 label클릭 시만 토글
+  // (label onclick → checkbox onchange 방지를 위해 event 방향 통일)
+  var isOn=chk.checked;
+  wrap.classList.toggle('on',isOn);
+  // 오픈 챌린지 ON: 상대 팀 영역 숨기고 상대팀 선택 초기화
+  if(isOn){
+    oppSec.style.display='none';
+    _opp=[];
+    g('e-opp').classList.remove('on');
+    if(submitBtn) submitBtn.textContent='🔥 오픈 챌린지 올리기';
+  } else {
+    oppSec.style.display='';
+    if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
+  }
+  renderGrids();
 }
 
 window.setType=function(tp){
@@ -1115,31 +1259,192 @@ window.tgl=function(gid,name,isMy){
 }
 window.submitCh=async function(){
   const m=TM[_type]||TM.ms;
+  // ── 오픈 챌린지 여부 확인 ──
+  var isOpenMode=g('oc-chk')&&g('oc-chk').checked;
   let ok=true;
   if(m.mix){
     const myM=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
     const myF=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
-    const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
-    const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
     if(myM<1||myF<1){g('e-my').classList.add('on');ok=false;}else g('e-my').classList.remove('on');
-    if(opM<1||opF<1){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
+    // 오픈 챌린지가 아닐 때만 상대팀 검증
+    if(!isOpenMode){
+      const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+      const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+      if(opM<1||opF<1){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
+    }
   }else{
     if(_my.length<m.maxM){g('e-my').classList.add('on');ok=false;}else g('e-my').classList.remove('on');
-    if(_opp.length<m.maxO){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
+    // 오픈 챌린지가 아닐 때만 상대팀 검증
+    if(!isOpenMode){
+      if(_opp.length<m.maxO){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
+    }
   }
   if(!ok)return;
-  const data={type:_type,myTeam:[..._my],oppTeam:[..._opp],date:g('ch-date').value,time:g('ch-time').value,place:g('ch-place').value.trim(),message:g('ch-msg').value.trim(),status:'pending',createdAt:new Date().toISOString(),winner:null,score:null};
+  // ── Firestore 저장 데이터 구성 ──
+  // isOpen: true이면 오픈 챌린지로 저장 (oppTeam은 빈 배열)
+  const data={
+    type:_type,
+    myTeam:[..._my],
+    oppTeam:isOpenMode?[]:[..._opp],
+    date:g('ch-date').value,
+    time:g('ch-time').value,
+    place:g('ch-place').value.trim(),
+    message:g('ch-msg').value.trim(),
+    status:'pending',
+    isOpen:!!isOpenMode,
+    createdAt:new Date().toISOString(),
+    winner:null,
+    score:null
+  };
   closeMo('mo-ch');
   try{
     let newId='l'+Date.now();
     if(db){const ref=await addDoc(collection(db,'challenges'),data);newId=ref.id;}
     else{CHAL.unshift({id:newId,...data});renderC();}
-    toast('🏓 도전장을 보냈습니다!');
+    // 오픈 챌린지 / 일반 도전장 구분 토스트
+    toast(isOpenMode?'🔥 오픈 챌린지가 등록됐습니다!':'🏓 도전장을 보냈습니다!');
     // 도전장 등록 완료 후 카카오 공유 모달 오픈
     setTimeout(()=>openShareModal({id:newId,...data}),700);
   }
   catch(e){toast('❌ '+e.message);}
 }
+// ════ 오픈 챌린지 수락 ════
+
+// ── 오픈 챌린지 수락 모달 열기 ──
+// 수락자가 자신의 팀원을 선택한 뒤 확정하는 흐름
+var _acceptOpenId=null;   // 현재 수락 중인 챌린지 ID
+var _acceptTeam=[];       // 수락자 팀 선택 배열
+
+window.openAcceptOpen=function(id){
+  var c=CHAL.find(function(c){return c.id===id;});
+  if(!c)return;
+  _acceptOpenId=id;
+  _acceptTeam=[];
+
+  // ── 도전자 팀 정보 배너 표시 ──
+  var myNames=(c.myTeam||[]).join(' · ')||'알 수 없음';
+  var tm=TM[c.type]||TM.ms;
+  var dtStr=c.date?$ko(c.date+'T00:00'):'';
+  var infoHtml='<strong>'+myNames+'</strong> 님의 '+tm.lb+' 챌린지'
+    +(dtStr?' · 📅 '+dtStr:'')
+    +(c.place?' · 📍 '+c.place:'');
+  g('oc-challenger-info').innerHTML=infoHtml;
+
+  // ── 수락팀 선택 라벨 세팅 ──
+  var sing=tm.maxO===1;
+  g('lbl-accept-team').textContent=tm.mix?'내 팀 (남1+여1)':sing?'나 선택 ('+(tm.gO||'')+' 1명)':'내 팀 ('+(tm.gO||'')+' 2명)';
+
+  // ── 수락팀 그리드 렌더링 ──
+  renderAcceptGrid(c);
+
+  // ── 에러 메시지 / 한마디 초기화 ──
+  g('e-accept').classList.remove('on');
+  g('accept-msg').value='';
+
+  openMo('mo-accept-open');
+}
+
+// ── 오픈 챌린지 수락용 회원 그리드 렌더링 ──
+function renderAcceptGrid(c){
+  var gr=g('g-accept');if(!gr)return;
+  var tm=TM[c.type]||TM.ms;
+  var max=tm.maxO;
+  // 도전자 팀 이름 목록 (선택 불가 dim 처리)
+  var challengerTeam=c.myTeam||[];
+
+  var mems=MEMBERS.filter(function(x){return x.status!=='비활성';});
+  gr.innerHTML=mems.map(function(x){
+    var isSelected=_acceptTeam.indexOf(x.name)>-1;
+    // 도전자 팀원이면 dim 처리
+    var isDim=challengerTeam.indexOf(x.name)>-1;
+
+    // 혼합복식: 성별 쿼터 제한
+    if(!isDim&&tm.mix){
+      var mCount=_acceptTeam.filter(function(n){
+        var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='남성';
+      }).length;
+      var fCount=_acceptTeam.filter(function(n){
+        var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='여성';
+      }).length;
+      if(!isSelected){
+        if((x.gender==='남성'&&mCount>=1)||(x.gender==='여성'&&fCount>=1)||_acceptTeam.length>=max)isDim=true;
+      }
+    } else if(!isDim){
+      var gf=tm.gO;
+      if(!isSelected&&(gf&&x.gender&&x.gender!==gf||_acceptTeam.length>=max))isDim=true;
+    }
+
+    // 도전자 팀원은 이름 옆에 🏓 표시
+    var isChallengerMember=challengerTeam.indexOf(x.name)>-1;
+    return '<div class="mc2'+(isSelected?' selp':'')+(isDim?' dim':'')+'" '
+      +'onclick="'+(isDim?'':'tglAccept(\''+x.name+'\')')+'"><div class="mn">'+x.name+'</div>'
+      +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+(isChallengerMember?' 🏓':'')+'</div></div>';
+  }).join('')||'<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+}
+
+// ── 수락팀 회원 선택 토글 ──
+window.tglAccept=function(name){
+  var c=CHAL.find(function(c){return c.id===_acceptOpenId;});
+  if(!c)return;
+  var tm=TM[c.type]||TM.ms;
+  var max=tm.maxO;
+  var i=_acceptTeam.indexOf(name);
+  if(i>-1){_acceptTeam.splice(i,1);}
+  else if(_acceptTeam.length<max){_acceptTeam.push(name);}
+  renderAcceptGrid(c);
+}
+
+// ── 오픈 챌린지 수락 확정 ──
+// Firestore에 oppTeam 업데이트 + status → accepted 변경
+window.submitAcceptOpen=async function(){
+  var c=CHAL.find(function(c){return c.id===_acceptOpenId;});
+  if(!c)return;
+  var tm=TM[c.type]||TM.ms;
+
+  // ── 팀 구성 유효성 검사 ──
+  var ok=true;
+  if(tm.mix){
+    var mCount=_acceptTeam.filter(function(n){
+      var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='남성';
+    }).length;
+    var fCount=_acceptTeam.filter(function(n){
+      var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='여성';
+    }).length;
+    if(mCount<1||fCount<1){g('e-accept').classList.add('on');ok=false;}
+    else g('e-accept').classList.remove('on');
+  } else {
+    if(_acceptTeam.length<tm.maxO){g('e-accept').classList.add('on');ok=false;}
+    else g('e-accept').classList.remove('on');
+  }
+  if(!ok)return;
+
+  // ── Firestore 업데이트 데이터 ──
+  var acceptMsg=g('accept-msg').value.trim();
+  var updateData={
+    oppTeam:[..._acceptTeam],
+    status:'accepted',
+    isOpen:false,             // 수락 완료 → 오픈 챌린지 플래그 해제
+    acceptedAt:new Date().toISOString(),
+    acceptMsg:acceptMsg||null
+  };
+
+  closeMo('mo-accept-open');
+  try{
+    if(db)await updateDoc(doc(db,'challenges',_acceptOpenId),updateData);
+    else{
+      var target=CHAL.find(function(c){return c.id===_acceptOpenId;});
+      if(target){
+        target.oppTeam=[..._acceptTeam];
+        target.status='accepted';
+        target.isOpen=false;
+      }
+      renderC();
+    }
+    toast('✅ 오픈 챌린지를 수락했습니다!');
+  }
+  catch(e){toast('❌ '+e.message);}
+}
+
 window.acceptC=async function(id){
   try{if(db)await updateDoc(doc(db,'challenges',id),{status:'accepted'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='accepted');renderC();}toast('✅ 수락했습니다!');}
   catch(e){toast('❌ '+e.message);}
