@@ -629,11 +629,11 @@ tr:last-child td{border-bottom:none;}
         <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
         <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기중</button>
         <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 수락됨</button>
-        <button class="fc"    id="f-m_singles"  onclick="setF('m_singles')">🏓 남단식</button>
-        <button class="fc"    id="f-m_doubles"  onclick="setF('m_doubles')">🏓 남복식</button>
-        <button class="fc"    id="f-f_singles"  onclick="setF('f_singles')">🎀 여단식</button>
-        <button class="fc"    id="f-f_doubles"  onclick="setF('f_doubles')">🎀 여복식</button>
-        <button class="fc"    id="f-mixed"      onclick="setF('mixed')">🤝 혼합복식</button>
+        <button class="fc"    id="f-ms"         onclick="setF('ms')">🏓 남단식</button>
+        <button class="fc"    id="f-md"         onclick="setF('md')">🏓 남복식</button>
+        <button class="fc"    id="f-fs"         onclick="setF('fs')">🎀 여단식</button>
+        <button class="fc"    id="f-fd"         onclick="setF('fd')">🎀 여복식</button>
+        <button class="fc"    id="f-mx"         onclick="setF('mx')">🤝 혼합복식</button>
         <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
       </div>
       <div id="ch-empty" style="display:none;text-align:center;padding:64px 20px;color:var(--t3)">
@@ -1050,7 +1050,12 @@ function renderC(){
   if(_cf==='pending')        data=data.filter(c=>c.status==='pending');
   else if(_cf==='accepted')  data=data.filter(c=>c.status==='accepted');
   else if(_cf==='completed') data=data.filter(c=>c.status==='completed');
-  else if(_cf!=='all')       data=data.filter(c=>c.type===_cf);
+  else if(_cf==='ms') data=data.filter(c=>c.type==='ms'||c.type==='singles');
+  else if(_cf==='md') data=data.filter(c=>c.type==='md'||c.type==='doubles');
+  else if(_cf==='fs') data=data.filter(c=>c.type==='fs');
+  else if(_cf==='fd') data=data.filter(c=>c.type==='fd');
+  else if(_cf==='mx') data=data.filter(c=>c.type==='mx');
+  else if(_cf!=='all') data=data.filter(c=>c.type===_cf);
   if(!data.length){list.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
   list.innerHTML=data.map(c=>{
