@@ -520,6 +520,51 @@ tr:last-child td{border-bottom:none;}
 }
 .btn-kakao:active{transform:scale(.96);background:#f0d800;}
 .btn-kakao .kt-icon{font-size:20px;line-height:1;}
+
+/* ── 대결 신청 모달 전용 오버라이드 ──
+   write-mo이지만 회원 선택 그리드가 있어 스크롤이 필요함
+   텍스트 가시성 & 깜빡임 방지 강화 적용
+*/
+#mo-ch.write-mo .mb{
+  /* 내부 콘텐츠 스크롤 허용: 회원 그리드가 많을 때 필요 */
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+/* 대결 신청 모달 내 입력 필드 텍스트 가시성 완전 고정 */
+#mo-ch input[type="text"],
+#mo-ch input[type="date"],
+#mo-ch input[type="time"]{
+  /* iOS WebKit: -webkit-text-fill-color가 color보다 우선순위가 높아
+     background 전환 등으로 텍스트가 투명해지는 버그를 !important로 차단 */
+  color:var(--t1) !important;
+  -webkit-text-fill-color:var(--t1) !important;
+  /* 포커스 전환 시 배경색 변화로 인한 텍스트 순간 소실 방지 */
+  background-color:var(--c2) !important;
+  /* will-change 제거: 불필요한 composite layer가 오히려 깜빡임 유발 */
+  will-change:unset;
+}
+#mo-ch input[type="text"]:focus,
+#mo-ch input[type="date"]:focus,
+#mo-ch input[type="time"]:focus{
+  color:var(--t1) !important;
+  -webkit-text-fill-color:var(--t1) !important;
+  background-color:var(--c3) !important;
+}
+/* iOS 자동완성 스타일 완전 차단 */
+#mo-ch input:-webkit-autofill,
+#mo-ch input:-webkit-autofill:hover,
+#mo-ch input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--t1) !important;
+  -webkit-box-shadow:0 0 0px 1000px var(--c2) inset !important;
+  box-shadow:0 0 0px 1000px var(--c2) inset !important;
+  transition:background-color 5000s ease-in-out 0s;
+}
+/* 모바일: 대결 신청 모달 회원 그리드 높이 제한 (전체화면 모드에서 스크롤 가능하게) */
+@media(max-width:768px){
+  #mo-ch .msg{
+    max-height:160px; /* 전체화면 모드에서 너무 길어지지 않도록 제한 */
+  }
+}
 /* 도전장 완료 후 공유 안내 모달 */
 .share-box{
   background:rgba(254,229,0,.08);
@@ -740,7 +785,8 @@ tr:last-child td{border-bottom:none;}
 </nav>
 
 <!-- ══ 대결 신청 모달 ══ -->
-<div class="mo" id="mo-ch">
+<!-- write-mo 클래스 추가: 키보드 올라올 때 전체화면 모드로 입력 깜빡임/텍스트 안보임 문제 해결 -->
+<div class="mo write-mo" id="mo-ch">
   <div class="mw">
     <div class="mh"><div class="mt">🏓 대결 <em>신청</em></div><button class="mc-btn" onclick="closeMo('mo-ch')">✕</button></div>
     <div class="mb">
@@ -775,8 +821,9 @@ tr:last-child td{border-bottom:none;}
         <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
         <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
       </div>
-      <div class="fg"><label>장소</label><input type="text" id="ch-place" placeholder="예: 이사탁 코트"></div>
-      <div class="fg" style="margin-bottom:0"><label>한마디 (선택)</label><input type="text" id="ch-msg" placeholder="😄 한번 붙어봅시다!"></div>
+      <!-- autocomplete="off": iOS 자동완성 드롭다운으로 인한 레이아웃 흔들림 방지 -->
+      <div class="fg"><label>장소</label><input type="text" id="ch-place" placeholder="예: 이사탁 코트" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
+      <div class="fg" style="margin-bottom:0"><label>한마디 (선택)</label><input type="text" id="ch-msg" placeholder="😄 한번 붙어봅시다!" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-ch')">취소</button>
@@ -1026,7 +1073,18 @@ async function init(){
     onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
       MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafM)cancelAnimationFrame(_rafM);
-      _rafM=requestAnimationFrame(()=>{renderM();renderGrids();_rafM=null;});
+      _rafM=requestAnimationFrame(()=>{
+        renderM();
+        // ── 대결 신청 모달이 열려 있고 입력 필드에 포커스 중이면
+        //    renderGrids 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
+        var moEl=g('mo-ch');
+        var focused=document.activeElement;
+        var isInputFocused=focused&&(focused.id==='ch-place'||focused.id==='ch-msg');
+        if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
+          renderGrids();
+        }
+        _rafM=null;
+      });
     });
     onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
@@ -1082,7 +1140,9 @@ function openMo(id){
   const el = g(id);
   el.classList.add('on');
   // 작성 모달: 첫 번째 입력 필드로 포커스
-  if(el.classList.contains('write-mo')){
+  // 단, 대결 신청 모달(mo-ch)은 포커스 자동 이동을 하지 않음
+  // → 포커스 강제 이동 시: 키보드 팝업 → 뷰포트 리사이즈 → 레이아웃 재계산 → 깜빡임 발생
+  if(el.classList.contains('write-mo') && id !== 'mo-ch'){
     setTimeout(()=>{
       const first = el.querySelector('input:not([type=hidden]), textarea');
       if(first) first.focus();
@@ -1094,6 +1154,12 @@ function openMo(id){
 window.closeMo=function(id){
   g(id).classList.remove('on');
   document.body.style.overflow = '';
+  // ── 대결 신청 모달 닫힐 때: 입력 포커스 가드로 미뤄진 renderGrids를 재실행
+  //    (다음에 모달이 다시 열릴 때 회원 그리드가 최신 상태 반영되도록 보장)
+  if(id === 'mo-ch'){
+    // 포커스 해제 후 실행 (blur 이벤트 완료 대기)
+    setTimeout(function(){ renderGrids(); }, 50);
+  }
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){ m.classList.remove('on'); document.body.style.overflow=''; }
@@ -1291,7 +1357,20 @@ window.setType=function(tp){
   g('lbl-opp').textContent=m.mix?'상대 팀 (남1+여1)':sing?`상대 (${m.gO||''} 1명)`:`상대 팀 (${m.gO||''} 2명)`;
   renderGrids();
 }
-function renderGrids(){renderGrid('gmy',_my,_opp,true);renderGrid('gopp',_opp,_my,false);}
+function renderGrids(){
+  // ── 대결 신청 모달이 열려 있는 동안 입력 필드에 포커스가 있으면
+  //    renderGrid를 차단하여 키보드 입력 중 DOM 재렌더 → 깜빡임/텍스트 소실 방지
+  var moEl=g('mo-ch');
+  if(moEl&&moEl.classList.contains('on')){
+    var focused=document.activeElement;
+    // 포커스된 요소가 mo-ch 내부의 텍스트 입력 필드이면 렌더 건너뜀
+    if(focused&&(focused.id==='ch-place'||focused.id==='ch-msg')){
+      return;
+    }
+  }
+  renderGrid('gmy',_my,_opp,true);
+  renderGrid('gopp',_opp,_my,false);
+}
 function renderGrid(gid,sel,other,isMy){
   const gr=g(gid);if(!gr)return;
   const m=TM[_type]||TM.ms;
