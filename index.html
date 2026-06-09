@@ -138,8 +138,24 @@ input,select,textarea{
   font-size:16px; /* iOS 줌 방지: 16px 이상 */
   padding:14px 16px;width:100%;transition:border .13s;outline:none;
   -webkit-appearance:none;appearance:none;
+  /* iOS Safari: -webkit-text-fill-color가 color를 덮어씌워 텍스트가 안 보이는 문제 방지 */
+  -webkit-text-fill-color:var(--t1);
 }
-input:focus,select:focus,textarea:focus{border-color:var(--a);background:var(--c3);}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--a);background:var(--c3);
+  -webkit-text-fill-color:var(--t1);
+}
+/* iOS Safari 자동완성(autocomplete) 시 배경색이 흰색으로 바뀌는 문제 방지 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill{
+  -webkit-text-fill-color:var(--t1) !important;
+  -webkit-box-shadow:0 0 0px 1000px var(--c2) inset !important;
+  box-shadow:0 0 0px 1000px var(--c2) inset !important;
+  transition:background-color 5000s ease-in-out 0s;
+}
 textarea{resize:vertical;min-height:90px;line-height:1.65;}
 select option{background:var(--c2);}
 label{
@@ -1004,8 +1020,19 @@ async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
     db=getFirestore(initializeApp(FB));
-    setDb(true);    onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));renderM();renderGrids();});
-    onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{CHAL=s.docs.map(d=>({id:d.id,...d.data()}));renderC();});
+    // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더 (깜빡임 방지)
+    let _rafC=null,_rafM=null;
+    setDb(true);
+    onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
+      MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafM)cancelAnimationFrame(_rafM);
+      _rafM=requestAnimationFrame(()=>{renderM();renderGrids();_rafM=null;});
+    });
+    onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
+      CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafC)cancelAnimationFrame(_rafC);
+      _rafC=requestAnimationFrame(()=>{renderC();_rafC=null;});
+    });
     onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
     onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
     clearTimeout(safe);finish();
@@ -1124,32 +1151,38 @@ function renderC(){
   }
   empty.style.display='none';
 
-  // ── diff-patch: 기존 DOM 노드를 재사용하여 깜빡임 방지 ──
-  // 현재 렌더된 카드 ID 목록
-  const rendered=Array.from(list.children).map(el=>el.dataset.cid);
+  // ── diff-patch: DOM 노드를 유지하며 innerHTML만 갱신하여 깜빡임 완전 제거 ──
+  // outerHTML 교체는 노드 파괴→생성으로 깜빡임 발생 → innerHTML 갱신 방식으로 변경
   const needed=data.map(c=>c.id);
-  // 필요없는 카드 제거
+  // 불필요한 카드 제거
   Array.from(list.children).forEach(el=>{
     if(!needed.includes(el.dataset.cid))list.removeChild(el);
   });
   // 필요한 카드를 순서대로 삽입/업데이트
   data.forEach((c,idx)=>{
-    const newHtml=buildCCard(c);
-    const existing=list.querySelector('[data-cid="'+c.id+'"]');
+    // chash: 카드 표시에 영향을 주는 모든 필드 포함 (변경 감지 정확도 향상)
+    const newHash=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
+    let existing=list.querySelector('[data-cid="'+c.id+'"]');
     if(existing){
-      // 내용이 바뀐 경우에만 교체 (불필요한 DOM 조작 최소화)
-      if(existing.dataset.chash!==c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')){
-        existing.outerHTML=newHtml; // 변경된 카드만 교체
+      // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
+      if(existing.dataset.chash!==newHash){
+        const tmp=document.createElement('div');
+        tmp.innerHTML=buildCCard(c);
+        const newNode=tmp.firstElementChild;
+        // 클래스(::before 색상 결정) 및 chash 동기화
+        existing.className=newNode.className;
+        existing.dataset.chash=newHash;
+        existing.innerHTML=newNode.innerHTML;
       }
       // 순서 보정: 현재 위치가 idx와 다르면 이동
       const cur=list.children[idx];
-      const fresh=list.querySelector('[data-cid="'+c.id+'"]');
-      if(cur!==fresh)list.insertBefore(fresh,cur||null);
+      if(cur!==existing)list.insertBefore(existing,cur||null);
     } else {
-      // 새 카드 삽입
+      // 새 카드 삽입 (초기 chash 세팅 포함)
       const div=document.createElement('div');
-      div.innerHTML=newHtml;
+      div.innerHTML=buildCCard(c);
       const node=div.firstElementChild;
+      node.dataset.chash=newHash;
       const ref=list.children[idx]||null;
       list.insertBefore(node,ref);
     }
@@ -1186,8 +1219,8 @@ function buildCCard(c){
     acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
     // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
-    // data-cid: diff-patch용 고유 식별자, data-chash: 변경 감지용 해시
-    return `<div class="${cardClass}" data-cid="${c.id}" data-chash="${c.id}|${c.status}|${isOpen?'1':'0'}">
+    // data-cid: diff-patch용 고유 식별자 (data-chash는 renderC에서 외부 세팅)
+    return `<div class="${cardClass}" data-cid="${c.id}">
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
       <div class="vs-row">
         <div class="vs-team">${myH}</div>
