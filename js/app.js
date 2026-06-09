@@ -1,0 +1,1029 @@
+
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const FB={
+  apiKey:"AIzaSyDttEMgDQx3iS2siRzVIizxBBDZ4KjcJEw",
+  authDomain:"isatok-ef06a.firebaseapp.com",
+  projectId:"isatok-ef06a",
+  storageBucket:"isatok-ef06a.firebasestorage.app",
+  messagingSenderId:"480704214424",
+  appId:"1:480704214424:web:1f02fea9630e395bbb27ed"
+};
+
+let db,MEMBERS=[],CHAL=[],NOTICES=[],BOARDS=[];
+let _delId=null,_fg='',_cf='all',_rid=null,_rw=null;
+let _type='ms',_my=[],_opp=[];
+const ELO={초급:1400,중급:1550,고급:1700};
+const AVC=['avG','avB','avA','avR','avP'];
+const g=id=>document.getElementById(id);
+function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5];}
+function ini(n){return n?n[0]:'?';}
+function $ko(d){return new Date(d).toLocaleDateString('ko-KR',{month:'long',day:'numeric'});}
+
+// ── 초기화 ──
+async function init(){
+  const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
+  try{
+    db=getFirestore(initializeApp(FB));
+    // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더 (깜빡임 방지)
+    let _rafC=null,_rafM=null;
+    setDb(true);
+    onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
+      MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafM)cancelAnimationFrame(_rafM);
+      _rafM=requestAnimationFrame(()=>{
+        renderM();
+        // ── 대결 신청 모달이 열려 있고 입력 필드에 포커스 중이면
+        //    renderGrids 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
+        var moEl=g('mo-ch');
+        var focused=document.activeElement;
+        var isInputFocused=focused&&(focused.id==='ch-place'||focused.id==='ch-msg');
+        if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
+          renderGrids();
+        }
+        _rafM=null;
+      });
+    });
+    onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
+      CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafC)cancelAnimationFrame(_rafC);
+      _rafC=requestAnimationFrame(()=>{renderC();_rafC=null;});
+    });
+    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
+    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
+    clearTimeout(safe);finish();
+  }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
+}
+function finish(){
+  g('ls').style.display='none';
+  g('app').style.display='flex';        // app-wrap 표시
+  const sb=g('sidebar');
+  if(sb) sb.style.display='';           // 사이드바 표시 (CSS가 모바일에서 숨김)
+  const d=new Date();d.setDate(d.getDate()+1);
+  g('ch-date').value=d.toISOString().slice(0,10);
+
+  // ── URL 해시 파라미터 파싱: 카카오톡 공유 링크 클릭 시 탭/필터 자동 이동 ──
+  // 예) #challenge?filter=pending → 대결 신청 탭 + 수락 대기중 필터 자동 선택
+  var hash = window.location.hash; // ex: "#challenge?filter=pending"
+  if(hash && hash.length > 1){
+    var hashBody = hash.slice(1);                         // "challenge?filter=pending"
+    var qIdx = hashBody.indexOf('?');
+    var pageId = qIdx > -1 ? hashBody.slice(0, qIdx) : hashBody; // "challenge"
+    var params = {};
+    if(qIdx > -1){
+      var qs = hashBody.slice(qIdx + 1);                  // "filter=pending"
+      qs.split('&').forEach(function(pair){
+        var kv = pair.split('=');
+        if(kv.length === 2) params[kv[0]] = kv[1];
+      });
+    }
+    // 유효한 페이지 ID인 경우 해당 탭으로 이동
+    var validPages = ['challenge','members','notice','board'];
+    if(validPages.indexOf(pageId) > -1){
+      nav(pageId);
+      // 대결 탭이고 filter 파라미터가 있으면 필터 칩도 자동 선택
+      if(pageId === 'challenge' && params['filter']){
+        window.setF(params['filter']);
+      }
+    }
+  }
+}
+function setDb(ok){
+  const h=ok?'<span style="color:var(--a)">● Firebase 연결됨</span>':'<span style="color:var(--amber)">● 연결 실패</span>';
+  g('dbs').innerHTML=h;g('dbm').textContent=ok?'🟢':'🟡';
+}
+
+// ── 모달 헬퍼 ──
+
+// ════════════════════════════════════════════════════════
+// 📱 대결 신청 모달 전용: visualViewport 포커스 추적기
+// ────────────────────────────────────────────────────────
+// 변경 사항 (깜빡임 원인 제거):
+//   기존: visualViewport.height → CSS --ch-modal-h 변수로 .mw height 동적 변경
+//         → height 변경 시 매번 Reflow(레이아웃 재계산) 발생 → 스크롤 중 깜빡임
+//
+//   변경: height 동적 변경 완전 제거
+//         → .mw는 CSS에서 100dvh 고정 (transform:translateZ(0)으로 GPU 레이어 격리)
+//         → 키보드 올라올 때 포커스 필드만 scrollIntoView로 가시 영역으로 이동
+//         → Reflow 없이 스크롤만 발생 → 깜빡임 완전 제거
+// ════════════════════════════════════════════════════════
+var _chModalVpHandler = null; // 이벤트 리스너 참조 (중복 등록 방지용)
+
+function _attachChModalKeyboardHandler(){
+  // visualViewport API 미지원 환경(구형 브라우저) 무시
+  if(!window.visualViewport) return;
+  // 이미 등록된 핸들러가 있으면 제거 후 재등록
+  if(_chModalVpHandler){
+    window.visualViewport.removeEventListener('resize', _chModalVpHandler);
+    window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
+  }
+
+  _chModalVpHandler = function(){
+    // height 동적 변경 제거 → scrollIntoView만 실행
+    // requestAnimationFrame으로 브라우저 레이아웃 완료 후 실행
+    requestAnimationFrame(function(){
+      var focused = document.activeElement;
+      var mwEl = document.querySelector('#mo-ch .mw');
+      if(focused && mwEl && mwEl.contains(focused)){
+        // 포커스된 입력 필드를 키보드 위로 스크롤 (Reflow 없이 스크롤만 발생)
+        focused.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'  // 이미 보이면 스크롤 안함 (불필요한 움직임 방지)
+        });
+      }
+    });
+  };
+
+  window.visualViewport.addEventListener('resize', _chModalVpHandler);
+  // iOS Safari: 키보드 올라올 때 scroll 이벤트도 함께 발생하므로 둘 다 바인딩
+  window.visualViewport.addEventListener('scroll', _chModalVpHandler);
+}
+
+function _detachChModalKeyboardHandler(){
+  if(!window.visualViewport || !_chModalVpHandler) return;
+  window.visualViewport.removeEventListener('resize', _chModalVpHandler);
+  window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
+  _chModalVpHandler = null;
+  // CSS height 동적 변경 방식을 제거했으므로 인라인 스타일 정리 불필요
+}
+
+function openMo(id){
+  const el = g(id);
+  el.classList.add('on');
+  // 작성 모달: 첫 번째 입력 필드로 포커스
+  // 단, 대결 신청 모달(mo-ch)은 포커스 자동 이동을 하지 않음
+  // → 포커스 강제 이동 시: 키보드 팝업 → 뷰포트 리사이즈 → 레이아웃 재계산 → 깜빡임 발생
+  if(el.classList.contains('write-mo') && id !== 'mo-ch'){
+    setTimeout(()=>{
+      const first = el.querySelector('input:not([type=hidden]), textarea');
+      if(first) first.focus();
+    }, 320);
+  }
+  // ── 대결 신청 모달: visualViewport 키보드 추적 시작 ──
+  if(id === 'mo-ch'){
+    // 모달 슬라이드 인 애니메이션(300ms) 완료 후 핸들러 등록
+    // (너무 이르게 등록하면 초기 높이 계산이 잘못될 수 있음)
+    setTimeout(_attachChModalKeyboardHandler, 320);
+  }
+  // 스크롤 잠금
+  document.body.style.overflow = 'hidden';
+}
+window.closeMo=function(id){
+  g(id).classList.remove('on');
+  document.body.style.overflow = '';
+  // ── 대결 신청 모달 닫힐 때 ──
+  if(id === 'mo-ch'){
+    // visualViewport 키보드 추적 핸들러 해제
+    _detachChModalKeyboardHandler();
+    // 입력 포커스 가드로 미뤄진 renderGrids를 재실행
+    // (다음에 모달이 다시 열릴 때 회원 그리드가 최신 상태 반영되도록 보장)
+    setTimeout(function(){ renderGrids(); }, 50);
+  }
+}
+document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
+  if(e.target===m){
+    m.classList.remove('on');
+    document.body.style.overflow='';
+    // 대결 신청 모달을 바깥 클릭으로 닫을 때도 핸들러 해제
+    if(m.id === 'mo-ch') _detachChModalKeyboardHandler();
+  }
+}));
+
+// ── 네비 ──
+window.nav=function(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  g('page-'+id)?.classList.add('on');
+  // ── 사이드바 nav-i 하이라이트: data-page 속성 기준 ──
+  document.querySelectorAll('.nav-i').forEach(n=>n.classList.toggle('on',n.dataset.page===id));
+  document.querySelectorAll('.bni').forEach(n=>n.classList.toggle('on',n.dataset.p===id));
+  document.querySelector('.main')?.scrollTo(0,0);
+  // FAB: 대결 탭에서만
+  g('app').querySelectorAll('.fab').forEach(f=>f.style.display=id==='challenge'?'flex':'none');
+}
+
+// ════ 대결 ════
+const TM={
+  ms:{lb:'🏓 남단식', badge:'bg', cls:'ms', maxM:1,maxO:1, gM:'남성',gO:'남성'},
+  md:{lb:'🏓 남복식', badge:'bb', cls:'md', maxM:2,maxO:2, gM:'남성',gO:'남성'},
+  fs:{lb:'🎀 여단식', badge:'br', cls:'fs', maxM:1,maxO:1, gM:'여성',gO:'여성'},
+  fd:{lb:'🎀 여복식', badge:'bp', cls:'fd', maxM:2,maxO:2, gM:'여성',gO:'여성'},
+  mx:{lb:'🤝 혼합복식',badge:'ba', cls:'mx', maxM:2,maxO:2, mix:true},
+  singles:{lb:'🏓 단식', badge:'bg', cls:'singles', maxM:1,maxO:1},
+  doubles:{lb:'🤝 복식', badge:'bp', cls:'doubles', maxM:2,maxO:2},
+};
+const SL={pending:'⏳ 수락 대기',accepted:'✅ 수락됨',rejected:'❌ 거절됨',completed:'🏆 완료'};
+const SB={pending:'ba',accepted:'bg',rejected:'br',completed:'bz'};
+
+window.setF=function(f){
+  _cf=f;
+  document.querySelectorAll('.fc').forEach(el=>el.classList.toggle('on',el.id==='f-'+f));
+  renderC();
+}
+function renderC(){
+  const list=g('ch-list'),empty=g('ch-empty');
+  let data=[...CHAL];
+  // ── 필터 적용 ──
+  if(_cf==='pending')        data=data.filter(c=>c.status==='pending'&&!c.isOpen);
+  else if(_cf==='open')      data=data.filter(c=>c.isOpen&&c.status==='pending'); // 오픈 챌린지 필터
+  else if(_cf==='accepted')  data=data.filter(c=>c.status==='accepted');
+  else if(_cf==='completed') data=data.filter(c=>c.status==='completed');
+  else if(_cf==='ms') data=data.filter(c=>c.type==='ms'||c.type==='singles');
+  else if(_cf==='md') data=data.filter(c=>c.type==='md'||c.type==='doubles');
+  else if(_cf==='fs') data=data.filter(c=>c.type==='fs');
+  else if(_cf==='fd') data=data.filter(c=>c.type==='fd');
+  else if(_cf==='mx') data=data.filter(c=>c.type==='mx');
+  else if(_cf!=='all') data=data.filter(c=>c.type===_cf);
+  if(!data.length){
+    // 기존 카드 노드 제거 (깜빡임 없이 개별 제거)
+    while(list.firstChild)list.removeChild(list.firstChild);
+    empty.style.display='block';
+    return;
+  }
+  empty.style.display='none';
+
+  // ── diff-patch: DOM 노드를 유지하며 innerHTML만 갱신하여 깜빡임 완전 제거 ──
+  // outerHTML 교체는 노드 파괴→생성으로 깜빡임 발생 → innerHTML 갱신 방식으로 변경
+  const needed=data.map(c=>c.id);
+  // 불필요한 카드 제거
+  Array.from(list.children).forEach(el=>{
+    if(!needed.includes(el.dataset.cid))list.removeChild(el);
+  });
+  // 필요한 카드를 순서대로 삽입/업데이트
+  data.forEach((c,idx)=>{
+    // chash: 카드 표시에 영향을 주는 모든 필드 포함 (변경 감지 정확도 향상)
+    const newHash=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
+    let existing=list.querySelector('[data-cid="'+c.id+'"]');
+    if(existing){
+      // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
+      if(existing.dataset.chash!==newHash){
+        const tmp=document.createElement('div');
+        tmp.innerHTML=buildCCard(c);
+        const newNode=tmp.firstElementChild;
+        // 클래스(::before 색상 결정) 및 chash 동기화
+        existing.className=newNode.className;
+        existing.dataset.chash=newHash;
+        existing.innerHTML=newNode.innerHTML;
+      }
+      // 순서 보정: 현재 위치가 idx와 다르면 이동
+      const cur=list.children[idx];
+      if(cur!==existing)list.insertBefore(existing,cur||null);
+    } else {
+      // 새 카드 삽입 (초기 chash 세팅 포함)
+      const div=document.createElement('div');
+      div.innerHTML=buildCCard(c);
+      const node=div.firstElementChild;
+      node.dataset.chash=newHash;
+      const ref=list.children[idx]||null;
+      list.insertBefore(node,ref);
+    }
+  });
+}
+
+// ── 대결 카드 HTML 생성 (renderC에서 분리) ──
+function buildCCard(c){
+    const tm=TM[c.type]||TM.ms;
+    // ── 오픈 챌린지 여부 판단 ──
+    const isOpen=!!c.isOpen&&c.status==='pending';
+    const myH=(c.myTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
+    // 오픈 챌린지: 상대팀이 없으면 "누구나 도전 가능" 표시
+    const opH=isOpen
+      ?`<div class="vs-player" style="opacity:.55"><div class="av avA" style="width:34px;height:34px;font-size:16px">?</div><span class="vs-name" style="color:var(--amber)">누구나 도전 가능!</span></div>`
+      :(c.oppTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
+    const dt=c.date?$ko(c.date+'T00:00'):'';
+    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.place?`<span class="pill">📍 ${c.place}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
+    const res=c.status==='completed'&&c.winner?`<div class="cc-result">🏆 ${c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·')} 팀 승리${c.score?' · '+c.score:''}</div>`:'';
+    // ── 오픈 챌린지 뱃지 ──
+    const openBadge=isOpen?`<span class="badge ba">🔥 오픈 챌린지</span>`:'';
+    // ── 액션 버튼 ──
+    let acts='';
+    if(isOpen){
+      // 오픈 챌린지 대기 상태: "수락하기(내 팀 선택)" + 거절 + 카톡 공유
+      acts=`<button class="btn btn-p btn-sm" onclick="openAcceptOpen('${c.id}')">🔥 수락하기</button>`
+          +`<button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button>`
+          +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    } else if(c.status==='pending'){
+      acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    } else if(c.status==='accepted'){
+      acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    }
+    acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
+    // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
+    const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
+    // data-cid: diff-patch용 고유 식별자 (data-chash는 renderC에서 외부 세팅)
+    return `<div class="${cardClass}" data-cid="${c.id}">
+      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
+      <div class="vs-row">
+        <div class="vs-team">${myH}</div>
+        <div class="vs-mid"><span class="vs-txt">VS</span></div>
+        <div class="vs-team">${opH}</div>
+      </div>
+      ${pills?`<div class="cc-pills">${pills}</div>`:''}
+      ${res}
+      <div class="cc-acts">${acts}</div>
+    </div>`;
+}
+
+window.openChallengeModal=function(){
+  _my=[];_opp=[];
+  // ── 오픈 챌린지 초기화: 토글 OFF 상태로 시작 ──
+  var chk=g('oc-chk');
+  if(chk) chk.checked=false;
+  var wrap=g('oc-toggle-wrap');
+  if(wrap) wrap.classList.remove('on');
+  var oppSec=g('opp-section');
+  if(oppSec) oppSec.style.display='';
+  var submitBtn=g('ch-submit-btn');
+  if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
+  setType('ms');
+  ['ch-msg','ch-place'].forEach(id=>g(id).value='');
+  ['e-my','e-opp'].forEach(id=>g(id).classList.remove('on'));
+  openMo('mo-ch');
+
+  // ── 입력 필드 포커스 시 .mb 스크롤 핸들러 ──
+  // 키보드 올라온 뒤 .mb를 스크롤하여 입력 필드가 항상 보이도록 보장
+  // (visualViewport 핸들러와 이중으로 동작하여 안정성 향상)
+  var mbEl = document.querySelector('#mo-ch .mb');
+  var moChInputs = document.querySelectorAll('#mo-ch input[type="text"], #mo-ch input[type="date"], #mo-ch input[type="time"]');
+  moChInputs.forEach(function(inp){
+    // 기존 리스너 중복 방지: 한 번만 등록되도록 클로저 플래그 사용
+    if(inp._chFocusListenerAdded) return;
+    inp._chFocusListenerAdded = true;
+    inp.addEventListener('focus', function(){
+      // iOS Safari: 키보드 완전히 올라올 때까지 대기 후 스크롤 (약 400ms)
+      setTimeout(function(){
+        if(!mbEl) return;
+        // scrollIntoView: 입력 필드가 뷰포트(키보드 위) 범위 안에 오도록 스크롤
+        inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 400);
+    });
+  });
+}
+
+// ── 오픈 챌린지 토글 처리 ──
+window.toggleOC=function(){
+  var chk=g('oc-chk');
+  var wrap=g('oc-toggle-wrap');
+  var oppSec=g('opp-section');
+  var submitBtn=g('ch-submit-btn');
+  // checkbox 직접 클릭이면 label의 onclick이 중복 호출되므로 label클릭 시만 토글
+  // (label onclick → checkbox onchange 방지를 위해 event 방향 통일)
+  var isOn=chk.checked;
+  wrap.classList.toggle('on',isOn);
+  // 오픈 챌린지 ON: 상대 팀 영역 숨기고 상대팀 선택 초기화
+  if(isOn){
+    oppSec.style.display='none';
+    _opp=[];
+    g('e-opp').classList.remove('on');
+    if(submitBtn) submitBtn.textContent='🔥 오픈 챌린지 올리기';
+  } else {
+    oppSec.style.display='';
+    if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
+  }
+  renderGrids();
+}
+
+window.setType=function(tp){
+  _type=tp;_my=[];_opp=[];
+  const m=TM[tp]||TM.ms;
+  // 버튼 스타일
+  ['ms','md','fs','fd','mx'].forEach(k=>{
+    const el=g('t-'+k);if(!el)return;
+    el.className='tb';
+    el.querySelector('.tl').style.color='var(--t2)';
+  });
+  const clsMap={ms:'as',md:'ad',fs:'af',fd:'af',mx:'am'};
+  const clrMap={ms:'var(--a)',md:'var(--blue)',fs:'var(--red)',fd:'var(--purple)',mx:'var(--amber)'};
+  const el=g('t-'+tp);
+  if(el){el.className='tb '+clsMap[tp];el.querySelector('.tl').style.color=clrMap[tp];}
+  const sing=m.maxM===1;
+  g('lbl-my').textContent=m.mix?'내 팀 (남1+여1)':sing?`나 선택 (${m.gM||''} 1명)`:`내 팀 (${m.gM||''} 2명)`;
+  g('lbl-opp').textContent=m.mix?'상대 팀 (남1+여1)':sing?`상대 (${m.gO||''} 1명)`:`상대 팀 (${m.gO||''} 2명)`;
+  renderGrids();
+}
+function renderGrids(){
+  // ── 대결 신청 모달이 열려 있는 동안 입력 필드에 포커스가 있으면
+  //    renderGrid를 차단하여 키보드 입력 중 DOM 재렌더 → 깜빡임/텍스트 소실 방지
+  var moEl=g('mo-ch');
+  if(moEl&&moEl.classList.contains('on')){
+    var focused=document.activeElement;
+    // 포커스된 요소가 mo-ch 내부의 텍스트 입력 필드이면 렌더 건너뜀
+    if(focused&&(focused.id==='ch-place'||focused.id==='ch-msg')){
+      return;
+    }
+  }
+  renderGrid('gmy',_my,_opp,true);
+  renderGrid('gopp',_opp,_my,false);
+}
+function renderGrid(gid,sel,other,isMy){
+  const gr=g(gid);if(!gr)return;
+  const m=TM[_type]||TM.ms;
+  const max=isMy?m.maxM:m.maxO;
+  let mems=MEMBERS.filter(x=>x.status!=='비활성');
+  mems=mems.map(x=>{
+    let dim=other.includes(x.name);
+    if(!dim&&m.mix){
+      const myM=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+      const myF=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+      const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+      const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+      if(!sel.includes(x.name)){
+        if(isMy){if((x.gender==='남성'&&myM>=1)||(x.gender==='여성'&&myF>=1)||sel.length>=max)dim=true;}
+        else{if((x.gender==='남성'&&opM>=1)||(x.gender==='여성'&&opF>=1)||sel.length>=max)dim=true;}
+      }
+    } else if(!dim){
+      const gf=isMy?m.gM:m.gO;
+      if(!sel.includes(x.name)&&(gf&&x.gender&&x.gender!==gf||sel.length>=max))dim=true;
+    }
+    return{...x,_d:dim};
+  });
+  if(!mems.length){
+    gr.innerHTML='<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+    return;
+  }
+  // ── diff-patch: 기존 mc2 노드를 재사용하여 입력 깜빡임 방지 ──
+  // 필요한 이름 목록
+  const neededNames=mems.map(x=>x.name);
+  // 없어진 항목 제거
+  Array.from(gr.querySelectorAll('.mc2')).forEach(el=>{
+    if(!neededNames.includes(el.dataset.mname))gr.removeChild(el);
+  });
+  // 삽입/업데이트
+  mems.forEach((x,idx)=>{
+    const sSel=sel.includes(x.name);
+    const newCls='mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':'');
+    const newOnclick=x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')';
+    const existing=gr.querySelector('[data-mname="'+x.name+'"]');
+    if(existing){
+      // 클래스와 onclick만 업데이트 (텍스트 노드 건드리지 않음)
+      if(existing.className!==newCls)existing.className=newCls;
+      if(existing.getAttribute('onclick')!==(x._d?null:newOnclick)){
+        if(x._d)existing.removeAttribute('onclick');
+        else existing.setAttribute('onclick',newOnclick);
+      }
+      // 순서 보정
+      const cur=gr.children[idx];
+      if(cur!==existing)gr.insertBefore(existing,cur||null);
+    } else {
+      // 새 노드 생성
+      const div=document.createElement('div');
+      div.className=newCls;
+      div.dataset.mname=x.name;
+      if(!x._d)div.setAttribute('onclick',newOnclick);
+      div.innerHTML='<div class="mn">'+x.name+'</div>'
+        +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+'</div>';
+      const ref=gr.children[idx]||null;
+      gr.insertBefore(div,ref);
+    }
+  });
+}
+window.tgl=function(gid,name,isMy){
+  const arr=isMy?_my:_opp;
+  const m=TM[_type]||TM.ms,max=isMy?m.maxM:m.maxO;
+  const i=arr.indexOf(name);
+  if(i>-1)arr.splice(i,1);else if(arr.length<max)arr.push(name);
+  if(isMy)_my=[...arr];else _opp=[...arr];
+  renderGrids();
+}
+window.submitCh=async function(){
+  const m=TM[_type]||TM.ms;
+  // ── 오픈 챌린지 여부 확인 ──
+  var isOpenMode=g('oc-chk')&&g('oc-chk').checked;
+  let ok=true;
+  if(m.mix){
+    const myM=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+    const myF=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+    if(myM<1||myF<1){g('e-my').classList.add('on');ok=false;}else g('e-my').classList.remove('on');
+    // 오픈 챌린지가 아닐 때만 상대팀 검증
+    if(!isOpenMode){
+      const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+      const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+      if(opM<1||opF<1){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
+    }
+  }else{
+    if(_my.length<m.maxM){g('e-my').classList.add('on');ok=false;}else g('e-my').classList.remove('on');
+    // 오픈 챌린지가 아닐 때만 상대팀 검증
+    if(!isOpenMode){
+      if(_opp.length<m.maxO){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
+    }
+  }
+  if(!ok)return;
+  // ── Firestore 저장 데이터 구성 ──
+  // isOpen: true이면 오픈 챌린지로 저장 (oppTeam은 빈 배열)
+  const data={
+    type:_type,
+    myTeam:[..._my],
+    oppTeam:isOpenMode?[]:[..._opp],
+    date:g('ch-date').value,
+    time:g('ch-time').value,
+    place:g('ch-place').value.trim(),
+    message:g('ch-msg').value.trim(),
+    status:'pending',
+    isOpen:!!isOpenMode,
+    createdAt:new Date().toISOString(),
+    winner:null,
+    score:null
+  };
+  closeMo('mo-ch');
+  try{
+    let newId='l'+Date.now();
+    if(db){const ref=await addDoc(collection(db,'challenges'),data);newId=ref.id;}
+    else{CHAL.unshift({id:newId,...data});renderC();}
+    // 오픈 챌린지 / 일반 도전장 구분 토스트
+    toast(isOpenMode?'🔥 오픈 챌린지가 등록됐습니다!':'🏓 도전장을 보냈습니다!');
+    // 도전장 등록 완료 후 카카오 공유 모달 오픈
+    setTimeout(()=>openShareModal({id:newId,...data}),700);
+  }
+  catch(e){toast('❌ '+e.message);}
+}
+// ════ 오픈 챌린지 수락 ════
+
+// ── 오픈 챌린지 수락 모달 열기 ──
+// 수락자가 자신의 팀원을 선택한 뒤 확정하는 흐름
+var _acceptOpenId=null;   // 현재 수락 중인 챌린지 ID
+var _acceptTeam=[];       // 수락자 팀 선택 배열
+
+window.openAcceptOpen=function(id){
+  var c=CHAL.find(function(c){return c.id===id;});
+  if(!c)return;
+  _acceptOpenId=id;
+  _acceptTeam=[];
+
+  // ── 도전자 팀 정보 배너 표시 ──
+  var myNames=(c.myTeam||[]).join(' · ')||'알 수 없음';
+  var tm=TM[c.type]||TM.ms;
+  var dtStr=c.date?$ko(c.date+'T00:00'):'';
+  var infoHtml='<strong>'+myNames+'</strong> 님의 '+tm.lb+' 챌린지'
+    +(dtStr?' · 📅 '+dtStr:'')
+    +(c.place?' · 📍 '+c.place:'');
+  g('oc-challenger-info').innerHTML=infoHtml;
+
+  // ── 수락팀 선택 라벨 세팅 ──
+  var sing=tm.maxO===1;
+  g('lbl-accept-team').textContent=tm.mix?'내 팀 (남1+여1)':sing?'나 선택 ('+(tm.gO||'')+' 1명)':'내 팀 ('+(tm.gO||'')+' 2명)';
+
+  // ── 수락팀 그리드 렌더링 ──
+  renderAcceptGrid(c);
+
+  // ── 에러 메시지 / 한마디 초기화 ──
+  g('e-accept').classList.remove('on');
+  g('accept-msg').value='';
+
+  openMo('mo-accept-open');
+}
+
+// ── 오픈 챌린지 수락용 회원 그리드 렌더링 ──
+function renderAcceptGrid(c){
+  var gr=g('g-accept');if(!gr)return;
+  var tm=TM[c.type]||TM.ms;
+  var max=tm.maxO;
+  // 도전자 팀 이름 목록 (선택 불가 dim 처리)
+  var challengerTeam=c.myTeam||[];
+
+  var mems=MEMBERS.filter(function(x){return x.status!=='비활성';});
+  gr.innerHTML=mems.map(function(x){
+    var isSelected=_acceptTeam.indexOf(x.name)>-1;
+    // 도전자 팀원이면 dim 처리
+    var isDim=challengerTeam.indexOf(x.name)>-1;
+
+    // 혼합복식: 성별 쿼터 제한
+    if(!isDim&&tm.mix){
+      var mCount=_acceptTeam.filter(function(n){
+        var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='남성';
+      }).length;
+      var fCount=_acceptTeam.filter(function(n){
+        var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='여성';
+      }).length;
+      if(!isSelected){
+        if((x.gender==='남성'&&mCount>=1)||(x.gender==='여성'&&fCount>=1)||_acceptTeam.length>=max)isDim=true;
+      }
+    } else if(!isDim){
+      var gf=tm.gO;
+      if(!isSelected&&(gf&&x.gender&&x.gender!==gf||_acceptTeam.length>=max))isDim=true;
+    }
+
+    // 도전자 팀원은 이름 옆에 🏓 표시
+    var isChallengerMember=challengerTeam.indexOf(x.name)>-1;
+    return '<div class="mc2'+(isSelected?' selp':'')+(isDim?' dim':'')+'" '
+      +'onclick="'+(isDim?'':'tglAccept(\''+x.name+'\')')+'"><div class="mn">'+x.name+'</div>'
+      +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+(isChallengerMember?' 🏓':'')+'</div></div>';
+  }).join('')||'<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+}
+
+// ── 수락팀 회원 선택 토글 ──
+window.tglAccept=function(name){
+  var c=CHAL.find(function(c){return c.id===_acceptOpenId;});
+  if(!c)return;
+  var tm=TM[c.type]||TM.ms;
+  var max=tm.maxO;
+  var i=_acceptTeam.indexOf(name);
+  if(i>-1){_acceptTeam.splice(i,1);}
+  else if(_acceptTeam.length<max){_acceptTeam.push(name);}
+  renderAcceptGrid(c);
+}
+
+// ── 오픈 챌린지 수락 확정 ──
+// Firestore에 oppTeam 업데이트 + status → accepted 변경
+window.submitAcceptOpen=async function(){
+  var c=CHAL.find(function(c){return c.id===_acceptOpenId;});
+  if(!c)return;
+  var tm=TM[c.type]||TM.ms;
+
+  // ── 팀 구성 유효성 검사 ──
+  var ok=true;
+  if(tm.mix){
+    var mCount=_acceptTeam.filter(function(n){
+      var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='남성';
+    }).length;
+    var fCount=_acceptTeam.filter(function(n){
+      var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='여성';
+    }).length;
+    if(mCount<1||fCount<1){g('e-accept').classList.add('on');ok=false;}
+    else g('e-accept').classList.remove('on');
+  } else {
+    if(_acceptTeam.length<tm.maxO){g('e-accept').classList.add('on');ok=false;}
+    else g('e-accept').classList.remove('on');
+  }
+  if(!ok)return;
+
+  // ── Firestore 업데이트 데이터 ──
+  var acceptMsg=g('accept-msg').value.trim();
+  var updateData={
+    oppTeam:[..._acceptTeam],
+    status:'accepted',
+    isOpen:false,             // 수락 완료 → 오픈 챌린지 플래그 해제
+    acceptedAt:new Date().toISOString(),
+    acceptMsg:acceptMsg||null
+  };
+
+  closeMo('mo-accept-open');
+  try{
+    if(db)await updateDoc(doc(db,'challenges',_acceptOpenId),updateData);
+    else{
+      var target=CHAL.find(function(c){return c.id===_acceptOpenId;});
+      if(target){
+        target.oppTeam=[..._acceptTeam];
+        target.status='accepted';
+        target.isOpen=false;
+      }
+      renderC();
+    }
+    toast('✅ 오픈 챌린지를 수락했습니다!');
+  }
+  catch(e){toast('❌ '+e.message);}
+}
+
+window.acceptC=async function(id){
+  try{if(db)await updateDoc(doc(db,'challenges',id),{status:'accepted'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='accepted');renderC();}toast('✅ 수락했습니다!');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.rejectC=async function(id){
+  if(!confirm('거절하시겠습니까?'))return;
+  try{if(db)await updateDoc(doc(db,'challenges',id),{status:'rejected'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='rejected');renderC();}toast('거절했습니다');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.delC=async function(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  try{if(db)await deleteDoc(doc(db,'challenges',id));else{CHAL=CHAL.filter(c=>c.id!==id);renderC();}toast('🗑 삭제됐습니다');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.openRes=function(id){
+  _rid=id;_rw=null;
+  const c=CHAL.find(c=>c.id===id);if(!c)return;
+  g('ri').innerHTML=`<strong>${(c.myTeam||[]).join(' · ')}</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>${(c.oppTeam||[]).join(' · ')}</strong>`;
+  g('wan').textContent=(c.myTeam||[]).join('·')+' 팀 승리';
+  g('wbn').textContent=(c.oppTeam||[]).join('·')+' 팀 승리';
+  ['wa','wb'].forEach(x=>{g(x).style.borderColor='var(--b2)';g(x).style.background='transparent';});
+  g('rs').value='';
+  openMo('mo-result');
+}
+window.setW=function(t){
+  _rw=t;
+  ['a','b'].forEach(k=>{g('w'+k).style.borderColor=k===t?'var(--a)':'var(--b2)';g('w'+k).style.background=k===t?'var(--adim)':'transparent';});
+}
+window.submitResult=async function(){
+  if(!_rw){toast('⚠️ 승리 팀 선택');return;}
+  const sc=g('rs').value.trim();
+  try{if(db)await updateDoc(doc(db,'challenges',_rid),{status:'completed',winner:_rw,score:sc||null});else{const c=CHAL.find(c=>c.id===_rid);if(c){c.status='completed';c.winner=_rw;c.score=sc||null;}renderC();}closeMo('mo-result');toast('🏆 결과 기록!');}
+  catch(e){toast('❌ '+e.message);}
+}
+
+// ════ 회원 ════
+function renderM(){
+  const q=g('ms')?.value||'',gr=_fg;
+  const f=MEMBERS.filter(m=>m.name?.includes(q)&&(!gr||m.grade===gr));
+  g('mtb').innerHTML=f.map(m=>`<tr>
+    <td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av ${avc(m.name)}" style="width:34px;height:34px;font-size:13px">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--t3)">${m.phone}</div>`:''}</div></div></td>
+    <td data-label="등급"><span class="badge ${m.grade==='고급'?'bg':m.grade==='중급'?'ba':'bz'}">${m.grade||'초급'}</span></td>
+    <td data-label="성별">${m.gender||'-'}</td>
+    <td data-label="상태"><span class="badge ${m.status==='활성'?'bg':'br'}">${m.status||'활성'}</span></td>
+    <td class="ta"><div style="display:flex;gap:6px"><button class="btn btn-g btn-xs" onclick="openEdit('${m.id}')">✏️ 수정</button><button class="btn btn-d btn-xs" onclick="openDel('${m.id}')">🗑</button></div></td>
+  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--t3)">회원이 없습니다</td></tr>';
+}
+window.filterM=function(){renderM();}
+window.filterG=function(gr){_fg=gr;renderM();}
+window.updElo=function(){const gr=g('rgr').value;g('eloprev').innerHTML=gr?`🏓 ${gr} → Elo <strong style="color:var(--a)">${ELO[gr]}</strong>점`:'⬆ 등급 선택 시 자동 배정';}
+window.openAddModal=function(){
+  ['rn','rp','rmemo'].forEach(id=>g(id).value='');
+  ['rg','rgr'].forEach(id=>{g(id).selectedIndex=0;});
+  g('eloprev').innerHTML='⬆ 등급 선택 시 자동 배정';
+  ['e-rn','e-rgr'].forEach(id=>g(id).classList.remove('on'));
+  g('af').style.display='';g('as').style.display='none';
+  openMo('mo-add');setTimeout(()=>g('rn').focus(),200);
+}
+window.submitM=async function(){
+  const name=g('rn').value.trim(),grade=g('rgr').value;
+  let ok=true;
+  if(!name){g('e-rn').classList.add('on');ok=false;}else g('e-rn').classList.remove('on');
+  if(!grade){g('e-rgr').classList.add('on');ok=false;}else g('e-rgr').classList.remove('on');
+  if(!ok)return;
+  const now=new Date();
+  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,grade,elo:ELO[grade]||1400,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
+  g('af').style.display='none';g('asn').textContent=`${name} 회원님 환영합니다! 🏓`;g('as').style.display='';
+  try{if(db)await addDoc(collection(db,'members'),m);else{MEMBERS.push({id:'l'+Date.now(),...m});renderM();}toast('✅ '+name+' 등록 완료');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.openEdit=function(id){
+  const m=MEMBERS.find(m=>m.id===id);if(!m)return;
+  g('eid').value=id;g('en').value=m.name;g('ep').value=m.phone||'';
+  g('eg').value=m.gender||'';g('egr').value=m.grade||'초급';
+  g('eelo').value=m.elo||1400;g('est').value=m.status||'활성';g('ememo').value=m.memo||'';
+  g('e-en').classList.remove('on');openMo('mo-edit');
+}
+window.saveEdit=async function(){
+  const id=g('eid').value,name=g('en').value.trim();
+  if(!name){g('e-en').classList.add('on');return;}
+  const u={name,phone:g('ep').value.trim(),gender:g('eg').value,grade:g('egr').value,elo:parseInt(g('eelo').value)||1400,status:g('est').value,memo:g('ememo').value.trim()};
+  closeMo('mo-edit');
+  try{if(db)await updateDoc(doc(db,'members',id),u);else{const i=MEMBERS.findIndex(m=>m.id===id);if(i>-1)MEMBERS[i]={...MEMBERS[i],...u};renderM();}toast('✅ '+name+' 수정 완료');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.openDel=function(id){_delId=id;const m=MEMBERS.find(m=>m.id===id);g('dm').textContent=`"${m?.name}" 회원을 삭제할까요?`;openMo('mo-del');}
+window.confirmDel=async function(){
+  const m=MEMBERS.find(m=>m.id===_delId);closeMo('mo-del');
+  try{if(db)await deleteDoc(doc(db,'members',_delId));else{MEMBERS=MEMBERS.filter(m=>m.id!==_delId);renderM();}toast('🗑 '+m?.name+' 삭제 완료');}
+  catch(e){toast('❌ '+e.message);}
+}
+
+// ════ 공지사항 ════
+const NCLS={필독:'br',일정:'ba',안내:'bb',일반:'bz'};
+function renderN(){
+  const el=g('nl');
+  if(!NOTICES.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">공지사항이 없습니다</div>';return;}
+  el.innerHTML=NOTICES.map(n=>`<div class="ni">
+    <div class="ni-row">
+      <span class="badge ${NCLS[n.type]||'bz'}">${n.type||'일반'}</span>
+      <span class="ni-title">${n.title}</span>
+      <div class="ni-acts">
+        <button class="btn btn-g btn-xs" onclick="openNEdit('${n.id}')">✏️</button>
+        <button class="btn btn-d btn-xs" onclick="delN('${n.id}')">🗑</button>
+      </div>
+    </div>
+    <div class="ni-meta">${n.createdAt?new Date(n.createdAt).toLocaleDateString('ko-KR'):''}</div>
+    ${n.body?`<div class="ni-body">${n.body}</div>`:''}
+  </div>`).join('');
+}
+window.openNoticeModal=function(){
+  ['ntitle','nbody'].forEach(id=>g(id).value='');
+  g('ntype').selectedIndex=0;
+  g('e-nt').classList.remove('on');
+  openMo('mo-notice');
+}
+window.submitNotice=async function(){
+  const title=g('ntitle').value.trim();
+  if(!title){g('e-nt').classList.add('on');return;}
+  const data={type:g('ntype').value,title,body:g('nbody').value.trim(),createdAt:new Date().toISOString()};
+  closeMo('mo-notice');
+  try{if(db)await addDoc(collection(db,'notices'),data);else{NOTICES.unshift({id:'l'+Date.now(),...data});renderN();}toast('📢 공지 등록!');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.openNEdit=function(id){
+  const n=NOTICES.find(n=>n.id===id);if(!n)return;
+  g('neid').value=id;g('netype').value=n.type||'일반';g('netitle').value=n.title;g('nebody').value=n.body||'';
+  g('e-net').classList.remove('on');openMo('mo-nedit');
+}
+window.saveNoticeEdit=async function(){
+  const id=g('neid').value,title=g('netitle').value.trim();
+  if(!title){g('e-net').classList.add('on');return;}
+  const u={type:g('netype').value,title,body:g('nebody').value.trim(),updatedAt:new Date().toISOString()};
+  closeMo('mo-nedit');
+  try{if(db)await updateDoc(doc(db,'notices',id),u);else{const i=NOTICES.findIndex(n=>n.id===id);if(i>-1)NOTICES[i]={...NOTICES[i],...u};renderN();}toast('✅ 공지 수정!');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.delN=async function(id){
+  if(!confirm('공지를 삭제할까요?'))return;
+  try{if(db)await deleteDoc(doc(db,'notices',id));else{NOTICES=NOTICES.filter(n=>n.id!==id);renderN();}toast('🗑 공지 삭제');}
+  catch(e){toast('❌ '+e.message);}
+}
+
+// ════ 게시판 ════
+function renderB(){
+  const el=g('bl');
+  if(!BOARDS.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">게시글이 없습니다</div>';return;}
+  el.innerHTML=BOARDS.map(b=>`<div class="ni">
+    <div class="ni-row">
+      <span style="font-size:12px;color:var(--t3);flex-shrink:0">${b.author||'익명'}</span>
+      <span class="ni-title" style="font-size:14px">${b.title}</span>
+      <div class="ni-acts">
+        <button class="btn btn-g btn-xs" onclick="openBEdit('${b.id}')">✏️</button>
+        <button class="btn btn-d btn-xs" onclick="delBd('${b.id}')">🗑</button>
+      </div>
+    </div>
+    <div class="ni-meta">${b.createdAt?new Date(b.createdAt).toLocaleDateString('ko-KR'):''}</div>
+    ${b.body?`<div class="ni-body">${b.body}</div>`:''}
+  </div>`).join('');
+}
+window.openBoardModal=function(){
+  ['bauthor','btitle','bbody'].forEach(id=>g(id).value='');
+  ['e-ba','e-bt'].forEach(id=>g(id).classList.remove('on'));
+  openMo('mo-board');
+}
+window.submitBoard=async function(){
+  const author=g('bauthor').value.trim(),title=g('btitle').value.trim();
+  let ok=true;
+  if(!author){g('e-ba').classList.add('on');ok=false;}
+  if(!title){g('e-bt').classList.add('on');ok=false;}
+  if(!ok)return;
+  const data={author,title,body:g('bbody').value.trim(),createdAt:new Date().toISOString()};
+  closeMo('mo-board');
+  try{if(db)await addDoc(collection(db,'boards'),data);else{BOARDS.unshift({id:'l'+Date.now(),...data});renderB();}toast('✅ 게시글 등록!');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.openBEdit=function(id){
+  const b=BOARDS.find(b=>b.id===id);if(!b)return;
+  g('beid').value=id;g('beauthor').value=b.author||'';g('betitle').value=b.title;g('bebody').value=b.body||'';
+  g('e-bet').classList.remove('on');openMo('mo-bedit');
+}
+window.saveBoardEdit=async function(){
+  const id=g('beid').value,title=g('betitle').value.trim();
+  if(!title){g('e-bet').classList.add('on');return;}
+  const u={author:g('beauthor').value.trim(),title,body:g('bebody').value.trim(),updatedAt:new Date().toISOString()};
+  closeMo('mo-bedit');
+  try{if(db)await updateDoc(doc(db,'boards',id),u);else{const i=BOARDS.findIndex(b=>b.id===id);if(i>-1)BOARDS[i]={...BOARDS[i],...u};renderB();}toast('✅ 게시글 수정!');}
+  catch(e){toast('❌ '+e.message);}
+}
+window.delBd=async function(id){
+  if(!confirm('게시글을 삭제할까요?'))return;
+  try{if(db)await deleteDoc(doc(db,'boards',id));else{BOARDS=BOARDS.filter(b=>b.id!==id);renderB();}toast('🗑 게시글 삭제');}
+  catch(e){toast('❌ '+e.message);}
+}
+
+// ════ 카카오톡 공유 ════
+
+// ── 공유 메시지 텍스트 생성 함수
+function buildShareText(c){
+  var tm=TM[c.type]||TM.ms;
+  var myT=(c.myTeam||[]).join(' · ');
+  var opT=(c.oppTeam||[]).join(' · ');
+  var dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
+  // 텍스트 본문에 직접 삽입할 URL: 클릭 시 대결 신청 탭 + 수락 대기중 필터 자동 이동
+  var baseUrl = window.location.href.split('#')[0];
+  var appUrl = baseUrl + '#challenge?filter=pending';
+  var lines=[
+    '🏓 이사탁 탁구 동호회 대결 신청',
+    '─────────────────',
+    '🏅 유형: '+tm.lb,
+    '⚔️ '+myT+' VS '+opT,
+    '',
+  ];
+  if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
+  if(c.place)         lines.push('📍 장소: '+c.place);
+  if(c.message)       lines.push('💬 한마디: '+c.message);
+  lines.push('─────────────────');
+  lines.push('아래 링크에서 수락/거절해주세요! 🙏');
+  lines.push(appUrl);  // URL을 텍스트로 직접 삽입 → 카카오톡이 자동으로 링크 처리
+  return lines.join('\n');
+}
+
+// ── 현재 환경이 모바일인지 판별 (User-Agent 기반)
+function _isMobile(){
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+// ── 현재 환경이 카카오톡 인앱 브라우저인지 판별
+function _isKakaoInApp(){
+  return /KAKAOTALK/i.test(navigator.userAgent);
+}
+
+// ── 환경에 따라 공유 모달 하단 힌트 텍스트를 동적으로 세팅
+function _setShareHint(){
+  var hint=g('share-hint');
+  if(!hint)return;
+  if(_isKakaoInApp()){
+    // 카카오톡 인앱 브라우저: SDK 공유 피커가 바로 열릴 수 있음
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방 선택 화면이 열립니다.';
+  } else if(_isMobile()){
+    // 모바일: SDK가 카카오톡 채팅방 선택 피커를 직접 오픈
+    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방을 선택해서 바로 전송할 수 있어요!';
+  } else {
+    // PC 환경: SDK가 카카오톡 공유 창 오픈 (카카오 계정 로그인 필요할 수 있음)
+    hint.innerHTML='💻 [카카오톡으로 공유] 버튼을 누르면<br>카카오톡 공유 창이 열립니다.<br>또는 📋 복사 후 카카오톡에 붙여넣기 하세요.';
+  }
+}
+
+// ── 대결 신청 완료 직후 공유 모달 열기 (submitCh 에서 호출)
+window.openShareModal=function(c){
+  var txt=buildShareText(c);
+  g('kakao-preview').textContent=txt;
+  // _shareText에 텍스트 저장해 두고, doKakaoShare / copyShareMsg 에서 사용
+  window._shareText=txt;
+  // 환경별 힌트 표시
+  _setShareHint();
+  openMo('mo-kakao');
+}
+
+// ── 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
+window.shareKakao=function(id){
+  var c=CHAL.find(function(c){return c.id===id;});
+  if(!c){toast('❌ 대결 정보를 찾을 수 없습니다');return;}
+  openShareModal(c);
+}
+
+// ── 카카오 SDK 초기화 (앱 JS 키)
+// Kakao.Share.sendDefault() 사용 시 채팅방 선택 피커가 뜨고 직접 전송 가능
+var _kakaoReady = false;
+function _initKakao(){
+  if(_kakaoReady) return true;
+  if(typeof Kakao === 'undefined'){
+    console.warn('카카오 SDK 로드 실패');
+    return false;
+  }
+  // 중복 초기화 방지
+  if(!Kakao.isInitialized()){
+    Kakao.init('7da5c6757ca9aa96c346e1349a7cbce1');
+  }
+  _kakaoReady = true;
+  return true;
+}
+
+// ── 실제 카카오톡 공유 처리 (2단계 Fallback)
+// 1단계: 카카오 SDK sendDefault → 채팅방 선택 피커 → 직접 전송
+// 2단계: SDK 미지원(구형 브라우저 등) → 클립보드 복사 후 안내
+window.doKakaoShare=function(){
+  var txt=window._shareText||'';
+  if(!txt)return;
+
+  // ── 카카오 SDK 초기화 시도
+  if(_initKakao()){
+    // sendDefault: 텍스트 메시지 템플릿으로 카카오톡 채팅방 선택 피커 오픈
+    // 사용자가 채팅방(또는 친구)을 선택하면 해당 대화방으로 메시지가 직접 전송됨
+    // 링크 클릭 시 대결 신청 탭 + 수락 대기중 필터가 자동 선택되도록 해시 파라미터 포함
+    var baseUrl = window.location.href.split('#')[0];
+    var shareUrl = baseUrl + '#challenge?filter=pending';
+    Kakao.Share.sendDefault({
+      objectType: 'text',
+      text: txt,
+      link: {
+        mobileWebUrl: shareUrl,
+        webUrl: shareUrl
+      }
+    });
+    return;
+  }
+
+  // ── SDK 로드 실패 시 fallback: 클립보드 복사
+  _copyToClipboard(txt);
+  toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
+}
+
+// ── 클립보드 복사 버튼
+window.copyShareMsg=function(){
+  var txt=window._shareText||'';
+  _copyToClipboard(txt);
+  toast('📋 복사 완료! 카카오톡에 붙여넣기 하세요');
+}
+
+// ── 클립보드 복사 내부 헬퍼 (Clipboard API → execCommand fallback)
+function _copyToClipboard(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).catch(function(){_fallbackCopy(txt);});
+  } else {
+    _fallbackCopy(txt);
+  }
+}
+
+// ── execCommand 방식 클립보드 복사 (구형 브라우저 대응)
+function _fallbackCopy(txt){
+  var ta=document.createElement('textarea');
+  ta.value=txt;
+  ta.style.position='fixed';
+  ta.style.opacity='0';
+  ta.style.top='0';
+  ta.style.left='0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+}
+
+// ════ 공통 ════
+window.fmtP=function(el){let v=el.value.replace(/\D/g,'');if(v.length<=3)el.value=v;else if(v.length<=7)el.value=v.slice(0,3)+'-'+v.slice(3);else el.value=v.slice(0,3)+'-'+v.slice(3,7)+'-'+v.slice(7,11);}
+window.toast=function(msg){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),2800);
+}
+// 시작
+window.setF('all');
+init();
