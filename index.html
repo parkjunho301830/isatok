@@ -559,10 +559,50 @@ tr:last-child td{border-bottom:none;}
   box-shadow:0 0 0px 1000px var(--c2) inset !important;
   transition:background-color 5000s ease-in-out 0s;
 }
-/* 모바일: 대결 신청 모달 회원 그리드 높이 제한 (전체화면 모드에서 스크롤 가능하게) */
+
+/* ── 모바일 키보드 대응: 대결 신청 모달 전용 ──
+   키보드 올라올 때 .mw의 높이를 JS가 --ch-modal-h 변수로 제어
+   기본값: 100dvh (키보드 없을 때)
+*/
+#mo-ch .mw{
+  --ch-modal-h: 100dvh;
+}
 @media(max-width:768px){
+  /* 전체화면 모달: JS가 계산한 높이를 CSS 변수로 반영 */
+  #mo-ch.write-mo .mw{
+    height: var(--ch-modal-h, 100dvh);
+    max-height: var(--ch-modal-h, 100dvh);
+    /* transition 제거: 키보드 추적 시 부드럽지만 레이아웃 연산 비용 최소화 */
+    transition: height 0.15s ease, max-height 0.15s ease;
+    /* 레이아웃 변화를 composite 레이어로 격리하여 텍스트 깜빡임 방지 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  /* .mb: flex:1이 키보드 리사이즈 시 깨지는 문제 → min-height:0 명시 */
+  #mo-ch.write-mo .mb{
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* 스크롤 컨테이너를 별도 레이어로 분리하여 키보드 애니메이션과 충돌 방지 */
+    will-change: scroll-position;
+  }
+  /* 회원 선택 그리드 높이 제한 (전체화면에서 스크롤 공간 확보) */
   #mo-ch .msg{
-    max-height:160px; /* 전체화면 모드에서 너무 길어지지 않도록 제한 */
+    max-height: 140px;
+  }
+  /* 포커스된 입력 필드가 키보드에 가려지지 않도록 scroll-margin 확보 */
+  #mo-ch input[type="text"]:focus,
+  #mo-ch input[type="date"]:focus,
+  #mo-ch input[type="time"]:focus{
+    scroll-margin-bottom: 16px;
+    scroll-margin-top: 16px;
+  }
+}
+/* 작은 폰(≤380px): 그리드 높이 더 축소 */
+@media(max-width:380px){
+  #mo-ch .msg{
+    max-height: 110px;
   }
 }
 /* 도전장 완료 후 공유 안내 모달 */
@@ -1136,6 +1176,71 @@ function setDb(ok){
 }
 
 // ── 모달 헬퍼 ──
+
+// ════════════════════════════════════════════════════════
+// 📱 대결 신청 모달 전용: visualViewport 키보드 높이 추적기
+// ────────────────────────────────────────────────────────
+// 문제 원인:
+//   모바일에서 소프트 키보드가 올라오면 window.innerHeight 또는
+//   100dvh가 줄어들지 않고, 대신 visualViewport.height만 줄어든다.
+//   이로 인해 전체화면 모달(.mw: min-height:100dvh)이 키보드 뒤에 가려져
+//   하단 입력 필드(장소, 한마디)가 화면 밖으로 밀려나 텍스트가 안 보인다.
+//
+// 해결 방법:
+//   visualViewport resize 이벤트로 현재 표시 가능 높이를 실시간 감지하여
+//   CSS 변수 --ch-modal-h에 반영 → .mw가 그 높이에 맞게 수축
+//   → 입력 필드가 항상 키보드 위쪽에 위치하게 됨
+// ════════════════════════════════════════════════════════
+var _chModalVpHandler = null; // 이벤트 리스너 참조 (중복 등록 방지용)
+
+function _attachChModalKeyboardHandler(){
+  // visualViewport API 미지원 환경(구형 브라우저) 무시
+  if(!window.visualViewport) return;
+  // 이미 등록된 핸들러가 있으면 제거 후 재등록
+  if(_chModalVpHandler){
+    window.visualViewport.removeEventListener('resize', _chModalVpHandler);
+    window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
+  }
+
+  var mwEl = document.querySelector('#mo-ch .mw');
+  if(!mwEl) return;
+
+  _chModalVpHandler = function(){
+    // 현재 시각적으로 보이는 뷰포트 높이 (키보드 올라오면 줄어듦)
+    var vvHeight = window.visualViewport.height;
+    // 모달 최대 높이를 현재 뷰포트 높이로 제한 (px 단위)
+    mwEl.style.setProperty('--ch-modal-h', vvHeight + 'px');
+    // 포커스된 입력 필드가 보이도록 .mb 영역을 스크롤
+    // (requestAnimationFrame으로 레이아웃 완료 후 실행하여 깜빡임 방지)
+    requestAnimationFrame(function(){
+      var focused = document.activeElement;
+      if(focused && mwEl.contains(focused)){
+        // scrollIntoView: 키보드 위로 입력 필드를 부드럽게 스크롤
+        focused.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'   // 필드가 이미 보이면 스크롤 안함 (불필요한 움직임 방지)
+        });
+      }
+    });
+  };
+
+  window.visualViewport.addEventListener('resize', _chModalVpHandler);
+  // iOS Safari: 키보드 올라올 때 scroll 이벤트도 함께 발생하므로 둘 다 바인딩
+  window.visualViewport.addEventListener('scroll', _chModalVpHandler);
+  // 최초 1회 실행하여 초기 높이 세팅
+  _chModalVpHandler();
+}
+
+function _detachChModalKeyboardHandler(){
+  if(!window.visualViewport || !_chModalVpHandler) return;
+  window.visualViewport.removeEventListener('resize', _chModalVpHandler);
+  window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
+  _chModalVpHandler = null;
+  // 모달 닫힐 때 인라인 CSS 변수 제거 (다음 오픈 시 초기 상태로 복원)
+  var mwEl = document.querySelector('#mo-ch .mw');
+  if(mwEl) mwEl.style.removeProperty('--ch-modal-h');
+}
+
 function openMo(id){
   const el = g(id);
   el.classList.add('on');
@@ -1148,21 +1253,34 @@ function openMo(id){
       if(first) first.focus();
     }, 320);
   }
+  // ── 대결 신청 모달: visualViewport 키보드 추적 시작 ──
+  if(id === 'mo-ch'){
+    // 모달 슬라이드 인 애니메이션(300ms) 완료 후 핸들러 등록
+    // (너무 이르게 등록하면 초기 높이 계산이 잘못될 수 있음)
+    setTimeout(_attachChModalKeyboardHandler, 320);
+  }
   // 스크롤 잠금
   document.body.style.overflow = 'hidden';
 }
 window.closeMo=function(id){
   g(id).classList.remove('on');
   document.body.style.overflow = '';
-  // ── 대결 신청 모달 닫힐 때: 입력 포커스 가드로 미뤄진 renderGrids를 재실행
-  //    (다음에 모달이 다시 열릴 때 회원 그리드가 최신 상태 반영되도록 보장)
+  // ── 대결 신청 모달 닫힐 때 ──
   if(id === 'mo-ch'){
-    // 포커스 해제 후 실행 (blur 이벤트 완료 대기)
+    // visualViewport 키보드 추적 핸들러 해제
+    _detachChModalKeyboardHandler();
+    // 입력 포커스 가드로 미뤄진 renderGrids를 재실행
+    // (다음에 모달이 다시 열릴 때 회원 그리드가 최신 상태 반영되도록 보장)
     setTimeout(function(){ renderGrids(); }, 50);
   }
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
-  if(e.target===m){ m.classList.remove('on'); document.body.style.overflow=''; }
+  if(e.target===m){
+    m.classList.remove('on');
+    document.body.style.overflow='';
+    // 대결 신청 모달을 바깥 클릭으로 닫을 때도 핸들러 해제
+    if(m.id === 'mo-ch') _detachChModalKeyboardHandler();
+  }
 }));
 
 // ── 네비 ──
@@ -1314,6 +1432,25 @@ window.openChallengeModal=function(){
   ['ch-msg','ch-place'].forEach(id=>g(id).value='');
   ['e-my','e-opp'].forEach(id=>g(id).classList.remove('on'));
   openMo('mo-ch');
+
+  // ── 입력 필드 포커스 시 .mb 스크롤 핸들러 ──
+  // 키보드 올라온 뒤 .mb를 스크롤하여 입력 필드가 항상 보이도록 보장
+  // (visualViewport 핸들러와 이중으로 동작하여 안정성 향상)
+  var mbEl = document.querySelector('#mo-ch .mb');
+  var moChInputs = document.querySelectorAll('#mo-ch input[type="text"], #mo-ch input[type="date"], #mo-ch input[type="time"]');
+  moChInputs.forEach(function(inp){
+    // 기존 리스너 중복 방지: 한 번만 등록되도록 클로저 플래그 사용
+    if(inp._chFocusListenerAdded) return;
+    inp._chFocusListenerAdded = true;
+    inp.addEventListener('focus', function(){
+      // iOS Safari: 키보드 완전히 올라올 때까지 대기 후 스크롤 (약 400ms)
+      setTimeout(function(){
+        if(!mbEl) return;
+        // scrollIntoView: 입력 필드가 뷰포트(키보드 위) 범위 안에 오도록 스크롤
+        inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 400);
+    });
+  });
 }
 
 // ── 오픈 챌린지 토글 처리 ──
