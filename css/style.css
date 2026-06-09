@@ -1,0 +1,340 @@
+/* ═══════════════════════════════════════════════════════════════
+   공통 스타일시트
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+    --bg: #0a0a0f;
+    --c1: #141420;
+    --c2: #1a1a28;
+    --c3: #222233;
+    --b1: rgba(255,255,255,0.07);
+    --b2: rgba(255,255,255,0.13);
+    --b3: rgba(255,255,255,0.20);
+    --a: #00e5a0;
+    --a2: #00b87a;
+    --adim: rgba(0,229,160,0.12);
+    --aglow: rgba(0,229,160,0.28);
+    --red: #ff4d6d;
+    --amber: #ffb347;
+    --blue: #4da6ff;
+    --purple: #b39dfa;
+    --t1: #eeeef8;
+    --t2: #9090b0;
+    --t3: #55556a;
+    --r: 14px;
+    --rl: 20px;
+    --rxl: 26px;
+    --sb: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    background: var(--bg);
+    color: var(--t1);
+    font-family: 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   네비게이션 스타일
+   ═══════════════════════════════════════════════════════════════ */
+
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background: var(--c1);
+    border-bottom: 1px solid var(--b2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.nav-logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--a);
+    text-decoration: none;
+}
+
+.nav-menu {
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+    flex: 1;
+    margin: 0 2rem;
+}
+
+.nav-menu a {
+    color: var(--t2);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-menu a:hover {
+    color: var(--a);
+}
+
+.nav-user {
+    font-size: 0.9rem;
+    color: var(--t2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   메인 콘텐츠 스타일
+   ═══════════════════════════════════════════════════════════════ */
+
+#app-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+#main-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+#main-content h1 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: var(--a);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   카드 스타일 (회원, 대회)
+   ═══════════════════════════════════════════════════════════════ */
+
+.member-card,
+.tournament-card,
+.board-post,
+.notice-item {
+    background: var(--c2);
+    border: 1px solid var(--b2);
+    border-radius: var(--r);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.member-card:hover,
+.tournament-card:hover,
+.board-post:hover,
+.notice-item:hover {
+    border-color: var(--a);
+    background: var(--c3);
+    box-shadow: 0 4px 12px var(--adim);
+}
+
+.member-card h3,
+.tournament-card h3,
+.board-post h3,
+.notice-item h3 {
+    color: var(--a);
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.member-card p,
+.tournament-card p,
+.board-post p,
+.notice-item p {
+    color: var(--t2);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.member-card p,
+.tournament-card p {
+    font-size: 0.9rem;
+}
+
+.post-date,
+.notice-date {
+    font-size: 0.85rem;
+    color: var(--t3);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   목록 레이아웃
+   ═══════════════════════════════════════════════════════════════ */
+
+.members-list,
+.tournaments-list,
+.posts-list,
+.notices-list {
+    display: grid;
+    gap: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   버튼 스타일
+   ═══════════════════════════════════════════════════════════════ */
+
+button {
+    background: var(--a);
+    color: var(--bg);
+    border: none;
+    border-radius: var(--r);
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+button:hover {
+    background: var(--a2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 229, 160, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+.member-actions,
+.tournament-actions,
+.post-actions,
+.notice-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.member-actions button,
+.tournament-actions button,
+.post-actions button,
+.notice-actions button {
+    flex: 1;
+    min-width: 70px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   반응형 디자인
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    .nav-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .nav-menu {
+        margin: 0;
+        gap: 1rem;
+        flex-direction: column;
+    }
+
+    #main-content {
+        padding: 1rem;
+    }
+
+    #main-content h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .member-card,
+    .tournament-card,
+    .board-post,
+    .notice-item {
+        padding: 1rem;
+    }
+
+    .member-actions button,
+    .tournament-actions button,
+    .post-actions button,
+    .notice-actions button {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   배경 효과
+   ═══════════════════════════════════════════════════════════════ */
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(ellipse 100% 50% at 0% 0%, rgba(0, 229, 160, 0.06), transparent 50%),
+        radial-gradient(ellipse 80% 50% at 100% 100%, rgba(77, 159, 255, 0.04), transparent 50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   공지사항 구체적 스타일
+   ═══════════════════════════════════════════════════════════════ */
+
+.notice-content {
+    color: var(--t1);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   게시판 구체적 스타일
+   ═══════════════════════════════════════════════════════════════ */
+
+.post-author {
+    font-size: 0.85rem;
+    color: var(--t3);
+    margin-bottom: 1rem;
+}
+
+.post-content {
+    color: var(--t1);
+    line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   토너먼트 구체적 스타일
+   ═══════════════════════════════════════════════════════════════ */
+
+.tournament-card {
+    border-left: 4px solid var(--a);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   유틸리티
+   ═══════════════════════════════════════════════════════════════ */
+
+p {
+    margin: 0;
+}
+
+a {
+    color: var(--a);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--a2);
+    text-decoration: underline;
+}
