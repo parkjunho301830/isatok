@@ -290,7 +290,8 @@ tr:last-child td{border-bottom:none;}
 .cc.completed{opacity:.7;}
 /* 오픈 챌린지 펄스 효과 */
 @keyframes openPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,179,71,0);}60%{box-shadow:0 0 0 6px rgba(255,179,71,0.18);}}
-.cc.open{animation:openPulse 2.4s ease-in-out infinite;}
+/* will-change로 펄스 애니메이션을 별도 레이어로 격리 → 주변 요소 리페인트 방지 */
+.cc.open{animation:openPulse 2.4s ease-in-out infinite;will-change:box-shadow;}
 
 .cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
 .cc-badges{display:flex;gap:7px;flex-wrap:wrap;}
@@ -1115,9 +1116,48 @@ function renderC(){
   else if(_cf==='fd') data=data.filter(c=>c.type==='fd');
   else if(_cf==='mx') data=data.filter(c=>c.type==='mx');
   else if(_cf!=='all') data=data.filter(c=>c.type===_cf);
-  if(!data.length){list.innerHTML='';empty.style.display='block';return;}
+  if(!data.length){
+    // 기존 카드 노드 제거 (깜빡임 없이 개별 제거)
+    while(list.firstChild)list.removeChild(list.firstChild);
+    empty.style.display='block';
+    return;
+  }
   empty.style.display='none';
-  list.innerHTML=data.map(c=>{
+
+  // ── diff-patch: 기존 DOM 노드를 재사용하여 깜빡임 방지 ──
+  // 현재 렌더된 카드 ID 목록
+  const rendered=Array.from(list.children).map(el=>el.dataset.cid);
+  const needed=data.map(c=>c.id);
+  // 필요없는 카드 제거
+  Array.from(list.children).forEach(el=>{
+    if(!needed.includes(el.dataset.cid))list.removeChild(el);
+  });
+  // 필요한 카드를 순서대로 삽입/업데이트
+  data.forEach((c,idx)=>{
+    const newHtml=buildCCard(c);
+    const existing=list.querySelector('[data-cid="'+c.id+'"]');
+    if(existing){
+      // 내용이 바뀐 경우에만 교체 (불필요한 DOM 조작 최소화)
+      if(existing.dataset.chash!==c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')){
+        existing.outerHTML=newHtml; // 변경된 카드만 교체
+      }
+      // 순서 보정: 현재 위치가 idx와 다르면 이동
+      const cur=list.children[idx];
+      const fresh=list.querySelector('[data-cid="'+c.id+'"]');
+      if(cur!==fresh)list.insertBefore(fresh,cur||null);
+    } else {
+      // 새 카드 삽입
+      const div=document.createElement('div');
+      div.innerHTML=newHtml;
+      const node=div.firstElementChild;
+      const ref=list.children[idx]||null;
+      list.insertBefore(node,ref);
+    }
+  });
+}
+
+// ── 대결 카드 HTML 생성 (renderC에서 분리) ──
+function buildCCard(c){
     const tm=TM[c.type]||TM.ms;
     // ── 오픈 챌린지 여부 판단 ──
     const isOpen=!!c.isOpen&&c.status==='pending';
@@ -1146,7 +1186,8 @@ function renderC(){
     acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
     // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
-    return `<div class="${cardClass}">
+    // data-cid: diff-patch용 고유 식별자, data-chash: 변경 감지용 해시
+    return `<div class="${cardClass}" data-cid="${c.id}" data-chash="${c.id}|${c.status}|${isOpen?'1':'0'}">
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
       <div class="vs-row">
         <div class="vs-team">${myH}</div>
@@ -1157,7 +1198,6 @@ function renderC(){
       ${res}
       <div class="cc-acts">${acts}</div>
     </div>`;
-  }).join('');
 }
 
 window.openChallengeModal=function(){
@@ -1241,13 +1281,45 @@ function renderGrid(gid,sel,other,isMy){
     }
     return{...x,_d:dim};
   });
-  gr.innerHTML=mems.map(x=>{
-    const s=sel.includes(x.name);
-    return`<div class="mc2${s?(isMy?' sel':' selp'):''}${x._d?' dim':''}" onclick="${x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')'}">
-      <div class="mn">${x.name}</div>
-      <div class="ms2">${x.grade||'초급'}${x.gender?' '+(x.gender==='남성'?'♂':'♀'):''}</div>
-    </div>`;
-  }).join('')||'<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+  if(!mems.length){
+    gr.innerHTML='<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+    return;
+  }
+  // ── diff-patch: 기존 mc2 노드를 재사용하여 입력 깜빡임 방지 ──
+  // 필요한 이름 목록
+  const neededNames=mems.map(x=>x.name);
+  // 없어진 항목 제거
+  Array.from(gr.querySelectorAll('.mc2')).forEach(el=>{
+    if(!neededNames.includes(el.dataset.mname))gr.removeChild(el);
+  });
+  // 삽입/업데이트
+  mems.forEach((x,idx)=>{
+    const sSel=sel.includes(x.name);
+    const newCls='mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':'');
+    const newOnclick=x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')';
+    const existing=gr.querySelector('[data-mname="'+x.name+'"]');
+    if(existing){
+      // 클래스와 onclick만 업데이트 (텍스트 노드 건드리지 않음)
+      if(existing.className!==newCls)existing.className=newCls;
+      if(existing.getAttribute('onclick')!==(x._d?null:newOnclick)){
+        if(x._d)existing.removeAttribute('onclick');
+        else existing.setAttribute('onclick',newOnclick);
+      }
+      // 순서 보정
+      const cur=gr.children[idx];
+      if(cur!==existing)gr.insertBefore(existing,cur||null);
+    } else {
+      // 새 노드 생성
+      const div=document.createElement('div');
+      div.className=newCls;
+      div.dataset.mname=x.name;
+      if(!x._d)div.setAttribute('onclick',newOnclick);
+      div.innerHTML='<div class="mn">'+x.name+'</div>'
+        +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+'</div>';
+      const ref=gr.children[idx]||null;
+      gr.insertBefore(div,ref);
+    }
+  });
 }
 window.tgl=function(gid,name,isMy){
   const arr=isMy?_my:_opp;
