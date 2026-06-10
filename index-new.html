@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>이사탁 탁구 동호회</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 로딩 -->
+  <div class="ls" id="ls">
+    <div class="sp"></div>
+    <div style="color:var(--t2);font-size:15px;font-weight:600;margin-top:4px">Firebase 연결 중...</div>
+  </div>
+
+  <div class="app-layout">
+    <!-- PC 전용 사이드바 -->
+    <nav class="sidebar" id="sidebar" style="display:none">
+      <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div></div>
+      <span class="nav-g">메뉴</span>
+      <div class="nav-i on" data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
+      <div class="nav-i" data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
+      <div class="nav-i" data-page="notice" onclick="nav('notice')"><span class="ni-icon">📢</span>공지사항</div>
+      <div class="nav-i" data-page="board" onclick="nav('board')"><span class="ni-icon">💬</span>자유게시판</div>
+      <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
+    </nav>
+
+    <!-- 콘텐츠 영역 -->
+    <div class="app-wrap" id="app" style="display:none">
+      <!-- 모바일 헤더 -->
+      <div class="mhdr">
+        <div class="mhdr-logo">🏓 이사탁</div>
+        <div class="mhdr-r"><span id="dbm" title="연결 상태">🟢</span></div>
+      </div>
+
+      <!-- FAB (모바일 대결 신청) -->
+      <button class="fab" onclick="openChallengeModal()">🏓 대결 신청</button>
+
+      <main class="main">
+        <!-- ══ 대결 신청 ══ -->
+        <div class="page on" id="page-challenge">
+          <div class="ph">
+            <div class="ph-t">대결 <em>신청</em></div>
+            <button class="btn btn-p btn-sm pc-only" onclick="openChallengeModal()">+ 대결 신청</button>
+          </div>
+          <div class="fscroll">
+            <button class="fc on" id="f-all" onclick="setF('all')">전체</button>
+            <button class="fc" id="f-open" onclick="setF('open')">🔥 오픈 챌린지</button>
+            <button class="fc" id="f-pending" onclick="setF('pending')">⏳ 대기중</button>
+            <button class="fc" id="f-accepted" onclick="setF('accepted')">✅ 수락됨</button>
+            <button class="fc" id="f-ms" onclick="setF('ms')">🏓 남단식</button>
+            <button class="fc" id="f-md" onclick="setF('md')">🏓 남복식</button>
+            <button class="fc" id="f-fs" onclick="setF('fs')">🎀 여단식</button>
+            <button class="fc" id="f-fd" onclick="setF('fd')">🎀 여복식</button>
+            <button class="fc" id="f-mx" onclick="setF('mx')">🤝 혼합복식</button>
+            <button class="fc" id="f-completed" onclick="setF('completed')">🏆 완료</button>
+          </div>
+          <div id="ch-empty" style="display:none;text-align:center;padding:64px 20px;color:var(--t3)">
+            <div style="font-size:56px;margin-bottom:18px">🏓</div>
+            <div style="font-size:18px;font-weight:800;color:var(--t2);margin-bottom:10px">대결 신청이 없어요</div>
+            <div style="font-size:14px;color:var(--t3);line-height:1.6">도전장을 내밀어보세요!<br>상대방도 기다리고 있을지 몰라요 😄</div>
+          </div>
+          <div id="ch-list"></div>
+        </div>
+
+        <!-- ══ 회원 관리 ══ -->
+        <div class="page" id="page-members">
+          <div class="ph">
+            <div class="ph-t">회원 <em>관리</em></div>
+            <button class="btn btn-p btn-sm" onclick="openAddModal()">+ 신규 등록</button>
+          </div>
+          <div class="card card-p">
+            <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+              <input type="search" placeholder="🔍 이름 검색" style="max-width:220px;min-height:44px" oninput="filterM(this.value)" id="ms">
+              <select style="max-width:150px;min-height:44px" onchange="filterG(this.value)">
+                <option value="">전체 등급</option><option>고급</option><option>중급</option><option>초급</option>
+              </select>
+            </div>
+            <table class="tm">
+              <thead><tr><th>이름</th><th>등급</th><th>성별</th><th>상태</th><th></th></tr></thead>
+              <tbody id="mtb"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══ 공지사항 ══ -->
+        <div class="page" id="page-notice">
+          <div class="ph">
+            <div class="ph-t">공지 <em>사항</em></div>
+            <button class="btn btn-p btn-sm" onclick="openNoticeModal()">+ 작성</button>
+          </div>
+          <div class="card card-p">
+            <div id="nl"><div style="text-align:center;padding:48px 20px;color:var(--t3);font-size:15px">공지사항이 없습니다</div></div>
+          </div>
+        </div>
+
+        <!-- ══ 자유게시판 ══ -->
+        <div class="page" id="page-board">
+          <div class="ph">
+            <div class="ph-t">자유 <em>게시판</em></div>
+            <button class="btn btn-p btn-sm" onclick="openBoardModal()">+ 글쓰기</button>
+          </div>
+          <div class="card card-p">
+            <div id="bl"><div style="text-align:center;padding:48px 20px;color:var(--t3);font-size:15px">게시글이 없습니다</div></div>
+          </div>
+        </div>
+      </main>
+    </div><!-- /app-wrap -->
+  </div><!-- /app-layout -->
+
+  <!-- 하단 탭바 -->
+  <nav class="bnav">
+    <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
+    <div class="bni" onclick="nav('members')" data-p="members"><span class="bi">👥</span><span>회원</span></div>
+    <div class="bni" onclick="nav('notice')" data-p="notice"><span class="bi">📢</span><span>공지</span></div>
+    <div class="bni" onclick="nav('board')" data-p="board"><span class="bi">💬</span><span>게시판</span></div>
+  </nav>
+
+  <!-- 모달들 (HTML 구조만 - 내용은 JavaScript에서 동적으로 관리) -->
+  <div class="mo write-mo" id="mo-ch"><div class="mw"><div class="mh"><div class="mt">🏓 대결 <em>신청</em></div><button class="mc-btn" onclick="closeMo('mo-ch')">✕</button></div><div class="mb"><label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()"><div class="oc-toggle-label"><span class="oc-icon">🔥</span><div><div class="oc-text">오픈 챌린지</div><div class="oc-desc">상대 팀 미지정 — 누구나 수락 가능</div></div></div><div class="sw"><input type="checkbox" id="oc-chk" onchange="toggleOC()"><span class="sw-track"></span></div></label><div class="fg"><label>대결 유형</label><div class="tg"><div id="t-ms" class="tb as" onclick="setType('ms')"><div class="te">🏓</div><div class="tl" style="color:var(--a)">남단식</div></div><div id="t-md" class="tb" onclick="setType('md')"><div class="te">🏓🏓</div><div class="tl">남복식</div></div><div id="t-fs" class="tb" onclick="setType('fs')"><div class="te">🎀</div><div class="tl">여단식</div></div><div id="t-fd" class="tb" onclick="setType('fd')"><div class="te">🎀🎀</div><div class="tl">여복식</div></div><div id="t-mx" class="tb" onclick="setType('mx')"><div class="te">🤝</div><div class="tl">혼합복식</div></div></div></div><div class="fg"><label id="lbl-my">내 팀 선택</label><div class="msg" id="gmy"></div><div class="emsg" id="e-my">선택해주세요</div></div><div id="opp-section" class="fg"><label id="lbl-opp">상대 팀 선택</label><div class="msg" id="gopp"></div><div class="emsg" id="e-opp">선택해주세요</div></div><div class="fr" style="margin-bottom:18px"><div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div><div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div></div><div class="fg"><label>장소</label><input type="text" id="ch-place" placeholder="예: 이사탁 코트" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div><div class="fg" style="margin-bottom:0"><label>한마디 (선택)</label><input type="text" id="ch-msg" placeholder="😄 한번 붙어봅시다!" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div></div><div class="mf"><button class="btn btn-g" onclick="closeMo('mo-ch')">취소</button><button class="btn btn-p" id="ch-submit-btn" onclick="submitCh()">🏓 도전장 보내기</button></div></div></div>
+
+  <!-- 기타 모달들은 생략 (GitHub에서 복사할 수 있음) -->
+
+  <!-- Firebase & 메인 스크립트 -->
+  <script type="module">
+    import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const FB={
+      apiKey:"AIzaSyDttEMgDQx3iS2siRzVIizxBBDZ4KjcJEw",
+      authDomain:"isatok-ef06a.firebaseapp.com",
+      projectId:"isatok-ef06a",
+      storageBucket:"isatok-ef06a.firebasestorage.app",
+      messagingSenderId:"480704214424",
+      appId:"1:480704214424:web:1f02fea9630e395bbb27ed"
+    };
+
+    let db,MEMBERS=[],CHAL=[],NOTICES=[],BOARDS=[];
+    let _delId=null,_fg='',_cf='all',_rid=null,_rw=null;
+    let _type='ms',_my=[],_opp=[];
+    const ELO={초급:1400,중급:1550,고급:1700};
+    const AVC=['avG','avB','avA','avR','avP'];
+    const g=id=>document.getElementById(id);
+    function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5];}
+    function ini(n){return n?n[0]:'?';}
+    function $ko(d){return new Date(d).toLocaleDateString('ko-KR',{month:'long',day:'numeric'});}
+
+    // Firebase 초기화 및 스크립트 로드
+    async function init(){
+      const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
+      try{
+        db=getFirestore(initializeApp(FB));
+        setDb(true);
+        // Firestore 리스너 설정
+        onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
+          MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
+          renderM();
+          renderGrids();
+        });
+        onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
+          CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
+          renderC();
+        });
+        onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
+        onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
+        clearTimeout(safe);finish();
+      }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
+    }
+    function finish(){
+      g('ls').style.display='none';
+      g('app').style.display='flex';
+      const sb=g('sidebar');
+      if(sb) sb.style.display='';
+      const d=new Date();d.setDate(d.getDate()+1);
+      g('ch-date').value=d.toISOString().slice(0,10);
+    }
+    function setDb(ok){
+      const h=ok?'<span style="color:var(--a)">● Firebase 연결됨</span>':'<span style="color:var(--amber)">● 연결 실패</span>';
+      g('dbs').innerHTML=h;g('dbm').textContent=ok?'🟢':'🟡';
+    }
+
+    // 전역 함수 export
+    window.init=init;
+    window.db=()=>db;
+    window.getMembers=()=>MEMBERS;
+    window.getChal=()=>CHAL;
+    window.getNotices=()=>NOTICES;
+    window.getBoards=()=>BOARDS;
+    window.avc=avc;
+    window.ini=ini;
+    window.$ko=$ko;
+    window.g=g;
+    window.ELO=ELO;
+
+    // 초기화 시작
+    init();
+  </script>
+
+  <!-- 별도 스크립트 파일들 로드 -->
+  <script src="js/firebase.js"></script>
+  <script src="js/tournament.js"></script>
+  <script src="js/members.js"></script>
+  <script src="js/notice.js"></script>
+  <script src="js/board.js"></script>
+</body>
+</html>
