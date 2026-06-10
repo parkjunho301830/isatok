@@ -441,7 +441,18 @@ async function init(){
     onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafC)cancelAnimationFrame(_rafC);
-      _rafC=requestAnimationFrame(()=>{renderC();_rafC=null;});
+      _rafC=requestAnimationFrame(()=>{
+        // ── ch-msg 포커스 가드: mo-ch 열려 있고 ch-msg 입력 중이면 renderC 차단 ──
+        var moEl=g('mo-ch');
+        var focused=document.activeElement;
+        console.log('[renderC]');
+        console.log('[focus]', focused?.id);
+        var isInputFocused=focused&&focused.id==='ch-msg';
+        if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
+          renderC();
+        }
+        _rafC=null;
+      });
     });
     onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
     onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
