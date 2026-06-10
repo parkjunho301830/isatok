@@ -618,11 +618,33 @@ window.setF=function(f){
   document.querySelectorAll('.fc').forEach(el=>el.classList.toggle('on',el.id==='f-'+f));
   renderC();
 }
+// ── 오픈 챌린지 대기 중 개수 뱃지 업데이트
+function updateOpenBadge(){
+  const count=CHAL.filter(c=>c.isOpen&&c.status==='pending').length;
+  const btn=g('f-open');
+  if(!btn)return;
+  // 기존 뱃지 제거
+  const prev=btn.querySelector('.oc-cnt');
+  if(prev)prev.remove();
+  // 1개 이상일 때만 뱃지 표시
+  if(count>0){
+    const span=document.createElement('span');
+    span.className='oc-cnt';
+    span.textContent=count;
+    span.style.cssText='display:inline-flex;align-items:center;justify-content:center;'+
+      'background:var(--amber);color:#000;font-size:11px;font-weight:800;'+
+      'min-width:18px;height:18px;border-radius:9px;padding:0 5px;margin-left:5px;line-height:1;';
+    btn.appendChild(span);
+  }
+}
+
 function renderC(){
   const list=g('ch-list'),empty=g('ch-empty');
+  // ── 오픈 챌린지 뱃지 갱신 (renderC 호출될 때마다 최신 반영)
+  updateOpenBadge();
   let data=[...CHAL];
   // ── 필터 적용 ──
-  if(_cf==='pending')        data=data.filter(c=>c.status==='pending'&&!c.isOpen);
+  if(_cf==='pending')        data=data.filter(c=>c.status==='pending'); // 오픈 챌린지 포함하여 대기중 전체 표시
   else if(_cf==='open')      data=data.filter(c=>c.isOpen&&c.status==='pending'); // 오픈 챌린지 필터
   else if(_cf==='accepted')  data=data.filter(c=>c.status==='accepted');
   else if(_cf==='completed') data=data.filter(c=>c.status==='completed');
