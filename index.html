@@ -134,9 +134,7 @@
 <div class="mo write-mo" id="mo-ch">
   <div class="mw">
     <div class="mh"><div class="mt">🏓 대결 <em>신청</em></div><button class="mc-btn" onclick="closeMo('mo-ch')">✕</button></div>
-    <!-- [수정] scroll-padding-bottom: 키보드 위에 여백을 확보하여 입력 필드가 키보드에 가려지지 않도록 보장
-              -webkit-overflow-scrolling: iOS 모멘텀 스크롤 활성화로 부드러운 스크롤 보장 -->
-    <div class="mb" id="mo-ch-mb" style="-webkit-overflow-scrolling:touch;scroll-padding-bottom:24px">
+    <div class="mb">
       <!-- 오픈 챌린지 토글 -->
       <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
         <div class="oc-toggle-label">
@@ -168,9 +166,15 @@
         <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
         <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
       </div>
-      <!-- autocomplete="off": iOS 자동완성 드롭다운으로 인한 레이아웃 흔들림 방지 -->
-      <div class="fg"><label>장소</label><input type="text" id="ch-place" placeholder="예: 이사탁 코트" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
-      <div class="fg" style="margin-bottom:0"><label>한마디 (선택)</label><input type="text" id="ch-msg" placeholder="😄 한번 붙어봅시다!" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></div>
+      <!-- 한마디: 모달 최하단 입력 필드 -->
+      <!-- inputmode="text" + enterkeyhint: iOS/Android 키보드 최적화 -->
+      <div class="fg" style="margin-bottom:0">
+        <label>한마디 (선택)</label>
+        <input type="text" id="ch-msg"
+          placeholder="😄 한번 붙어봅시다!"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          inputmode="text" enterkeyhint="done">
+      </div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-ch')">취소</button>
@@ -426,9 +430,8 @@ async function init(){
         //    renderGrids 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
         var moEl=g('mo-ch');
         var focused=document.activeElement;
-        // [수정] 모든 입력 요소에서 포커스 중이면 렌더 차단 (date/time 포함)
-        var isInputFocused=focused&&moEl&&moEl.contains(focused)&&
-          (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT');
+        // 한마디 입력 중이면 renderGrids 차단 (깜빡임/텍스트 소실 방지)
+        var isInputFocused=focused&&focused.id==='ch-msg';
         if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
           renderGrids();
         }
@@ -493,12 +496,13 @@ function setDb(ok){
 //   모바일에서 소프트 키보드가 올라오면 window.innerHeight 또는
 //   100dvh가 줄어들지 않고, 대신 visualViewport.height만 줄어든다.
 //   이로 인해 전체화면 모달(.mw: min-height:100dvh)이 키보드 뒤에 가려져
-//   하단 입력 필드(장소, 한마디)가 화면 밖으로 밀려나 텍스트가 안 보인다.
+//   하단 입력 필드(한마디)가 화면 밖으로 밀려나 텍스트가 안 보인다.
 //
 // 해결 방법:
 //   visualViewport resize 이벤트로 현재 표시 가능 높이를 실시간 감지하여
 //   CSS 변수 --ch-modal-h에 반영 → .mw가 그 높이에 맞게 수축
 //   → 입력 필드가 항상 키보드 위쪽에 위치하게 됨
+//   → 추가로 ch-msg 포커스 중에는 .mb.scrollTop을 최하단으로 고정
 // ════════════════════════════════════════════════════════
 var _chModalVpHandler = null; // 이벤트 리스너 참조 (중복 등록 방지용)
 
@@ -514,39 +518,20 @@ function _attachChModalKeyboardHandler(){
   var mwEl = document.querySelector('#mo-ch .mw');
   if(!mwEl) return;
 
-  // [추가] .mb 요소 참조: 높이 조정 후 .mb 스크롤 위치도 함께 보정
-  var mbEl = document.querySelector('#mo-ch .mb');
-
   _chModalVpHandler = function(){
     // 현재 시각적으로 보이는 뷰포트 높이 (키보드 올라오면 줄어듦)
     var vvHeight = window.visualViewport.height;
     // 모달 최대 높이를 현재 뷰포트 높이로 제한 (px 단위)
     mwEl.style.setProperty('--ch-modal-h', vvHeight + 'px');
-    // 포커스된 입력 필드가 보이도록 .mb 영역을 스크롤
-    // [수정] block:'center'로 변경하여 입력 필드가 화면 중앙에 위치하도록 보장
-    //        키보드가 올라온 뒤 레이아웃이 완전히 확정된 시점(두 번의 rAF)에 실행
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        var focused = document.activeElement;
-        if(focused && mwEl.contains(focused)){
-          focused.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'   // [수정] nearest → center: 필드가 항상 키보드 위 중앙에 위치
-          });
-        }
-        // [추가] .mb 스크롤 위치 보정: visualViewport 높이가 줄면 .mb의 scrollTop도 보정
-        //        포커스된 필드가 .mb 안에 있을 때 .mb 자체 스크롤로도 보정
-        if(mbEl && focused && mbEl.contains(focused)){
-          var rect = focused.getBoundingClientRect();
-          var vpBottom = vvHeight;
-          // 필드 하단이 뷰포트(키보드 위쪽) 밖으로 나간 경우 .mb를 스크롤
-          if(rect.bottom > vpBottom - 16){
-            var overflowY = rect.bottom - vpBottom + 16;
-            mbEl.scrollTop = mbEl.scrollTop + overflowY;
-          }
-        }
-      });
-    });
+
+    // ── 한마디 입력 필드 포커스 중이면 .mb를 최하단까지 스크롤 ──
+    // scrollIntoView(smooth) 방식은 Firestore 렌더 타이밍과 충돌해 깜빡임 유발하므로
+    // .mb.scrollTop을 직접 조작하는 방식으로 교체 (레이아웃 재계산 없이 즉시 반영)
+    var focused = document.activeElement;
+    if(focused && focused.id === 'ch-msg'){
+      var mbEl = document.querySelector('#mo-ch .mb');
+      if(mbEl) mbEl.scrollTop = mbEl.scrollHeight;
+    }
   };
 
   window.visualViewport.addEventListener('resize', _chModalVpHandler);
@@ -731,7 +716,7 @@ function buildCCard(c){
       ?`<div class="vs-player" style="opacity:.55"><div class="av avA" style="width:34px;height:34px;font-size:16px">?</div><span class="vs-name" style="color:var(--amber)">누구나 도전 가능!</span></div>`
       :(c.oppTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
     const dt=c.date?$ko(c.date+'T00:00'):'';
-    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.place?`<span class="pill">📍 ${c.place}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
+    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
     const res=c.status==='completed'&&c.winner?`<div class="cc-result">🏆 ${c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·')} 팀 승리${c.score?' · '+c.score:''}</div>`:'';
     // ── 오픈 챌린지 뱃지 ──
     const openBadge=isOpen?`<span class="badge ba">🔥 오픈 챌린지</span>`:'';
@@ -776,32 +761,27 @@ window.openChallengeModal=function(){
   var submitBtn=g('ch-submit-btn');
   if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
   setType('ms');
-  ['ch-msg','ch-place'].forEach(id=>g(id).value='');
+  ['ch-msg'].forEach(id=>g(id).value='');          // ch-place 제거됨
   ['e-my','e-opp'].forEach(id=>g(id).classList.remove('on'));
   openMo('mo-ch');
 
-  // ── 입력 필드 포커스 시 .mb 스크롤 핸들러 ──
-  // 키보드 올라온 뒤 .mb를 스크롤하여 입력 필드가 항상 보이도록 보장
-  // (visualViewport 핸들러와 이중으로 동작하여 안정성 향상)
-  var mbEl = document.querySelector('#mo-ch .mb');
-  var moChInputs = document.querySelectorAll('#mo-ch input[type="text"], #mo-ch input[type="date"], #mo-ch input[type="time"]');
-  moChInputs.forEach(function(inp){
-    // [수정] 모달 재오픈 시 리스너가 확실히 재등록되도록:
-    //        기존 리스너를 제거한 뒤 새로 등록 (플래그 방식 대신 named function 방식)
-    if(inp._chFocusHandler){
-      inp.removeEventListener('focus', inp._chFocusHandler);
-    }
-    inp._chFocusHandler = function(){
-      // iOS Safari: 키보드 완전히 올라올 때까지 대기 후 스크롤 (약 450ms)
-      // [수정] 대기 시간을 450ms로 늘리고 block:'center'로 변경
-      //        → 키보드 팝업 완료 후 입력 필드가 확실히 화면 중앙에 위치
+  // ── 한마디 입력 필드 포커스 핸들러 ──
+  // 키보드가 올라와 입력 필드가 가려지는 현상을 방지하기 위해
+  // focus 시 .mb를 직접 scrollTop으로 끌어올려 필드를 항상 노출
+  // scrollIntoView(smooth) 방식은 Firestore 렌더 타이밍과 충돌 시 깜빡임 유발하므로 사용 안 함
+  var msgInp = g('ch-msg');
+  if(msgInp && !msgInp._chFocusAttached){
+    msgInp._chFocusAttached = true;
+    msgInp.addEventListener('focus', function(){
+      // iOS Safari: 소프트 키보드가 완전히 올라올 때까지 대기 (약 350ms)
       setTimeout(function(){
+        var mbEl = document.querySelector('#mo-ch .mb');
         if(!mbEl) return;
-        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 450);
-    };
-    inp.addEventListener('focus', inp._chFocusHandler);
-  });
+        // .mb를 최하단까지 스크롤 → 마지막 입력 필드가 키보드 바로 위에 노출
+        mbEl.scrollTop = mbEl.scrollHeight;
+      }, 350);
+    });
+  }
 }
 
 // ── 오픈 챌린지 토글 처리 ──
@@ -846,18 +826,12 @@ window.setType=function(tp){
   renderGrids();
 }
 function renderGrids(){
-  // ── 대결 신청 모달이 열려 있는 동안 입력 필드에 포커스가 있으면
+  // ── 대결 신청 모달이 열려 있는 동안 "한마디" 입력 필드에 포커스가 있으면
   //    renderGrid를 차단하여 키보드 입력 중 DOM 재렌더 → 깜빡임/텍스트 소실 방지
-  // ── [수정] 기존에는 ch-place, ch-msg만 체크했으나,
-  //    date/time 등 모든 입력 필드 포커스 시에도 렌더를 차단하도록 확장
   var moEl=g('mo-ch');
   if(moEl&&moEl.classList.contains('on')){
     var focused=document.activeElement;
-    // 포커스된 요소가 mo-ch 내부의 어떤 입력 요소라도 렌더 건너뜀
-    if(focused&&moEl.contains(focused)&&
-      (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT')){
-      return;
-    }
+    if(focused&&focused.id==='ch-msg') return;
   }
   renderGrid('gmy',_my,_opp,true);
   renderGrid('gopp',_opp,_my,false);
@@ -963,7 +937,7 @@ window.submitCh=async function(){
     oppTeam:isOpenMode?[]:[..._opp],
     date:g('ch-date').value,
     time:g('ch-time').value,
-    place:g('ch-place').value.trim(),
+    place:'',                               // 장소 입력란 제거 — 빈 문자열로 고정
     message:g('ch-msg').value.trim(),
     status:'pending',
     isOpen:!!isOpenMode,
@@ -1001,8 +975,7 @@ window.openAcceptOpen=function(id){
   var tm=TM[c.type]||TM.ms;
   var dtStr=c.date?$ko(c.date+'T00:00'):'';
   var infoHtml='<strong>'+myNames+'</strong> 님의 '+tm.lb+' 챌린지'
-    +(dtStr?' · 📅 '+dtStr:'')
-    +(c.place?' · 📍 '+c.place:'');
+    +(dtStr?' · 📅 '+dtStr:'');
   g('oc-challenger-info').innerHTML=infoHtml;
 
   // ── 수락팀 선택 라벨 세팅 ──
@@ -1334,7 +1307,6 @@ function buildShareText(c){
     '',
   ];
   if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
-  if(c.place)         lines.push('📍 장소: '+c.place);
   if(c.message)       lines.push('💬 한마디: '+c.message);
   lines.push('─────────────────');
   lines.push('아래 링크에서 수락/거절해주세요! 🙏');
