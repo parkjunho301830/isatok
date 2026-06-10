@@ -134,7 +134,9 @@
 <div class="mo write-mo" id="mo-ch">
   <div class="mw">
     <div class="mh"><div class="mt">🏓 대결 <em>신청</em></div><button class="mc-btn" onclick="closeMo('mo-ch')">✕</button></div>
-    <div class="mb">
+    <!-- [수정] scroll-padding-bottom: 키보드 위에 여백을 확보하여 입력 필드가 키보드에 가려지지 않도록 보장
+              -webkit-overflow-scrolling: iOS 모멘텀 스크롤 활성화로 부드러운 스크롤 보장 -->
+    <div class="mb" id="mo-ch-mb" style="-webkit-overflow-scrolling:touch;scroll-padding-bottom:24px">
       <!-- 오픈 챌린지 토글 -->
       <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
         <div class="oc-toggle-label">
@@ -424,7 +426,9 @@ async function init(){
         //    renderGrids 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
         var moEl=g('mo-ch');
         var focused=document.activeElement;
-        var isInputFocused=focused&&(focused.id==='ch-place'||focused.id==='ch-msg');
+        // [수정] 모든 입력 요소에서 포커스 중이면 렌더 차단 (date/time 포함)
+        var isInputFocused=focused&&moEl&&moEl.contains(focused)&&
+          (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT');
         if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
           renderGrids();
         }
@@ -510,22 +514,38 @@ function _attachChModalKeyboardHandler(){
   var mwEl = document.querySelector('#mo-ch .mw');
   if(!mwEl) return;
 
+  // [추가] .mb 요소 참조: 높이 조정 후 .mb 스크롤 위치도 함께 보정
+  var mbEl = document.querySelector('#mo-ch .mb');
+
   _chModalVpHandler = function(){
     // 현재 시각적으로 보이는 뷰포트 높이 (키보드 올라오면 줄어듦)
     var vvHeight = window.visualViewport.height;
     // 모달 최대 높이를 현재 뷰포트 높이로 제한 (px 단위)
     mwEl.style.setProperty('--ch-modal-h', vvHeight + 'px');
     // 포커스된 입력 필드가 보이도록 .mb 영역을 스크롤
-    // (requestAnimationFrame으로 레이아웃 완료 후 실행하여 깜빡임 방지)
+    // [수정] block:'center'로 변경하여 입력 필드가 화면 중앙에 위치하도록 보장
+    //        키보드가 올라온 뒤 레이아웃이 완전히 확정된 시점(두 번의 rAF)에 실행
     requestAnimationFrame(function(){
-      var focused = document.activeElement;
-      if(focused && mwEl.contains(focused)){
-        // scrollIntoView: 키보드 위로 입력 필드를 부드럽게 스크롤
-        focused.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest'   // 필드가 이미 보이면 스크롤 안함 (불필요한 움직임 방지)
-        });
-      }
+      requestAnimationFrame(function(){
+        var focused = document.activeElement;
+        if(focused && mwEl.contains(focused)){
+          focused.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'   // [수정] nearest → center: 필드가 항상 키보드 위 중앙에 위치
+          });
+        }
+        // [추가] .mb 스크롤 위치 보정: visualViewport 높이가 줄면 .mb의 scrollTop도 보정
+        //        포커스된 필드가 .mb 안에 있을 때 .mb 자체 스크롤로도 보정
+        if(mbEl && focused && mbEl.contains(focused)){
+          var rect = focused.getBoundingClientRect();
+          var vpBottom = vvHeight;
+          // 필드 하단이 뷰포트(키보드 위쪽) 밖으로 나간 경우 .mb를 스크롤
+          if(rect.bottom > vpBottom - 16){
+            var overflowY = rect.bottom - vpBottom + 16;
+            mbEl.scrollTop = mbEl.scrollTop + overflowY;
+          }
+        }
+      });
     });
   };
 
@@ -766,17 +786,21 @@ window.openChallengeModal=function(){
   var mbEl = document.querySelector('#mo-ch .mb');
   var moChInputs = document.querySelectorAll('#mo-ch input[type="text"], #mo-ch input[type="date"], #mo-ch input[type="time"]');
   moChInputs.forEach(function(inp){
-    // 기존 리스너 중복 방지: 한 번만 등록되도록 클로저 플래그 사용
-    if(inp._chFocusListenerAdded) return;
-    inp._chFocusListenerAdded = true;
-    inp.addEventListener('focus', function(){
-      // iOS Safari: 키보드 완전히 올라올 때까지 대기 후 스크롤 (약 400ms)
+    // [수정] 모달 재오픈 시 리스너가 확실히 재등록되도록:
+    //        기존 리스너를 제거한 뒤 새로 등록 (플래그 방식 대신 named function 방식)
+    if(inp._chFocusHandler){
+      inp.removeEventListener('focus', inp._chFocusHandler);
+    }
+    inp._chFocusHandler = function(){
+      // iOS Safari: 키보드 완전히 올라올 때까지 대기 후 스크롤 (약 450ms)
+      // [수정] 대기 시간을 450ms로 늘리고 block:'center'로 변경
+      //        → 키보드 팝업 완료 후 입력 필드가 확실히 화면 중앙에 위치
       setTimeout(function(){
         if(!mbEl) return;
-        // scrollIntoView: 입력 필드가 뷰포트(키보드 위) 범위 안에 오도록 스크롤
-        inp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 400);
-    });
+        inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 450);
+    };
+    inp.addEventListener('focus', inp._chFocusHandler);
   });
 }
 
@@ -824,11 +848,14 @@ window.setType=function(tp){
 function renderGrids(){
   // ── 대결 신청 모달이 열려 있는 동안 입력 필드에 포커스가 있으면
   //    renderGrid를 차단하여 키보드 입력 중 DOM 재렌더 → 깜빡임/텍스트 소실 방지
+  // ── [수정] 기존에는 ch-place, ch-msg만 체크했으나,
+  //    date/time 등 모든 입력 필드 포커스 시에도 렌더를 차단하도록 확장
   var moEl=g('mo-ch');
   if(moEl&&moEl.classList.contains('on')){
     var focused=document.activeElement;
-    // 포커스된 요소가 mo-ch 내부의 텍스트 입력 필드이면 렌더 건너뜀
-    if(focused&&(focused.id==='ch-place'||focused.id==='ch-msg')){
+    // 포커스된 요소가 mo-ch 내부의 어떤 입력 요소라도 렌더 건너뜀
+    if(focused&&moEl.contains(focused)&&
+      (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT')){
       return;
     }
   }
