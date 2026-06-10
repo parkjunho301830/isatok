@@ -505,6 +505,8 @@ function setDb(ok){
 //   → 추가로 ch-msg 포커스 중에는 .mb.scrollTop을 최하단으로 고정
 // ════════════════════════════════════════════════════════
 var _chModalVpHandler = null; // 이벤트 리스너 참조 (중복 등록 방지용)
+var _chModalVpRaf = null;
+var _chModalLastHeight = 0;
 
 function _attachChModalKeyboardHandler(){
   // visualViewport API 미지원 환경(구형 브라우저) 무시
@@ -519,19 +521,26 @@ function _attachChModalKeyboardHandler(){
   if(!mwEl) return;
 
   _chModalVpHandler = function(){
-    // 현재 시각적으로 보이는 뷰포트 높이 (키보드 올라오면 줄어듦)
-    var vvHeight = window.visualViewport.height;
-    // 모달 최대 높이를 현재 뷰포트 높이로 제한 (px 단위)
-    mwEl.style.setProperty('--ch-modal-h', vvHeight + 'px');
+    if(_chModalVpRaf) cancelAnimationFrame(_chModalVpRaf);
+    _chModalVpRaf = requestAnimationFrame(function(){
+      _chModalVpRaf = null;
+      // 현재 시각적으로 보이는 뷰포트 높이 (키보드 올라오면 줄어듦)
+      var vvHeight = Math.round(window.visualViewport.height);
+      // iOS/Android 키보드 애니메이션 중 발생하는 1~2px 흔들림은 무시
+      if(_chModalLastHeight && Math.abs(vvHeight - _chModalLastHeight) < 8) return;
+      _chModalLastHeight = vvHeight;
+      // 모달 최대 높이를 현재 뷰포트 높이로 제한 (px 단위)
+      mwEl.style.setProperty('--ch-modal-h', vvHeight + 'px');
 
-    // ── 한마디 입력 필드 포커스 중이면 .mb를 최하단까지 스크롤 ──
-    // scrollIntoView(smooth) 방식은 Firestore 렌더 타이밍과 충돌해 깜빡임 유발하므로
-    // .mb.scrollTop을 직접 조작하는 방식으로 교체 (레이아웃 재계산 없이 즉시 반영)
-    var focused = document.activeElement;
-    if(focused && focused.id === 'ch-msg'){
-      var mbEl = document.querySelector('#mo-ch .mb');
-      if(mbEl) mbEl.scrollTop = mbEl.scrollHeight;
-    }
+      // ── 한마디 입력 필드 포커스 중이면 .mb를 최하단까지 스크롤 ──
+      // scrollIntoView(smooth) 방식은 Firestore 렌더 타이밍과 충돌해 깜빡임 유발하므로
+      // .mb.scrollTop을 직접 조작하는 방식으로 교체 (레이아웃 재계산 없이 즉시 반영)
+      var focused = document.activeElement;
+      if(focused && focused.id === 'ch-msg'){
+        var mbEl = document.querySelector('#mo-ch .mb');
+        if(mbEl) mbEl.scrollTop = mbEl.scrollHeight;
+      }
+    });
   };
 
   window.visualViewport.addEventListener('resize', _chModalVpHandler);
@@ -546,6 +555,9 @@ function _detachChModalKeyboardHandler(){
   window.visualViewport.removeEventListener('resize', _chModalVpHandler);
   window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
   _chModalVpHandler = null;
+  if(_chModalVpRaf) cancelAnimationFrame(_chModalVpRaf);
+  _chModalVpRaf = null;
+  _chModalLastHeight = 0;
   // 모달 닫힐 때 인라인 CSS 변수 제거 (다음 오픈 시 초기 상태로 복원)
   var mwEl = document.querySelector('#mo-ch .mw');
   if(mwEl) mwEl.style.removeProperty('--ch-modal-h');

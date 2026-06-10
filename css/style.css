@@ -472,12 +472,20 @@ tr:last-child td{border-bottom:none;}
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
 }
+#mo-ch .mw{
+  max-width:720px;
+}
 #mo-ch input[type="text"],
 #mo-ch input[type="date"],
 #mo-ch input[type="time"]{
   color:var(--t1) !important;
   -webkit-text-fill-color:var(--t1) !important;
+  caret-color:var(--a);
   background-color:var(--c2) !important;
+  opacity:1;
+  min-height:50px;
+  line-height:1.35;
+  transform:none;
   will-change:unset;
 }
 #mo-ch input[type="text"]:focus,
@@ -485,6 +493,7 @@ tr:last-child td{border-bottom:none;}
 #mo-ch input[type="time"]:focus{
   color:var(--t1) !important;
   -webkit-text-fill-color:var(--t1) !important;
+  caret-color:var(--a);
   background-color:var(--c3) !important;
 }
 #mo-ch input:-webkit-autofill,
@@ -503,16 +512,16 @@ tr:last-child td{border-bottom:none;}
   #mo-ch.write-mo .mw{
     height: var(--ch-modal-h, 100dvh);
     max-height: var(--ch-modal-h, 100dvh);
-    transition: height 0.15s ease, max-height 0.15s ease;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
+    transition:none;
+    transform:none;
+    -webkit-transform:none;
   }
   #mo-ch.write-mo .mb{
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    will-change: scroll-position;
+    overscroll-behavior: contain;
   }
   #mo-ch .msg{
     max-height: 140px;
