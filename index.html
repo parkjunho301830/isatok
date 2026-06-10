@@ -11,6 +11,87 @@
   integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
   crossorigin="anonymous"></script>
 <link rel="stylesheet" href="css/style.css">
+<style>
+/* ══ Bottom Sheet: 대결 신청 전용 ══
+   기존 mo-ch(중앙 오버레이 모달) 대체
+   position:fixed;bottom:0 구조로 키보드 팝업에도 레이아웃 변동 없음 → 깜빡임 근본 제거 */
+
+/* 딤 오버레이 */
+.bs-overlay{
+  display:none;
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:900;
+  /* 바텀시트 닫힐 때 onclick으로 closeBS() 호출 */
+}
+.bs-overlay.on{ display:block; }
+
+/* 바텀시트 컨테이너 */
+.bs-ch{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  z-index:901;
+  background:var(--c1);
+  border-radius:22px 22px 0 0;
+  box-shadow:0 -4px 32px rgba(0,0,0,.45);
+  /* 슬라이드업 애니메이션: translateY(100%) → translateY(0) */
+  transform:translateY(100%);
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  /* 최대 높이: 화면의 88% — 내부 스크롤 없이 콘텐츠가 충분히 들어가는 높이 */
+  max-height:88vh;
+  overflow:hidden;  /* 바텀시트 자체는 스크롤 없음 */
+  /* PC에서 너무 넓어지지 않도록 max-width 제한 */
+  max-width:560px;
+  margin:0 auto;
+}
+.bs-ch.on{ transform:translateY(0); }
+
+/* 핸들바: 스와이프 닫기 UX 힌트 */
+.bs-handle{
+  width:44px;height:5px;
+  border-radius:3px;
+  background:var(--b3);
+  margin:12px auto 0;
+}
+
+/* 헤더 */
+.bs-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px 6px;
+}
+.bs-title{
+  font-size:18px;font-weight:800;color:var(--t1);
+}
+.bs-title em{ color:var(--a);font-style:normal; }
+
+/* STEP 인디케이터 */
+.bs-steps{
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;padding:4px 0 10px;
+}
+.bs-step-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--b3);transition:background .2s,transform .2s;
+}
+.bs-step-dot.on{ background:var(--a);transform:scale(1.2); }
+.bs-step-line{
+  width:28px;height:2px;border-radius:1px;background:var(--b3);
+}
+
+/* 바디: 각 스텝의 실제 콘텐츠 영역 — 스크롤 없음 */
+.bs-body{
+  padding:0 18px;
+  overflow:hidden;  /* 모달 내부 스크롤 제거 */
+}
+
+/* 하단 버튼 영역 */
+.bs-foot{
+  display:flex;gap:10px;
+  padding:14px 0 calc(14px + env(safe-area-inset-bottom));
+  /* safe-area-inset-bottom: iPhone 홈 인디케이터 영역 대응 */
+}
+.bs-foot .btn{ flex:1;min-height:48px; }
+</style>
 </head>
 <body>
 
@@ -45,7 +126,7 @@
   </div>
 
   <!-- FAB (모바일 대결 신청) -->
-  <button class="fab" onclick="openChallengeModal()">🏓 대결 신청</button>
+  <button class="fab" onclick="openBS()">🏓 대결 신청</button>
 
   <main class="main">
 
@@ -53,7 +134,7 @@
     <div class="page on" id="page-challenge">
       <div class="ph">
         <div class="ph-t">대결 <em>신청</em></div>
-        <button class="btn btn-p btn-sm pc-only" onclick="openChallengeModal()">+ 대결 신청</button>
+        <button class="btn btn-p btn-sm pc-only" onclick="openBS()">+ 대결 신청</button>
       </div>
       <div class="fscroll">
         <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
@@ -129,56 +210,100 @@
   <div class="bni"    onclick="nav('board')"     data-p="board"><span class="bi">💬</span><span>게시판</span></div>
 </nav>
 
-<!-- ══ 대결 신청 모달 ══ -->
-<!-- write-mo 클래스 추가: 키보드 올라올 때 전체화면 모드로 입력 깜빡임/텍스트 안보임 문제 해결 -->
-<div class="mo write-mo" id="mo-ch">
-  <div class="mw">
-    <div class="mh"><div class="mt">🏓 대결 <em>신청</em></div><button class="mc-btn" onclick="closeMo('mo-ch')">✕</button></div>
-    <div class="mb">
-      <!-- 오픈 챌린지 토글 -->
-      <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
-        <div class="oc-toggle-label">
-          <span class="oc-icon">🔥</span>
-          <div>
-            <div class="oc-text">오픈 챌린지</div>
-            <div class="oc-desc">상대 팀 미지정 — 누구나 수락 가능</div>
-          </div>
-        </div>
-        <div class="sw">
-          <input type="checkbox" id="oc-chk" onchange="toggleOC()">
-          <span class="sw-track"></span>
-        </div>
-      </label>
-      <div class="fg">
-        <label>대결 유형</label>
-        <div class="tg">
-          <div id="t-ms" class="tb as" onclick="setType('ms')"><div class="te">🏓</div><div class="tl" style="color:var(--a)">남단식</div></div>
-          <div id="t-md" class="tb"    onclick="setType('md')"><div class="te">🏓🏓</div><div class="tl">남복식</div></div>
-          <div id="t-fs" class="tb"    onclick="setType('fs')"><div class="te">🎀</div><div class="tl">여단식</div></div>
-          <div id="t-fd" class="tb"    onclick="setType('fd')"><div class="te">🎀🎀</div><div class="tl">여복식</div></div>
-          <div id="t-mx" class="tb"    onclick="setType('mx')"><div class="te">🤝</div><div class="tl">혼합복식</div></div>
+<!-- ══ 대결 신청 Bottom Sheet ══ -->
+<!-- 기존 중앙 오버레이 모달(mo-ch) 제거 → position:fixed;bottom:0 바텀시트로 교체 -->
+<!-- 이유: 모바일 키보드 팝업 시 뷰포트/scroll 변동으로 인한 깜빡임 근본 제거 -->
+<div class="bs-overlay" id="bs-overlay" onclick="closeBS()"></div>
+<div class="bs-ch" id="bs-ch">
+  <!-- 핸들바: 스와이프 닫기 UX 힌트 -->
+  <div class="bs-handle"></div>
+
+  <!-- 헤더 -->
+  <div class="bs-hdr">
+    <div class="bs-title">🏓 대결 <em>신청</em></div>
+    <button class="mc-btn" onclick="closeBS()">✕</button>
+  </div>
+
+  <!-- ── STEP 인디케이터 ── -->
+  <div class="bs-steps">
+    <div class="bs-step-dot on" id="bsd1"></div>
+    <div class="bs-step-line"></div>
+    <div class="bs-step-dot" id="bsd2"></div>
+  </div>
+
+  <!-- ══ STEP 1: 경기유형 + 팀 선택 ══ -->
+  <div class="bs-body" id="bs-step1">
+    <!-- 오픈 챌린지 토글 -->
+    <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
+      <div class="oc-toggle-label">
+        <span class="oc-icon">🔥</span>
+        <div>
+          <div class="oc-text">오픈 챌린지</div>
+          <div class="oc-desc">상대 팀 미지정 — 누구나 수락 가능</div>
         </div>
       </div>
-      <div class="fg"><label id="lbl-my">내 팀 선택</label><div class="msg" id="gmy"></div><div class="emsg" id="e-my">선택해주세요</div></div>
-      <!-- 상대 팀 영역: 오픈 챌린지 ON이면 숨김 -->
-      <div id="opp-section" class="fg"><label id="lbl-opp">상대 팀 선택</label><div class="msg" id="gopp"></div><div class="emsg" id="e-opp">선택해주세요</div></div>
-      <div class="fr" style="margin-bottom:18px">
-        <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
-        <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
+      <div class="sw">
+        <input type="checkbox" id="oc-chk" onchange="toggleOC()">
+        <span class="sw-track"></span>
       </div>
-      <!-- 한마디: 모달 최하단 입력 필드 -->
-      <!-- inputmode="text" + enterkeyhint: iOS/Android 키보드 최적화 -->
-      <div class="fg" style="margin-bottom:0">
-        <label>한마디 (선택)</label>
-        <input type="text" id="ch-msg"
-          placeholder="😄 한번 붙어봅시다!"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          inputmode="text" enterkeyhint="done">
+    </label>
+
+    <!-- 경기 유형 선택 -->
+    <div class="fg">
+      <label>경기 유형</label>
+      <div class="tg">
+        <div id="t-ms" class="tb as" onclick="setType('ms')"><div class="te">🏓</div><div class="tl" style="color:var(--a)">남단식</div></div>
+        <div id="t-md" class="tb"    onclick="setType('md')"><div class="te">🏓🏓</div><div class="tl">남복식</div></div>
+        <div id="t-fs" class="tb"    onclick="setType('fs')"><div class="te">🎀</div><div class="tl">여단식</div></div>
+        <div id="t-fd" class="tb"    onclick="setType('fd')"><div class="te">🎀🎀</div><div class="tl">여복식</div></div>
+        <div id="t-mx" class="tb"    onclick="setType('mx')"><div class="te">🤝</div><div class="tl">혼합복식</div></div>
       </div>
     </div>
-    <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('mo-ch')">취소</button>
-      <button class="btn btn-p" id="ch-submit-btn" onclick="submitCh()">🏓 도전장 보내기</button>
+
+    <!-- 내 팀 선택 -->
+    <div class="fg">
+      <label id="lbl-my">내 팀 선택</label>
+      <div class="msg" id="gmy"></div>
+      <div class="emsg" id="e-my">선택해주세요</div>
+    </div>
+
+    <!-- 상대 팀 선택: 오픈 챌린지 ON이면 숨김 -->
+    <div id="opp-section" class="fg">
+      <label id="lbl-opp">상대 팀 선택</label>
+      <div class="msg" id="gopp"></div>
+      <div class="emsg" id="e-opp">선택해주세요</div>
+    </div>
+
+    <!-- STEP1 하단 버튼 -->
+    <div class="bs-foot">
+      <button class="btn btn-g" onclick="closeBS()">취소</button>
+      <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
+    </div>
+  </div>
+
+  <!-- ══ STEP 2: 날짜/시간 + 메모 + 신청 ══ -->
+  <div class="bs-body" id="bs-step2" style="display:none">
+    <!-- 날짜·시간 -->
+    <div class="fr" style="margin-bottom:14px">
+      <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
+      <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
+    </div>
+
+    <!-- 메모 (선택사항) -->
+    <!-- inputmode="text" + enterkeyhint="done": iOS/Android 키보드 최적화 -->
+    <!-- 메모 없이도 신청 가능 — 이 필드는 완전 선택사항 -->
+    <div class="fg" style="margin-bottom:0">
+      <label>한마디 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 없어도 신청 가능)</span></label>
+      <input type="text" id="ch-msg"
+        placeholder="😄 한번 붙어봅시다!"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        inputmode="text" enterkeyhint="done">
+    </div>
+
+    <!-- STEP2 하단 버튼 -->
+    <div class="bs-foot">
+      <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
+      <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
     </div>
   </div>
 </div>
@@ -426,14 +551,13 @@ async function init(){
       if(_rafM)cancelAnimationFrame(_rafM);
       _rafM=requestAnimationFrame(()=>{
         renderM();
-        // ── 대결 신청 모달이 열려 있고 입력 필드에 포커스 중이면
-        //    renderGrids 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
-        var moEl=g('mo-ch');
+        // ── 바텀시트가 열려 있고 내부 입력 필드에 포커스 중이면
+        //    renderGridsBS 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
+        var bsEl=g('bs-ch');
         var focused=document.activeElement;
-        // 한마디 입력 중이면 renderGrids 차단 (깜빡임/텍스트 소실 방지)
-        var isInputFocused=focused&&focused.id==='ch-msg';
-        if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
-          renderGrids();
+        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
+        if(!isInsideBS){
+          renderGridsBS();
         }
         _rafM=null;
       });
@@ -442,13 +566,11 @@ async function init(){
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafC)cancelAnimationFrame(_rafC);
       _rafC=requestAnimationFrame(()=>{
-        // ── ch-msg 포커스 가드: mo-ch 열려 있고 ch-msg 입력 중이면 renderC 차단 ──
-        var moEl=g('mo-ch');
+        // ── bs-ch 포커스 가드: 바텀시트 열려 있고 내부 입력 중이면 renderC 차단 ──
+        var bsEl=g('bs-ch');
         var focused=document.activeElement;
-        console.log('[renderC]');
-        console.log('[focus]', focused?.id);
-        var isInputFocused=focused&&focused.id==='ch-msg';
-        if(!(moEl&&moEl.classList.contains('on')&&isInputFocused)){
+        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
+        if(!isInsideBS){
           renderC();
         }
         _rafC=null;
@@ -464,8 +586,6 @@ function finish(){
   g('app').style.display='flex';        // app-wrap 표시
   const sb=g('sidebar');
   if(sb) sb.style.display='';           // 사이드바 표시 (CSS가 모바일에서 숨김)
-  const d=new Date();d.setDate(d.getDate()+1);
-  g('ch-date').value=d.toISOString().slice(0,10);
 
   // ── URL 해시 파라미터 파싱: 카카오톡 공유 링크 클릭 시 탭/필터 자동 이동 ──
   // 예) #challenge?filter=pending → 대결 신청 탭 + 수락 대기중 필터 자동 선택
@@ -501,96 +621,117 @@ function setDb(ok){
 // ── 모달 헬퍼 ──
 
 // ════════════════════════════════════════════════════════
-// 📱 대결 신청 모달 전용: visualViewport 키보드 높이 추적기
+// 📱 대결 신청 Bottom Sheet 전용 함수
 // ────────────────────────────────────────────────────────
-// 문제 원인:
-//   모바일에서 소프트 키보드가 올라오면 window.innerHeight 또는
-//   100dvh가 줄어들지 않고, 대신 visualViewport.height만 줄어든다.
-//   이로 인해 전체화면 모달(.mw: min-height:100dvh)이 키보드 뒤에 가려져
-//   하단 입력 필드(한마디)가 화면 밖으로 밀려나 텍스트가 안 보인다.
-//
-// 해결 방법:
-//   visualViewport resize 이벤트로 현재 표시 가능 높이를 실시간 감지하여
-//   CSS 변수 --ch-modal-h에 반영 → .mw가 그 높이에 맞게 수축
-//   → 입력 필드가 항상 키보드 위쪽에 위치하게 됨
-//   → 추가로 ch-msg 포커스 중에는 .mb.scrollTop을 최하단으로 고정
+// visualViewport 이벤트 방식 완전 제거:
+//   position:fixed;bottom:0 구조이므로 키보드가 올라와도
+//   레이아웃 변동이 없어 깜빡임 자체가 발생하지 않음
 // ════════════════════════════════════════════════════════
-var _chModalVpHandler = null; // 이벤트 리스너 참조 (중복 등록 방지용)
-var _chModalVpRaf = null;
-var _chModalLastHeight = 0;
 
-function _attachChModalKeyboardHandler(){
-  // visualViewport API 미지원 환경(구형 브라우저) 무시
-  if(!window.visualViewport) return;
-  // 이미 등록된 핸들러가 있으면 제거 후 재등록
-  if(_chModalVpHandler){
-    window.visualViewport.removeEventListener('resize', _chModalVpHandler);
-    window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
-  }
-
-  var mwEl = document.querySelector('#mo-ch .mw');
-  if(!mwEl) return;
-
-  _chModalVpHandler = function(){
-    if(_chModalVpRaf) cancelAnimationFrame(_chModalVpRaf);
-    _chModalVpRaf = requestAnimationFrame(function(){
-      _chModalVpRaf = null;
-      // 현재 시각적으로 보이는 뷰포트 높이 (키보드 올라오면 줄어듦)
-      var vvHeight = Math.round(window.visualViewport.height);
-      // iOS/Android 키보드 애니메이션 중 발생하는 1~2px 흔들림은 무시
-      if(_chModalLastHeight && Math.abs(vvHeight - _chModalLastHeight) < 8) return;
-      _chModalLastHeight = vvHeight;
-      // 모달 최대 높이를 현재 뷰포트 높이로 제한 (px 단위)
-      mwEl.style.setProperty('--ch-modal-h', vvHeight + 'px');
-
-      // ── 한마디 입력 필드 포커스 중이면 .mb를 최하단까지 스크롤 ──
-      // scrollIntoView(smooth) 방식은 Firestore 렌더 타이밍과 충돌해 깜빡임 유발하므로
-      // .mb.scrollTop을 직접 조작하는 방식으로 교체 (레이아웃 재계산 없이 즉시 반영)
-      var focused = document.activeElement;
-      if(focused && focused.id === 'ch-msg'){
-        var mbEl = document.querySelector('#mo-ch .mb');
-        if(mbEl) mbEl.scrollTop = mbEl.scrollHeight;
-      }
-    });
-  };
-
-  window.visualViewport.addEventListener('resize', _chModalVpHandler);
-  // iOS Safari: 키보드 올라올 때 scroll 이벤트도 함께 발생하므로 둘 다 바인딩
-  window.visualViewport.addEventListener('scroll', _chModalVpHandler);
-  // 최초 1회 실행하여 초기 높이 세팅
-  _chModalVpHandler();
+// ── 바텀시트 열기
+window.openBS = function(){
+  _my = []; _opp = [];
+  // 오픈 챌린지 초기화
+  var chk = g('oc-chk');
+  if(chk) chk.checked = false;
+  var wrap = g('oc-toggle-wrap');
+  if(wrap) wrap.classList.remove('on');
+  var oppSec = g('opp-section');
+  if(oppSec) oppSec.style.display = '';
+  var submitBtn = g('ch-submit-btn');
+  if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
+  // 날짜 초기값: 내일
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  g('ch-date').value = d.toISOString().slice(0, 10);
+  g('ch-time').value = '10:00';
+  g('ch-msg').value = '';
+  ['e-my','e-opp'].forEach(function(id){ g(id).classList.remove('on'); });
+  setType('ms');
+  // STEP1부터 시작
+  bsStep(1);
+  // 바텀시트 + 딤 오버레이 표시
+  g('bs-ch').classList.add('on');
+  g('bs-overlay').classList.add('on');
+  document.body.style.overflow = 'hidden';
 }
 
-function _detachChModalKeyboardHandler(){
-  if(!window.visualViewport || !_chModalVpHandler) return;
-  window.visualViewport.removeEventListener('resize', _chModalVpHandler);
-  window.visualViewport.removeEventListener('scroll', _chModalVpHandler);
-  _chModalVpHandler = null;
-  if(_chModalVpRaf) cancelAnimationFrame(_chModalVpRaf);
-  _chModalVpRaf = null;
-  _chModalLastHeight = 0;
-  // 모달 닫힐 때 인라인 CSS 변수 제거 (다음 오픈 시 초기 상태로 복원)
-  var mwEl = document.querySelector('#mo-ch .mw');
-  if(mwEl) mwEl.style.removeProperty('--ch-modal-h');
+// ── 바텀시트 닫기
+window.closeBS = function(){
+  g('bs-ch').classList.remove('on');
+  g('bs-overlay').classList.remove('on');
+  document.body.style.overflow = '';
+  // 닫힌 후 최신 그리드 반영 (포커스 가드로 미뤄진 경우 대비)
+  setTimeout(function(){ renderGridsBS(); }, 50);
+}
+
+// ── STEP 전환: 1 → 2는 팀 선택 유효성 검사 후 진행
+window.bsStep = function(n){
+  if(n === 2){
+    // ── STEP1 → STEP2 전환 시 유효성 검사 ──
+    const m = TM[_type] || TM.ms;
+    var isOpenMode = g('oc-chk') && g('oc-chk').checked;
+    var ok = true;
+    if(m.mix){
+      const myM = _my.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='남성'; }).length;
+      const myF = _my.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='여성'; }).length;
+      if(myM<1||myF<1){ g('e-my').classList.add('on'); ok=false; } else g('e-my').classList.remove('on');
+      if(!isOpenMode){
+        const opM = _opp.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='남성'; }).length;
+        const opF = _opp.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='여성'; }).length;
+        if(opM<1||opF<1){ g('e-opp').classList.add('on'); ok=false; } else g('e-opp').classList.remove('on');
+      }
+    } else {
+      if(_my.length < m.maxM){ g('e-my').classList.add('on'); ok=false; } else g('e-my').classList.remove('on');
+      if(!isOpenMode){
+        if(_opp.length < m.maxO){ g('e-opp').classList.add('on'); ok=false; } else g('e-opp').classList.remove('on');
+      }
+    }
+    if(!ok) return;
+  }
+  // 단계 표시 전환
+  g('bs-step1').style.display = n===1 ? '' : 'none';
+  g('bs-step2').style.display = n===2 ? '' : 'none';
+  g('bsd1').classList.toggle('on', n===1);
+  g('bsd2').classList.toggle('on', n===2);
+}
+
+// ── 바텀시트 전용 신청 저장 (기존 submitCh 로직 재사용, ID 참조만 동일하게 유지)
+window.submitChBS = async function(){
+  var isOpenMode = g('oc-chk') && g('oc-chk').checked;
+  // ── Firestore 저장 데이터 구성 (기존 Firebase 데이터 구조 그대로 유지) ──
+  const data = {
+    type: _type,
+    myTeam: [..._my],
+    oppTeam: isOpenMode ? [] : [..._opp],
+    date: g('ch-date').value,
+    time: g('ch-time').value,
+    place: '',                              // 장소 필드 제거됨 — 빈 문자열 고정
+    message: g('ch-msg').value.trim(),      // 메모: 선택사항, 빈 값 허용
+    status: 'pending',
+    isOpen: !!isOpenMode,
+    createdAt: new Date().toISOString(),
+    winner: null,
+    score: null
+  };
+  closeBS();
+  try {
+    let newId = 'l' + Date.now();
+    if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
+    else { CHAL.unshift({id: newId, ...data}); renderC(); }
+    toast(isOpenMode ? '🔥 오픈 챌린지가 등록됐습니다!' : '🏓 도전장을 보냈습니다!');
+    setTimeout(function(){ openShareModal({id: newId, ...data}); }, 700);
+  } catch(e){ toast('❌ ' + e.message); }
 }
 
 function openMo(id){
   const el = g(id);
   el.classList.add('on');
   // 작성 모달: 첫 번째 입력 필드로 포커스
-  // 단, 대결 신청 모달(mo-ch)은 포커스 자동 이동을 하지 않음
-  // → 포커스 강제 이동 시: 키보드 팝업 → 뷰포트 리사이즈 → 레이아웃 재계산 → 깜빡임 발생
-  if(el.classList.contains('write-mo') && id !== 'mo-ch'){
+  if(el.classList.contains('write-mo')){
     setTimeout(()=>{
       const first = el.querySelector('input:not([type=hidden]), textarea');
       if(first) first.focus();
     }, 320);
-  }
-  // ── 대결 신청 모달: visualViewport 키보드 추적 시작 ──
-  if(id === 'mo-ch'){
-    // 모달 슬라이드 인 애니메이션(300ms) 완료 후 핸들러 등록
-    // (너무 이르게 등록하면 초기 높이 계산이 잘못될 수 있음)
-    setTimeout(_attachChModalKeyboardHandler, 320);
   }
   // 스크롤 잠금
   document.body.style.overflow = 'hidden';
@@ -598,21 +739,11 @@ function openMo(id){
 window.closeMo=function(id){
   g(id).classList.remove('on');
   document.body.style.overflow = '';
-  // ── 대결 신청 모달 닫힐 때 ──
-  if(id === 'mo-ch'){
-    // visualViewport 키보드 추적 핸들러 해제
-    _detachChModalKeyboardHandler();
-    // 입력 포커스 가드로 미뤄진 renderGrids를 재실행
-    // (다음에 모달이 다시 열릴 때 회원 그리드가 최신 상태 반영되도록 보장)
-    setTimeout(function(){ renderGrids(); }, 50);
-  }
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){
     m.classList.remove('on');
     document.body.style.overflow='';
-    // 대결 신청 모달을 바깥 클릭으로 닫을 때도 핸들러 해제
-    if(m.id === 'mo-ch') _detachChModalKeyboardHandler();
   }
 }));
 
@@ -772,52 +903,14 @@ function buildCCard(c){
     </div>`;
 }
 
-window.openChallengeModal=function(){
-  _my=[];_opp=[];
-  // ── 오픈 챌린지 초기화: 토글 OFF 상태로 시작 ──
-  var chk=g('oc-chk');
-  if(chk) chk.checked=false;
-  var wrap=g('oc-toggle-wrap');
-  if(wrap) wrap.classList.remove('on');
-  var oppSec=g('opp-section');
-  if(oppSec) oppSec.style.display='';
-  var submitBtn=g('ch-submit-btn');
-  if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
-  setType('ms');
-  ['ch-msg'].forEach(id=>g(id).value='');          // ch-place 제거됨
-  ['e-my','e-opp'].forEach(id=>g(id).classList.remove('on'));
-  openMo('mo-ch');
-
-  // ── 한마디 입력 필드 포커스 핸들러 ──
-  // 키보드가 올라와 입력 필드가 가려지는 현상을 방지하기 위해
-  // focus 시 .mb를 직접 scrollTop으로 끌어올려 필드를 항상 노출
-  // scrollIntoView(smooth) 방식은 Firestore 렌더 타이밍과 충돌 시 깜빡임 유발하므로 사용 안 함
-  var msgInp = g('ch-msg');
-  if(msgInp && !msgInp._chFocusAttached){
-    msgInp._chFocusAttached = true;
-    msgInp.addEventListener('focus', function(){
-      // iOS Safari: 소프트 키보드가 완전히 올라올 때까지 대기 (약 350ms)
-      setTimeout(function(){
-        var mbEl = document.querySelector('#mo-ch .mb');
-        if(!mbEl) return;
-        // .mb를 최하단까지 스크롤 → 마지막 입력 필드가 키보드 바로 위에 노출
-        mbEl.scrollTop = mbEl.scrollHeight;
-      }, 350);
-    });
-  }
-}
-
-// ── 오픈 챌린지 토글 처리 ──
+// ── toggleOC: 오픈 챌린지 토글 처리 ──
 window.toggleOC=function(){
   var chk=g('oc-chk');
   var wrap=g('oc-toggle-wrap');
   var oppSec=g('opp-section');
   var submitBtn=g('ch-submit-btn');
-  // checkbox 직접 클릭이면 label의 onclick이 중복 호출되므로 label클릭 시만 토글
-  // (label onclick → checkbox onchange 방지를 위해 event 방향 통일)
   var isOn=chk.checked;
   wrap.classList.toggle('on',isOn);
-  // 오픈 챌린지 ON: 상대 팀 영역 숨기고 상대팀 선택 초기화
   if(isOn){
     oppSec.style.display='none';
     _opp=[];
@@ -827,7 +920,7 @@ window.toggleOC=function(){
     oppSec.style.display='';
     if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
   }
-  renderGrids();
+  renderGridsBS();
 }
 
 window.setType=function(tp){
@@ -846,19 +939,22 @@ window.setType=function(tp){
   const sing=m.maxM===1;
   g('lbl-my').textContent=m.mix?'내 팀 (남1+여1)':sing?`나 선택 (${m.gM||''} 1명)`:`내 팀 (${m.gM||''} 2명)`;
   g('lbl-opp').textContent=m.mix?'상대 팀 (남1+여1)':sing?`상대 (${m.gO||''} 1명)`:`상대 팀 (${m.gO||''} 2명)`;
-  renderGrids();
+  renderGridsBS();
 }
-function renderGrids(){
-  // ── 대결 신청 모달이 열려 있는 동안 "한마디" 입력 필드에 포커스가 있으면
-  //    renderGrid를 차단하여 키보드 입력 중 DOM 재렌더 → 깜빡임/텍스트 소실 방지
-  var moEl=g('mo-ch');
-  if(moEl&&moEl.classList.contains('on')){
+// ── renderGridsBS: 바텀시트 내부 회원 그리드 렌더
+// 바텀시트 내부에 포커스가 있으면 (입력 중이면) 차단하여 깜빡임 방지
+function renderGridsBS(){
+  var bsEl=g('bs-ch');
+  if(bsEl&&bsEl.classList.contains('on')){
     var focused=document.activeElement;
-    if(focused&&focused.id==='ch-msg') return;
+    // 바텀시트 내부 어떤 input/textarea든 입력 중이면 그리드 재렌더 차단
+    if(focused&&bsEl.contains(focused)&&(focused.tagName==='INPUT'||focused.tagName==='TEXTAREA')) return;
   }
   renderGrid('gmy',_my,_opp,true);
   renderGrid('gopp',_opp,_my,false);
 }
+// 하위 호환: renderGrids도 renderGridsBS를 참조
+function renderGrids(){ renderGridsBS(); }
 function renderGrid(gid,sel,other,isMy){
   const gr=g(gid);if(!gr)return;
   const m=TM[_type]||TM.ms;
@@ -927,58 +1023,7 @@ window.tgl=function(gid,name,isMy){
   const i=arr.indexOf(name);
   if(i>-1)arr.splice(i,1);else if(arr.length<max)arr.push(name);
   if(isMy)_my=[...arr];else _opp=[...arr];
-  renderGrids();
-}
-window.submitCh=async function(){
-  const m=TM[_type]||TM.ms;
-  // ── 오픈 챌린지 여부 확인 ──
-  var isOpenMode=g('oc-chk')&&g('oc-chk').checked;
-  let ok=true;
-  if(m.mix){
-    const myM=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
-    const myF=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
-    if(myM<1||myF<1){g('e-my').classList.add('on');ok=false;}else g('e-my').classList.remove('on');
-    // 오픈 챌린지가 아닐 때만 상대팀 검증
-    if(!isOpenMode){
-      const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
-      const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
-      if(opM<1||opF<1){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
-    }
-  }else{
-    if(_my.length<m.maxM){g('e-my').classList.add('on');ok=false;}else g('e-my').classList.remove('on');
-    // 오픈 챌린지가 아닐 때만 상대팀 검증
-    if(!isOpenMode){
-      if(_opp.length<m.maxO){g('e-opp').classList.add('on');ok=false;}else g('e-opp').classList.remove('on');
-    }
-  }
-  if(!ok)return;
-  // ── Firestore 저장 데이터 구성 ──
-  // isOpen: true이면 오픈 챌린지로 저장 (oppTeam은 빈 배열)
-  const data={
-    type:_type,
-    myTeam:[..._my],
-    oppTeam:isOpenMode?[]:[..._opp],
-    date:g('ch-date').value,
-    time:g('ch-time').value,
-    place:'',                               // 장소 입력란 제거 — 빈 문자열로 고정
-    message:g('ch-msg').value.trim(),
-    status:'pending',
-    isOpen:!!isOpenMode,
-    createdAt:new Date().toISOString(),
-    winner:null,
-    score:null
-  };
-  closeMo('mo-ch');
-  try{
-    let newId='l'+Date.now();
-    if(db){const ref=await addDoc(collection(db,'challenges'),data);newId=ref.id;}
-    else{CHAL.unshift({id:newId,...data});renderC();}
-    // 오픈 챌린지 / 일반 도전장 구분 토스트
-    toast(isOpenMode?'🔥 오픈 챌린지가 등록됐습니다!':'🏓 도전장을 보냈습니다!');
-    // 도전장 등록 완료 후 카카오 공유 모달 오픈
-    setTimeout(()=>openShareModal({id:newId,...data}),700);
-  }
-  catch(e){toast('❌ '+e.message);}
+  renderGridsBS();
 }
 // ════ 오픈 챌린지 수락 ════
 
