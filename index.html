@@ -37,9 +37,12 @@
   /* 슬라이드업 애니메이션: translateY(100%) → translateY(0) */
   transform:translateY(100%);
   transition:transform .28s cubic-bezier(.4,0,.2,1);
-  /* 최대 높이: 화면의 88% — 내부 스크롤 없이 콘텐츠가 충분히 들어가는 높이 */
+  /* 최대 높이: 화면의 88% */
   max-height:88vh;
-  overflow:hidden;  /* 바텀시트 자체는 스크롤 없음 */
+  /* ★ flex column: 핸들·헤더·스텝 고정, bs-body만 스크롤, bs-foot은 항상 하단 */
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
   /* PC에서 너무 넓어지지 않도록 max-width 제한 */
   max-width:560px;
   margin:0 auto;
@@ -78,17 +81,22 @@
   width:28px;height:2px;border-radius:1px;background:var(--b3);
 }
 
-/* 바디: 각 스텝의 실제 콘텐츠 영역 — 스크롤 없음 */
+/* 바디: 각 스텝의 실제 콘텐츠 영역 — flex:1 + 세로 스크롤 허용 */
 .bs-body{
   padding:0 18px;
-  overflow:hidden;  /* 모달 내부 스크롤 제거 */
+  flex:1;             /* ★ 남은 공간을 모두 차지 */
+  overflow-y:auto;    /* ★ 콘텐츠가 길면 내부 스크롤 */
+  -webkit-overflow-scrolling:touch; /* iOS 관성 스크롤 */
 }
 
-/* 하단 버튼 영역 */
+/* 하단 버튼 영역: flex column 말단에 고정 — 항상 보임 */
 .bs-foot{
   display:flex;gap:10px;
-  padding:14px 0 calc(14px + env(safe-area-inset-bottom));
-  /* safe-area-inset-bottom: iPhone 홈 인디케이터 영역 대응 */
+  padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+  /* ★ flex 자식으로서 자동으로 최하단에 위치 — shrink 방지 */
+  flex-shrink:0;
+  background:var(--c1); /* 스크롤 시 콘텐츠가 뒤로 지나가도 덮임 */
+  border-top:1px solid var(--b2);
 }
 .bs-foot .btn{ flex:1;min-height:48px; }
 </style>
@@ -232,6 +240,7 @@
   </div>
 
   <!-- ══ STEP 1: 경기유형 + 팀 선택 ══ -->
+  <!-- ★ bs-foot을 bs-body 밖으로 분리: .bs-ch flex column 구조에서 버튼이 항상 하단 고정 -->
   <div class="bs-body" id="bs-step1">
     <!-- 오픈 챌린지 토글 -->
     <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
@@ -274,14 +283,17 @@
       <div class="emsg" id="e-opp">선택해주세요</div>
     </div>
 
-    <!-- STEP1 하단 버튼 -->
-    <div class="bs-foot">
-      <button class="btn btn-g" onclick="closeBS()">취소</button>
-      <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
-    </div>
+    <!-- 스크롤 여백 -->
+    <div style="height:8px"></div>
+  </div>
+  <!-- ★ STEP1 하단 버튼: bs-body 바깥, bs-ch 직속 자식 → flex column 말단 고정 -->
+  <div class="bs-foot" id="bs-foot1">
+    <button class="btn btn-g" onclick="closeBS()">취소</button>
+    <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
   </div>
 
   <!-- ══ STEP 2: 날짜/시간 + 메모 + 신청 ══ -->
+  <!-- ★ bs-foot을 bs-body 밖으로 분리 -->
   <div class="bs-body" id="bs-step2" style="display:none">
     <!-- 날짜·시간 -->
     <div class="fr" style="margin-bottom:14px">
@@ -289,22 +301,25 @@
       <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
     </div>
 
-    <!-- 메모 (선택사항) -->
-    <!-- inputmode="text" + enterkeyhint="done": iOS/Android 키보드 최적화 -->
-    <!-- 메모 없이도 신청 가능 — 이 필드는 완전 선택사항 -->
+    <!-- 한마디: textarea 교체 → iOS Safari input 글씨 안 보임 이슈 완전 해결 -->
+    <!-- -webkit-text-fill-color 강제 지정으로 어떤 환경에서도 글씨 가시성 보장 -->
     <div class="fg" style="margin-bottom:0">
       <label>한마디 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 없어도 신청 가능)</span></label>
-      <input type="text" id="ch-msg"
+      <textarea id="ch-msg"
         placeholder="😄 한번 붙어봅시다!"
+        rows="2"
         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-        inputmode="text" enterkeyhint="done">
+        inputmode="text" enterkeyhint="done"
+        style="resize:none;min-height:64px;color:var(--t1);-webkit-text-fill-color:var(--t1);opacity:1;font-size:15px;line-height:1.5;padding:10px 12px;box-sizing:border-box;width:100%"></textarea>
     </div>
 
-    <!-- STEP2 하단 버튼 -->
-    <div class="bs-foot">
-      <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
-      <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
-    </div>
+    <!-- 스크롤 여백 -->
+    <div style="height:8px"></div>
+  </div>
+  <!-- ★ STEP2 하단 버튼: bs-body 바깥, bs-ch 직속 자식 → flex column 말단 고정 -->
+  <div class="bs-foot" id="bs-foot2" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
+    <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
   </div>
 </div>
 
@@ -688,9 +703,12 @@ window.bsStep = function(n){
     }
     if(!ok) return;
   }
-  // 단계 표시 전환
+  // ── 단계 표시 전환: bs-body + bs-foot 쌍으로 동시 전환 ──
   g('bs-step1').style.display = n===1 ? '' : 'none';
   g('bs-step2').style.display = n===2 ? '' : 'none';
+  // ★ bs-foot도 스텝에 맞춰 전환 (bs-body 밖으로 분리됐으므로 별도 제어 필요)
+  g('bs-foot1').style.display = n===1 ? '' : 'none';
+  g('bs-foot2').style.display = n===2 ? '' : 'none';
   g('bsd1').classList.toggle('on', n===1);
   g('bsd2').classList.toggle('on', n===2);
 }
