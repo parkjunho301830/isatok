@@ -377,17 +377,62 @@
   <div class="mw">
     <div class="mh"><div class="mt">🏆 결과 <em>입력</em></div><button class="mc-btn" onclick="closeMo('mo-result')">✕</button></div>
     <div class="mb">
-      <div id="ri" style="background:var(--c2);border-radius:14px;padding:18px;margin-bottom:18px;text-align:center;font-size:16px;font-weight:700;color:var(--t2)"></div>
+
+      <!-- 대결 정보 배너 -->
+      <div id="ri" style="background:var(--c2);border-radius:14px;padding:14px 18px;margin-bottom:16px;text-align:center;font-size:16px;font-weight:700;color:var(--t2)"></div>
+
+      <!-- 승리 팀 선택 -->
       <div class="fg">
         <label>승리 팀 선택</label>
         <div style="display:flex;gap:12px">
-          <div id="wa" onclick="setW('a')" style="flex:1;padding:16px 10px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s"><div id="wan" style="font-size:15px;font-weight:800;color:var(--t2)">A팀 승리</div></div>
-          <div id="wb" onclick="setW('b')" style="flex:1;padding:16px 10px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s"><div id="wbn" style="font-size:15px;font-weight:800;color:var(--t2)">B팀 승리</div></div>
+          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 10px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s">
+            <div id="wan" style="font-size:14px;font-weight:800;color:var(--t2)">A팀 승리</div>
+          </div>
+          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 10px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s">
+            <div id="wbn" style="font-size:14px;font-weight:800;color:var(--t2)">B팀 승리</div>
+          </div>
         </div>
       </div>
-      <div class="fg" style="margin-bottom:0"><label>스코어 (선택)</label><input type="text" id="rs" placeholder="예: 3:1 또는 21:18"></div>
+
+      <!-- ── 세트별 스코어 입력 ── -->
+      <div class="fg" style="margin-bottom:0">
+        <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 게임 수만큼 추가)</span></label>
+
+        <!-- 세트 입력 행: A팀 점수 / B팀 점수 + 추가 버튼 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <!-- A팀 약칭 라벨 -->
+          <div id="sc-lbl-a" style="font-size:11px;font-weight:700;color:var(--a);width:38px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">A팀</div>
+          <!-- A팀 점수 입력 -->
+          <input type="number" id="sc-a" min="0" max="99" placeholder="0"
+            style="width:56px;min-height:44px;text-align:center;font-size:20px;font-weight:700;padding:6px 2px;flex-shrink:0"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,2)"
+            onkeydown="if(event.key==='Enter'){addSet();event.preventDefault();}">
+          <!-- 구분자 -->
+          <div style="font-size:20px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
+          <!-- B팀 점수 입력 -->
+          <input type="number" id="sc-b" min="0" max="99" placeholder="0"
+            style="width:56px;min-height:44px;text-align:center;font-size:20px;font-weight:700;padding:6px 2px;flex-shrink:0"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,2)"
+            onkeydown="if(event.key==='Enter'){addSet();event.preventDefault();}">
+          <!-- B팀 약칭 라벨 -->
+          <div id="sc-lbl-b" style="font-size:11px;font-weight:700;color:var(--blue);width:38px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">B팀</div>
+          <!-- 세트 추가 버튼 -->
+          <button class="btn btn-p" onclick="addSet()"
+            style="flex:1;min-height:44px;font-size:15px;font-weight:700">+ 추가</button>
+        </div>
+
+        <!-- 추가된 세트 목록 -->
+        <div id="sc-list" style="display:flex;flex-direction:column;gap:6px"></div>
+
+        <!-- 세트 합산 요약 (2세트 이상일 때만 표시) -->
+        <div id="sc-summary" style="display:none;margin-top:10px;padding:10px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:13px;font-weight:600;color:var(--t2)"></div>
+      </div>
+
     </div>
-    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-result')">취소</button><button class="btn btn-p" onclick="submitResult()">저장</button></div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-result')">취소</button>
+      <button class="btn btn-p" onclick="submitResult()">저장</button>
+    </div>
   </div>
 </div>
 
@@ -594,6 +639,8 @@ const FB={
 
 let db,MEMBERS=[],CHAL=[],NOTICES=[],BOARDS=[];
 let _delId=null,_fg='',_cf='all',_rid=null,_rw=null;
+// _sets: 결과 입력 모달에서 추가된 세트별 점수 배열 [{a:숫자, b:숫자}, ...]
+let _sets=[];
 let _type='ms',_my=[],_opp=[];
 // _msg: 한마디 선택형 버튼에서 고른 문구 (빈 문자열 = "없음")
 let _msg='';
@@ -959,7 +1006,48 @@ function buildCCard(c){
       :(c.oppTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
     const dt=c.date?$ko(c.date+'T00:00'):'';
     const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
-    const res=c.status==='completed'&&c.winner?`<div class="cc-result">🏆 ${c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·')} 팀 승리${c.score?' · '+c.score:''}</div>`:'';
+    // ── 완료 카드 결과 표시 ──
+    // 스코어가 "21:18, 15:21, 21:19" 형식이면 세트별 칩으로, 아니면 텍스트 그대로 표시
+    var resHtml='';
+    if(c.status==='completed'&&c.winner){
+      var winnerName=c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·');
+      var scoreHtml='';
+      if(c.score){
+        // "숫자:숫자" 패턴이 하나라도 있으면 구조화 스코어로 파싱 시도
+        var setPattern=/^\d+:\d+$/;
+        var parts=c.score.split(',').map(function(s){return s.trim();});
+        var isStructured=parts.length>0&&parts.every(function(p){return setPattern.test(p);});
+        if(isStructured&&parts.length>1){
+          // 세트별 칩 렌더링: 이긴 쪽 점수에 강조 색상
+          var chips=parts.map(function(p,i){
+            var scores=p.split(':');
+            var sa=parseInt(scores[0]);
+            var sb=parseInt(scores[1]);
+            var aWin=sa>sb;
+            var bWin=sb>sa;
+            var aColor=aWin?'color:var(--a);font-weight:800':'color:var(--t2)';
+            var bColor=bWin?'color:var(--blue);font-weight:800':'color:var(--t2)';
+            return '<span style="display:inline-flex;align-items:center;gap:2px;background:var(--c2);border-radius:6px;padding:2px 7px;font-size:12px;margin:1px 2px">'
+              +'<span style="font-size:10px;color:var(--t3);margin-right:2px">'+(i+1)+'G</span>'
+              +'<span style="'+aColor+'">'+sa+'</span>'
+              +'<span style="color:var(--t3)">:</span>'
+              +'<span style="'+bColor+'">'+sb+'</span>'
+              +'</span>';
+          }).join('');
+          // 세트 승 요약
+          var wA=parts.filter(function(p){var s=p.split(':');return parseInt(s[0])>parseInt(s[1]);}).length;
+          var wB=parts.filter(function(p){var s=p.split(':');return parseInt(s[1])>parseInt(s[0]);}).length;
+          scoreHtml='<div style="margin-top:5px;display:flex;flex-wrap:wrap;align-items:center;gap:2px">'
+            +'<span style="font-size:11px;color:var(--t3);margin-right:2px">'+wA+':'+wB+'</span>'
+            +chips+'</div>';
+        } else {
+          // 단일 세트 or 자유 텍스트 — 기존 방식대로 텍스트 표시
+          scoreHtml='<span style="color:var(--t3);font-size:13px"> · '+c.score+'</span>';
+        }
+      }
+      resHtml='<div class="cc-result">🏆 '+winnerName+' 팀 승리'+scoreHtml+'</div>';
+    }
+    const res=resHtml;
     // ── 오픈 챌린지 뱃지 ──
     const openBadge=isOpen?`<span class="badge ba">🔥 오픈 챌린지</span>`:'';
     // ── 액션 버튼 ──
@@ -1265,22 +1353,148 @@ window.delC=async function(id){
 }
 window.openRes=function(id){
   _rid=id;_rw=null;
+  // ── 세트 배열 초기화 ──
+  _sets=[];
   const c=CHAL.find(c=>c.id===id);if(!c)return;
-  g('ri').innerHTML=`<strong>${(c.myTeam||[]).join(' · ')}</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>${(c.oppTeam||[]).join(' · ')}</strong>`;
-  g('wan').textContent=(c.myTeam||[]).join('·')+' 팀 승리';
-  g('wbn').textContent=(c.oppTeam||[]).join('·')+' 팀 승리';
+
+  // ── 대결 정보 배너 ──
+  var myNames=(c.myTeam||[]).join(' · ');
+  var opNames=(c.oppTeam||[]).join(' · ');
+  g('ri').innerHTML=`<strong>${myNames}</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>${opNames}</strong>`;
+
+  // ── 승리 팀 버튼 라벨 ──
+  g('wan').textContent=myNames+' 팀 승리';
+  g('wbn').textContent=opNames+' 팀 승리';
   ['wa','wb'].forEach(x=>{g(x).style.borderColor='var(--b2)';g(x).style.background='transparent';});
-  g('rs').value='';
+
+  // ── 세트 입력: 팀 약칭 라벨 (이름이 길면 첫 이름만 사용) ──
+  var lblA=(c.myTeam||[])[0]||'A팀';
+  var lblB=(c.oppTeam||[])[0]||'B팀';
+  g('sc-lbl-a').textContent=lblA;
+  g('sc-lbl-b').textContent=lblB;
+
+  // ── 입력 필드 및 목록 초기화 ──
+  g('sc-a').value='';
+  g('sc-b').value='';
+  g('sc-list').innerHTML='';
+  g('sc-summary').style.display='none';
+
   openMo('mo-result');
+  // ── 첫 번째 점수 입력 필드에 포커스 ──
+  setTimeout(function(){ g('sc-a').focus(); }, 350);
 }
 window.setW=function(t){
   _rw=t;
   ['a','b'].forEach(k=>{g('w'+k).style.borderColor=k===t?'var(--a)':'var(--b2)';g('w'+k).style.background=k===t?'var(--adim)':'transparent';});
 }
+
+// ── addSet: 입력 필드의 점수를 _sets 배열에 추가하고 목록 갱신
+window.addSet=function(){
+  var va=parseInt(g('sc-a').value);
+  var vb=parseInt(g('sc-b').value);
+  // 양쪽 모두 숫자여야 추가 가능 (0점도 허용)
+  if(isNaN(va)||isNaN(vb)){
+    toast('⚠️ 양쪽 점수를 모두 입력해주세요');
+    return;
+  }
+  // 최대 7세트까지만 허용 (탁구 단식 최대 7게임)
+  if(_sets.length>=7){
+    toast('⚠️ 최대 7세트까지 입력 가능합니다');
+    return;
+  }
+  _sets.push({a:va,b:vb});
+  // 입력 필드 초기화 후 A팀 필드에 포커스
+  g('sc-a').value='';
+  g('sc-b').value='';
+  g('sc-a').focus();
+  renderSets();
+}
+
+// ── removeSet: 특정 인덱스의 세트 삭제
+window.removeSet=function(idx){
+  _sets.splice(idx,1);
+  renderSets();
+}
+
+// ── renderSets: 추가된 세트 목록 및 합산 요약을 DOM에 반영
+function renderSets(){
+  var list=g('sc-list');
+  var summary=g('sc-summary');
+
+  if(!_sets.length){
+    list.innerHTML='';
+    summary.style.display='none';
+    return;
+  }
+
+  // ── 세트별 행 렌더링 ──
+  // 각 행: 세트 번호 / A점수 굵게 / : / B점수 굵게 / 삭제 버튼
+  // 이긴 쪽 점수에 색상 강조 적용
+  list.innerHTML=_sets.map(function(s,i){
+    var aWin=s.a>s.b;
+    var bWin=s.b>s.a;
+    var setNum=i+1;
+    var aStyle=aWin?'color:var(--a);font-weight:800':'color:var(--t2);font-weight:700';
+    var bStyle=bWin?'color:var(--blue);font-weight:800':'color:var(--t2);font-weight:700';
+    return '<div style="display:flex;align-items:center;gap:8px;'
+      +'background:var(--c2);border-radius:10px;padding:8px 12px;">'
+      // 세트 번호
+      +'<span style="font-size:11px;color:var(--t3);font-weight:600;width:36px;flex-shrink:0">게임'+setNum+'</span>'
+      // A팀 점수
+      +'<span style="flex:1;text-align:right;font-size:18px;'+aStyle+'">'+s.a+'</span>'
+      // 구분자
+      +'<span style="font-size:16px;color:var(--t3);font-weight:600;flex-shrink:0">:</span>'
+      // B팀 점수
+      +'<span style="flex:1;text-align:left;font-size:18px;'+bStyle+'">'+s.b+'</span>'
+      // 삭제 버튼
+      +'<button class="btn btn-d btn-xs" onclick="removeSet('+i+')" '
+      +'style="flex-shrink:0;opacity:.6">✕</button>'
+      +'</div>';
+  }).join('');
+
+  // ── 2세트 이상일 때 합산 요약 표시 ──
+  if(_sets.length>=2){
+    var totalA=_sets.reduce(function(s,x){return s+x.a;},0);
+    var totalB=_sets.reduce(function(s,x){return s+x.b;},0);
+    // 각 팀이 이긴 세트 수
+    var winsA=_sets.filter(function(x){return x.a>x.b;}).length;
+    var winsB=_sets.filter(function(x){return x.b>x.a;}).length;
+    summary.innerHTML=
+      '<span style="color:var(--a);font-weight:800">'+winsA+'세트</span>'
+      +' <span style="color:var(--t3)">vs</span> '
+      +'<span style="color:var(--blue);font-weight:800">'+winsB+'세트</span>'
+      +'<span style="color:var(--t3);margin:0 8px">|</span>'
+      +'총점 <span style="color:var(--a)">'+totalA+'</span>'
+      +' : <span style="color:var(--blue)">'+totalB+'</span>';
+    summary.style.display='block';
+  } else {
+    summary.style.display='none';
+  }
+}
 window.submitResult=async function(){
   if(!_rw){toast('⚠️ 승리 팀 선택');return;}
-  const sc=g('rs').value.trim();
-  try{if(db)await updateDoc(doc(db,'challenges',_rid),{status:'completed',winner:_rw,score:sc||null});else{const c=CHAL.find(c=>c.id===_rid);if(c){c.status='completed';c.winner=_rw;c.score=sc||null;}renderC();}closeMo('mo-result');toast('🏆 결과 기록!');}
+
+  // ── 스코어 문자열 조합 ──
+  // 세트 미입력 시 null, 입력 시 "21:18, 15:21, 21:19" 형식으로 저장
+  var sc=null;
+  if(_sets.length>0){
+    // 세트별 "A점수:B점수" 를 콤마로 연결
+    sc=_sets.map(function(s){return s.a+':'+s.b;}).join(', ');
+  }
+
+  try{
+    if(db){
+      await updateDoc(doc(db,'challenges',_rid),{status:'completed',winner:_rw,score:sc||null});
+    } else {
+      const c=CHAL.find(c=>c.id===_rid);
+      if(c){c.status='completed';c.winner=_rw;c.score=sc||null;}
+      renderC();
+    }
+    closeMo('mo-result');
+    // 세트 수 포함해서 토스트 메시지 표시
+    var msg=_sets.length>0?('🏆 결과 기록! ('+_sets.length+'세트)'):'🏆 결과 기록!';
+    toast(msg);
+  }
   catch(e){toast('❌ '+e.message);}
 }
 
