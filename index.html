@@ -22,6 +22,8 @@
   position:fixed;inset:0;
   background:rgba(0,0,0,.55);
   z-index:900;
+  /* GPU 레이어 승격: opacity 애니메이션 시 composite-only 처리 */
+  will-change:opacity;
   /* 바텀시트 닫힐 때 onclick으로 closeBS() 호출 */
 }
 .bs-overlay.on{ display:block; }
@@ -46,6 +48,10 @@
   /* PC에서 너무 넓어지지 않도록 max-width 제한 */
   max-width:560px;
   margin:0 auto;
+  /* ★ GPU 레이어 승격: transform 애니메이션을 compositor 스레드에서 처리 */
+  will-change:transform;
+  /* ★ 레이아웃 격리: 내부 변경이 외부 레이아웃에 영향 안 주도록 */
+  contain:layout style;
 }
 .bs-ch.on{ transform:translateY(0); }
 
@@ -87,6 +93,12 @@
   flex:1;             /* ★ 남은 공간을 모두 차지 */
   overflow-y:auto;    /* ★ 콘텐츠가 길면 내부 스크롤 */
   -webkit-overflow-scrolling:touch; /* iOS 관성 스크롤 */
+  /* ★ 스크롤 컨테이너 GPU 레이어 분리: 스크롤 중 repaint 억제 */
+  transform:translateZ(0);
+  /* ★ 터치 스크롤 성능: 브라우저가 pan-y를 compositor에서 처리 */
+  touch-action:pan-y;
+  /* ★ 내부 레이아웃 격리 */
+  contain:layout;
 }
 
 /* 하단 버튼 영역: flex column 말단에 고정 — 항상 보임 */
@@ -161,6 +173,10 @@
   user-select:none;
   -webkit-user-select:none;
   touch-action:none;    /* 부모 스크롤 간섭 차단 */
+  /* ★ GPU 레이어 승격: 드래그 중 compositor 처리 */
+  transform:translateZ(0);
+  /* ★ 내부 클립핑 격리 */
+  contain:layout style paint;
 }
 .drum-picker:active{ cursor:grabbing; }
 
@@ -224,6 +240,42 @@
 .drum-mask-bot{
   bottom:0;
   background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
+}
+
+/* 모바일 성능 레이어: 화면 밖 콘텐츠 렌더 비용과 모달 합성 비용 최소화 */
+.main,.bs-body{
+  overscroll-behavior:contain;
+  backface-visibility:hidden;
+}
+#ch-list,.grid2,#nl,#bl{
+  contain:layout style;
+}
+.cc,.ni,.mc2,.card{
+  contain:layout style paint;
+}
+.cc,.ni{
+  content-visibility:auto;
+  contain-intrinsic-size:180px;
+}
+.mo,.bs-overlay{
+  contain:layout style paint;
+  backface-visibility:hidden;
+}
+.mo.on{
+  transform:translateZ(0);
+  will-change:opacity;
+}
+.mo .mb,.bs-ch{
+  transform:translate3d(0,0,0);
+  backface-visibility:hidden;
+}
+@media (max-width:768px){
+  .cc,.ni,.mc2,.btn,.msg-chip{
+    -webkit-tap-highlight-color:transparent;
+  }
+  .cc,.ni{
+    contain-intrinsic-size:200px;
+  }
 }
 </style>
 </head>
@@ -794,46 +846,85 @@ function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5]
 function ini(n){return n?n[0]:'?';}
 function $ko(d){return new Date(d).toLocaleDateString('ko-KR',{month:'long',day:'numeric'});}
 
+// 모바일 렌더 스케줄러: 스크롤 중 Firestore/필터 렌더를 짧게 미뤄 프레임 드랍 방지
+const _perf={
+  scrolling:false,
+  scrollTimer:null,
+  tasks:{},
+  rafs:{},
+  chunks:{},
+  lastCKey:''
+};
+function _isInputActive(root){
+  const focused=document.activeElement;
+  return !!(root&&root.classList.contains('on')&&focused&&root.contains(focused)&&(focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'));
+}
+function _markScrolling(){
+  _perf.scrolling=true;
+  if(_perf.scrollTimer)clearTimeout(_perf.scrollTimer);
+  _perf.scrollTimer=setTimeout(function(){
+    _perf.scrolling=false;
+    _flushScheduled('challenge');
+    _flushScheduled('members');
+    _flushScheduled('lists');
+  },120);
+}
+function _scheduleRender(key,fn,opts){
+  opts=opts||{};
+  _perf.tasks[key]=fn;
+  if(_perf.rafs[key])cancelAnimationFrame(_perf.rafs[key]);
+  const delay=opts.deferDuringScroll&&_perf.scrolling?90:0;
+  _perf.rafs[key]=requestAnimationFrame(function(){
+    _perf.rafs[key]=null;
+    if(delay){
+      setTimeout(function(){ _flushScheduled(key); },delay);
+    }else{
+      _flushScheduled(key);
+    }
+  });
+}
+function _flushScheduled(key){
+  const fn=_perf.tasks[key];
+  if(!fn)return;
+  _perf.tasks[key]=null;
+  fn();
+}
+document.addEventListener('scroll',_markScrolling,{passive:true,capture:true});
+document.addEventListener('touchmove',_markScrolling,{passive:true});
+
 // ── 초기화 ──
 async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
     db=getFirestore(initializeApp(FB));
-    // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더 (깜빡임 방지)
-    let _rafC=null,_rafM=null;
     setDb(true);
     onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
       MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(_rafM)cancelAnimationFrame(_rafM);
-      _rafM=requestAnimationFrame(()=>{
+      _scheduleRender('members',function(){
         renderM();
-        // ── 바텀시트가 열려 있고 내부 입력 필드에 포커스 중이면
-        //    renderGridsBS 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
         var bsEl=g('bs-ch');
-        var focused=document.activeElement;
-        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
-        if(!isInsideBS){
+        if(!_isInputActive(bsEl)){
           renderGridsBS();
         }
-        _rafM=null;
-      });
+      },{deferDuringScroll:true});
     });
     onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(_rafC)cancelAnimationFrame(_rafC);
-      _rafC=requestAnimationFrame(()=>{
-        // ── bs-ch 포커스 가드: 바텀시트 열려 있고 내부 입력 중이면 renderC 차단 ──
+      _scheduleRender('challenge',function(){
         var bsEl=g('bs-ch');
-        var focused=document.activeElement;
-        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
-        if(!isInsideBS){
+        if(!_isInputActive(bsEl)){
           renderC();
         }
-        _rafC=null;
-      });
+      },{deferDuringScroll:true});
     });
-    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
-    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
+    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{
+      NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));
+      _scheduleRender('lists',function(){renderN();renderB();},{deferDuringScroll:true});
+    });
+    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{
+      BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));
+      _scheduleRender('lists',function(){renderN();renderB();},{deferDuringScroll:true});
+    });
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
@@ -986,25 +1077,34 @@ window.submitChBS = async function(){
 
 function openMo(id){
   const el = g(id);
-  el.classList.add('on');
-  // 작성 모달: 첫 번째 입력 필드로 포커스
-  if(el.classList.contains('write-mo')){
-    setTimeout(()=>{
-      const first = el.querySelector('input:not([type=hidden]), textarea');
-      if(first) first.focus();
-    }, 320);
-  }
-  // 스크롤 잠금
   document.body.style.overflow = 'hidden';
+  requestAnimationFrame(function(){
+    el.classList.add('on');
+    // 작성 모달: 첫 번째 입력 필드로 포커스
+    if(el.classList.contains('write-mo')){
+      setTimeout(()=>{
+        const first = el.querySelector('input:not([type=hidden]), textarea');
+        if(first){
+          try{first.focus({preventScroll:true});}
+          catch(e){first.focus();}
+        }
+      }, 320);
+    }
+  });
 }
 window.closeMo=function(id){
-  g(id).classList.remove('on');
-  document.body.style.overflow = '';
+  const el=g(id);
+  requestAnimationFrame(function(){
+    el.classList.remove('on');
+    setTimeout(function(){document.body.style.overflow='';},120);
+  });
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){
-    m.classList.remove('on');
-    document.body.style.overflow='';
+    requestAnimationFrame(function(){
+      m.classList.remove('on');
+      setTimeout(function(){document.body.style.overflow='';},120);
+    });
   }
 }));
 
@@ -1060,6 +1160,7 @@ function updateOpenBadge(){
 
 function renderC(){
   const list=g('ch-list'),empty=g('ch-empty');
+  if(!list||!empty)return;
   // ── 오픈 챌린지 뱃지 갱신 (renderC 호출될 때마다 최신 반영)
   updateOpenBadge();
   let data=[...CHAL];
@@ -1074,7 +1175,15 @@ function renderC(){
   else if(_cf==='fd') data=data.filter(c=>c.type==='fd');
   else if(_cf==='mx') data=data.filter(c=>c.type==='mx');
   else if(_cf!=='all') data=data.filter(c=>c.type===_cf);
+  const renderKey=_cf+'|'+data.map(c=>[
+    c.id,c.status,c.isOpen?'1':'0',c.type,c.winner||'',c.score||'',c.place||'',c.message||'',c.date||'',c.time||'',
+    (c.myTeam||[]).join('·'),(c.oppTeam||[]).join('·')
+  ].join(':')).join(',');
+  if(_perf.lastCKey===renderKey&&list.children.length===data.length)return;
+  _perf.lastCKey=renderKey;
+
   if(!data.length){
+    _perf.chunks.challengeToken=(_perf.chunks.challengeToken||0)+1;
     // 기존 카드 노드 제거 (깜빡임 없이 개별 제거)
     while(list.firstChild)list.removeChild(list.firstChild);
     empty.style.display='block';
@@ -1085,39 +1194,66 @@ function renderC(){
   // ── diff-patch: DOM 노드를 유지하며 innerHTML만 갱신하여 깜빡임 완전 제거 ──
   // outerHTML 교체는 노드 파괴→생성으로 깜빡임 발생 → innerHTML 갱신 방식으로 변경
   const needed=data.map(c=>c.id);
-  // 불필요한 카드 제거
+  const neededSet=new Set(needed);
+
+  // ★ 레이아웃 스래싱 방지: READ를 먼저 모두 수행한 후 WRITE를 일괄 처리
+  // PHASE 1: READ - 현재 DOM 상태를 한 번에 읽기 (reflow 1회)
+  const existingMap={};
   Array.from(list.children).forEach(el=>{
-    if(!needed.includes(el.dataset.cid))list.removeChild(el);
+    existingMap[el.dataset.cid]=el;
   });
-  // 필요한 카드를 순서대로 삽입/업데이트
-  data.forEach((c,idx)=>{
-    // chash: 카드 표시에 영향을 주는 모든 필드 포함 (변경 감지 정확도 향상)
-    const newHash=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
-    let existing=list.querySelector('[data-cid="'+c.id+'"]');
-    if(existing){
-      // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
-      if(existing.dataset.chash!==newHash){
-        const tmp=document.createElement('div');
-        tmp.innerHTML=buildCCard(c);
-        const newNode=tmp.firstElementChild;
-        // 클래스(::before 색상 결정) 및 chash 동기화
-        existing.className=newNode.className;
-        existing.dataset.chash=newHash;
-        existing.innerHTML=newNode.innerHTML;
+
+  // PHASE 2: WRITE - 불필요한 카드 제거
+  Array.from(list.children).forEach(el=>{
+    if(!neededSet.has(el.dataset.cid))list.removeChild(el);
+  });
+
+  // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
+  const hashMap={};
+  data.forEach(c=>{
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
+  });
+
+  // PHASE 4: WRITE - 카드 수가 많아도 한 프레임을 오래 점유하지 않도록 청크 처리
+  const token=(_perf.chunks.challengeToken||0)+1;
+  _perf.chunks.challengeToken=token;
+  let idx=0;
+  function patchChunk(){
+    if(_perf.chunks.challengeToken!==token)return;
+    const start=performance.now();
+    while(idx<data.length&&(idx<8||performance.now()-start<8)){
+      const c=data[idx];
+      const newHash=hashMap[c.id];
+      let existing=existingMap[c.id];
+      if(existing){
+        // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
+        if(existing.dataset.chash!==newHash){
+          const tmp=document.createElement('div');
+          tmp.innerHTML=buildCCard(c);
+          const newNode=tmp.firstElementChild;
+          // 클래스(::before 색상 결정) 및 chash 동기화
+          existing.className=newNode.className;
+          existing.dataset.chash=newHash;
+          existing.innerHTML=newNode.innerHTML;
+        }
+        // 순서 보정: 현재 위치가 idx와 다르면 이동
+        const cur=list.children[idx];
+        if(cur!==existing)list.insertBefore(existing,cur||null);
+      } else {
+        // 새 카드 삽입 (초기 chash 세팅 포함)
+        const div=document.createElement('div');
+        div.innerHTML=buildCCard(c);
+        const node=div.firstElementChild;
+        node.dataset.chash=newHash;
+        existingMap[c.id]=node;
+        const ref=list.children[idx]||null;
+        list.insertBefore(node,ref);
       }
-      // 순서 보정: 현재 위치가 idx와 다르면 이동
-      const cur=list.children[idx];
-      if(cur!==existing)list.insertBefore(existing,cur||null);
-    } else {
-      // 새 카드 삽입 (초기 chash 세팅 포함)
-      const div=document.createElement('div');
-      div.innerHTML=buildCCard(c);
-      const node=div.firstElementChild;
-      node.dataset.chash=newHash;
-      const ref=list.children[idx]||null;
-      list.insertBefore(node,ref);
+      idx++;
     }
-  });
+    if(idx<data.length)requestAnimationFrame(patchChunk);
+  }
+  requestAnimationFrame(patchChunk);
 }
 
 // ── 대결 카드 HTML 생성 (renderC에서 분리) ──
@@ -1262,20 +1398,24 @@ function renderGrid(gid,sel,other,isMy){
   const m=TM[_type]||TM.ms;
   const max=isMy?m.maxM:m.maxO;
   let mems=MEMBERS.filter(x=>x.status!=='비활성');
+  const memberByName={};
+  MEMBERS.forEach(function(x){memberByName[x.name]=x;});
+  const otherSet=new Set(other);
+  const selSet=new Set(sel);
+  const myM=_my.filter(n=>memberByName[n]?.gender==='남성').length;
+  const myF=_my.filter(n=>memberByName[n]?.gender==='여성').length;
+  const opM=_opp.filter(n=>memberByName[n]?.gender==='남성').length;
+  const opF=_opp.filter(n=>memberByName[n]?.gender==='여성').length;
   mems=mems.map(x=>{
-    let dim=other.includes(x.name);
+    let dim=otherSet.has(x.name);
     if(!dim&&m.mix){
-      const myM=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
-      const myF=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
-      const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
-      const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
-      if(!sel.includes(x.name)){
+      if(!selSet.has(x.name)){
         if(isMy){if((x.gender==='남성'&&myM>=1)||(x.gender==='여성'&&myF>=1)||sel.length>=max)dim=true;}
         else{if((x.gender==='남성'&&opM>=1)||(x.gender==='여성'&&opF>=1)||sel.length>=max)dim=true;}
       }
     } else if(!dim){
       const gf=isMy?m.gM:m.gO;
-      if(!sel.includes(x.name)&&(gf&&x.gender&&x.gender!==gf||sel.length>=max))dim=true;
+      if(!selSet.has(x.name)&&(gf&&x.gender&&x.gender!==gf||sel.length>=max))dim=true;
     }
     return{...x,_d:dim};
   });
@@ -1286,16 +1426,26 @@ function renderGrid(gid,sel,other,isMy){
   // ── diff-patch: 기존 mc2 노드를 재사용하여 입력 깜빡임 방지 ──
   // 필요한 이름 목록
   const neededNames=mems.map(x=>x.name);
-  // 없어진 항목 제거
+  const neededSet=new Set(neededNames);
+
+  // ★ 레이아웃 스래싱 방지: READ 배치 → WRITE 배치 분리
+  // PHASE 1: READ - 현재 DOM 상태를 Map으로 한 번에 읽기
+  const existingNodeMap={};
   Array.from(gr.querySelectorAll('.mc2')).forEach(el=>{
-    if(!neededNames.includes(el.dataset.mname))gr.removeChild(el);
+    existingNodeMap[el.dataset.mname]=el;
   });
-  // 삽입/업데이트
+
+  // PHASE 2: WRITE - 없어진 항목 일괄 제거
+  Object.keys(existingNodeMap).forEach(name=>{
+    if(!neededSet.has(name))gr.removeChild(existingNodeMap[name]);
+  });
+
+  // PHASE 3: WRITE - 삽입/업데이트 (루프 내 READ 제거: existingNodeMap 사용)
   mems.forEach((x,idx)=>{
-    const sSel=sel.includes(x.name);
+    const sSel=selSet.has(x.name);
     const newCls='mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':'');
     const newOnclick=x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')';
-    const existing=gr.querySelector('[data-mname="'+x.name+'"]');
+    const existing=existingNodeMap[x.name];
     if(existing){
       // 클래스와 onclick만 업데이트 (텍스트 노드 건드리지 않음)
       if(existing.className!==newCls)existing.className=newCls;
@@ -1565,11 +1715,12 @@ function _drumSetValue(team, val, animate){
   // → 결국 -(val+1)*h
   var y=-(val+1)*DRUM_ITEM_H;
   if(!animate){
+    // ★ Forced Reflow 제거: getBoundingClientRect() 호출 삭제
+    // transition을 none으로 설정 후, 다음 프레임에서 복원 (compositor 스레드 활용)
     scrollEl.style.transition='none';
     scrollEl.style.transform='translateY('+y+'px)';
-    // 리플로우 강제: transition 복원 전 layout 반영
-    scrollEl.getBoundingClientRect();
-    scrollEl.style.transition='';
+    // ★ setTimeout(0) 으로 defer: reflow 유발 없이 다음 태스크에서 transition 복원
+    setTimeout(function(){ scrollEl.style.transition=''; }, 0);
   } else {
     scrollEl.style.transform='translateY('+y+'px)';
   }
