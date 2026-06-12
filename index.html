@@ -1420,21 +1420,17 @@ window.setW=function(t){
 
 // ── addSet: 입력 필드의 점수를 _sets 배열에 추가하고 목록 갱신
 window.addSet=function(){
-  // ★ 수정: 빈 문자열("")은 0이 아닌 "미입력"으로 처리
-  //   → placeholder "0"만 보이고 실제 value가 ""인 경우 차단
-  //   → 숫자 "0"을 직접 입력한 경우는 정상 통과 (11:0 케이스 허용)
+  // ★ 수정: 빈 문자열("")은 0으로 자동 처리
+  //   → placeholder "0"만 보이고 실제 value가 ""인 경우에도 0으로 간주
+  //   → 11:0, 0:11 등 한쪽이 0인 세트도 버튼 클릭만으로 바로 추가 가능
   var rawA=g('sc-a').value;
   var rawB=g('sc-b').value;
-  // 빈 문자열 또는 공백만 있는 경우를 "미입력"으로 판별
-  if(rawA.trim()===''||rawB.trim()===''){
-    toast('⚠️ 양쪽 점수를 모두 입력해주세요');
-    return;
-  }
-  var va=parseInt(rawA);
-  var vb=parseInt(rawB);
-  // 파싱 결과가 숫자가 아닌 경우 (이론상 위 체크에서 걸리지만 방어 처리)
+  // 빈 문자열이면 0으로 치환 (직접 0을 입력하지 않아도 추가 허용)
+  var va=rawA.trim()==='' ? 0 : parseInt(rawA);
+  var vb=rawB.trim()==='' ? 0 : parseInt(rawB);
+  // 파싱 결과가 숫자가 아닌 경우 방어 처리
   if(isNaN(va)||isNaN(vb)){
-    toast('⚠️ 양쪽 점수를 모두 입력해주세요');
+    toast('⚠️ 올바른 점수를 입력해주세요');
     return;
   }
   // ── 점수 범위 체크: 0 ~ 11점 ──
