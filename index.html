@@ -143,6 +143,88 @@
   background:var(--c2);
   color:var(--t2);
 }
+
+/* ══ 드럼롤(Drum Roll) 점수 피커 ══
+   위아래 스크롤로 점수를 선택하는 iOS 피커 스타일 컴포넌트
+   11점 제한 없음 — 듀스(deuce) 상황에서도 자유롭게 점수 입력 가능 */
+
+/* 피커 전체 컨테이너 */
+.drum-picker{
+  position:relative;
+  width:72px;
+  height:132px;         /* 아이템 높이 44px × 3개 표시 */
+  overflow:hidden;
+  border-radius:14px;
+  border:2px solid var(--b2);
+  background:var(--c1);
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:none;    /* 부모 스크롤 간섭 차단 */
+}
+.drum-picker:active{ cursor:grabbing; }
+
+/* 스크롤 가능한 내부 목록 */
+.drum-scroll{
+  position:absolute;
+  top:0; left:0; right:0;
+  /* 초기 translateY는 JS에서 세팅 */
+  will-change:transform;
+  transition:transform .18s cubic-bezier(.4,0,.2,1); /* 손 뗄 때 스냅 애니메이션 */
+}
+
+/* 개별 점수 아이템 */
+.drum-item{
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:800;
+  color:var(--t3);
+  transition:color .15s, font-size .15s;
+}
+/* 선택된(가운데) 아이템 */
+.drum-item.selected{
+  color:var(--a);
+  font-size:26px;
+}
+/* B팀은 파란색 */
+#drum-b .drum-item.selected{
+  color:var(--blue);
+}
+
+/* 선택 구역 하이라이트 (가운데 줄) */
+.drum-highlight{
+  position:absolute;
+  top:44px;           /* 3행 중 2번째 행 위치 */
+  left:0; right:0;
+  height:44px;
+  border-radius:10px;
+  background:var(--adim);
+  pointer-events:none;
+  z-index:1;
+}
+.drum-highlight-b{
+  background:rgba(59,130,246,.12);
+}
+
+/* 위·아래 마스크: 선택 구역 외 흐림 효과 */
+.drum-mask{
+  position:absolute;
+  left:0; right:0;
+  height:44px;
+  pointer-events:none;
+  z-index:2;
+}
+.drum-mask-top{
+  top:0;
+  background:linear-gradient(to bottom, var(--c1) 10%, transparent 100%);
+}
+.drum-mask-bot{
+  bottom:0;
+  background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
+}
 </style>
 </head>
 <body>
@@ -418,48 +500,46 @@
       <div class="fg" style="margin-bottom:0">
         <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 게임 수만큼 추가)</span></label>
 
-        <!-- 세트 입력 행: 스텝퍼(+/-) 버튼 방식 — 키보드 없이 터치로 점수 조절 -->
-        <!-- iOS Safari 텍스트 안 보임 / 키보드 가림 문제 근본 해결 -->
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;background:var(--c2);border-radius:16px;padding:12px 10px">
+        <!-- 세트 입력 행: 스크롤 드럼롤 피커 방식 — 위아래 스크롤로 점수 선택 -->
+        <!-- 듀스 대응: 11점 제한 없음, 0~30 범위 자유 선택 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;background:var(--c2);border-radius:16px;padding:14px 10px">
 
-          <!-- A팀 스텝퍼 -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
-            <div id="sc-lbl-a" style="font-size:11px;font-weight:700;color:var(--a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-align:center">A팀</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <!-- A팀 점수 감소 버튼 -->
-              <button type="button" onclick="stepScore('a',-1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--b3);background:var(--c1);color:var(--t1);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
-              <!-- A팀 점수 표시 -->
-              <div id="sc-a-disp"
-                style="width:44px;height:44px;border-radius:12px;background:var(--c1);border:2px solid var(--a);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--a);flex-shrink:0">0</div>
-              <!-- A팀 점수 증가 버튼 -->
-              <button type="button" onclick="stepScore('a',+1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--a);background:var(--adim);color:var(--a);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
+          <!-- A팀 드럼롤 피커 -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
+            <div id="sc-lbl-a" style="font-size:11px;font-weight:700;color:var(--a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center">A팀</div>
+            <!-- 드럼롤 피커 컨테이너 -->
+            <div class="drum-picker" id="drum-a" data-team="a">
+              <!-- 위 마스크 그라데이션 -->
+              <div class="drum-mask drum-mask-top"></div>
+              <!-- 선택 영역 하이라이트 -->
+              <div class="drum-highlight"></div>
+              <!-- 스크롤 목록 -->
+              <div class="drum-scroll" id="drum-scroll-a"></div>
+              <!-- 아래 마스크 그라데이션 -->
+              <div class="drum-mask drum-mask-bot"></div>
             </div>
+            <!-- 현재 선택 점수 표시 (참조용) -->
+            <div id="sc-a-disp" style="display:none">0</div>
           </div>
 
           <!-- 구분자 -->
-          <div style="font-size:22px;font-weight:900;color:var(--t3);flex-shrink:0;padding-top:18px">:</div>
+          <div style="font-size:26px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
 
-          <!-- B팀 스텝퍼 -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
-            <div id="sc-lbl-b" style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-align:center">B팀</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <!-- B팀 점수 감소 버튼 -->
-              <button type="button" onclick="stepScore('b',-1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--b3);background:var(--c1);color:var(--t1);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
-              <!-- B팀 점수 표시 -->
-              <div id="sc-b-disp"
-                style="width:44px;height:44px;border-radius:12px;background:var(--c1);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--blue);flex-shrink:0">0</div>
-              <!-- B팀 점수 증가 버튼 -->
-              <button type="button" onclick="stepScore('b',+1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--blue);background:rgba(59,130,246,.1);color:var(--blue);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
+          <!-- B팀 드럼롤 피커 -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
+            <div id="sc-lbl-b" style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center">B팀</div>
+            <div class="drum-picker" id="drum-b" data-team="b">
+              <div class="drum-mask drum-mask-top"></div>
+              <div class="drum-highlight drum-highlight-b"></div>
+              <div class="drum-scroll" id="drum-scroll-b"></div>
+              <div class="drum-mask drum-mask-bot"></div>
             </div>
+            <div id="sc-b-disp" style="display:none">0</div>
           </div>
 
           <!-- 세트 추가 버튼 -->
           <button class="btn btn-p" onclick="addSet()"
-            style="flex-shrink:0;min-height:56px;padding:0 14px;font-size:14px;font-weight:700;align-self:flex-end">＋<br>추가</button>
+            style="flex-shrink:0;min-height:64px;padding:0 14px;font-size:14px;font-weight:700;align-self:center">＋<br>추가</button>
         </div>
 
         <!-- 추가된 세트 목록 -->
@@ -1427,7 +1507,7 @@ window.openRes=function(id){
   g('sc-lbl-a').textContent=lblA;
   g('sc-lbl-b').textContent=lblB;
 
-  // ── 스텝퍼 초기화: 전역 변수와 화면 표시 모두 0으로 리셋 ──
+  // ── 스텝퍼/드럼롤 초기화: 전역 변수와 화면 표시 모두 0으로 리셋 ──
   _scA=0;_scB=0;
   var dA=g('sc-a-disp'),dB=g('sc-b-disp');
   if(dA)dA.textContent='0';
@@ -1436,36 +1516,192 @@ window.openRes=function(id){
   g('sc-summary').style.display='none';
 
   openMo('mo-result');
+
+  // ── 드럼롤 피커 초기화 (모달이 DOM에 표시된 후 실행해야 레이아웃 정상) ──
+  // 최초 1회만 이벤트 바인딩, 이후에는 값만 리셋
+  requestAnimationFrame(function(){
+    if(!_drumsInited){
+      initDrums();
+      _drumsInited=true;
+    }
+    // 값 0으로 초기화 (애니메이션 없이 즉시)
+    _drumSetValue('a',0,false);
+    _drumSetValue('b',0,false);
+  });
 }
 window.setW=function(t){
   _rw=t;
   ['a','b'].forEach(k=>{g('w'+k).style.borderColor=k===t?'var(--a)':'var(--b2)';g('w'+k).style.background=k===t?'var(--adim)':'transparent';});
 }
 
-// ── stepScore: 스텝퍼 버튼(+/-)으로 점수 조절
-// team: 'a' 또는 'b', delta: +1 또는 -1
-// 0~11 범위를 벗어나지 않도록 클램핑 처리
+// ── 드럼롤 피커 초기화 및 제어
+// 듀스 대응: 0~30 범위, 상한 제한 없음 (tabletTennis deuce rule)
+var DRUM_MAX = 30; // 드럼롤 표시 최대 점수
+var DRUM_ITEM_H = 44; // 아이템 높이(px) — CSS .drum-item 높이와 일치해야 함
+
+// 드럼롤 목록 렌더링: 0~DRUM_MAX 숫자 아이템 생성
+// 위아래 여백(패딩) 2개씩 추가하여 첫/끝 아이템도 가운데 정렬 가능
+function _initDrumScroll(scrollEl){
+  var html='';
+  // 위 여백 2개 (선택 구역이 항상 가운데 오도록)
+  html+='<div class="drum-item" style="visibility:hidden"></div>';
+  html+='<div class="drum-item" style="visibility:hidden"></div>';
+  for(var i=0;i<=DRUM_MAX;i++){
+    html+='<div class="drum-item" data-val="'+i+'">'+i+'</div>';
+  }
+  // 아래 여백 2개
+  html+='<div class="drum-item" style="visibility:hidden"></div>';
+  html+='<div class="drum-item" style="visibility:hidden"></div>';
+  scrollEl.innerHTML=html;
+}
+
+// 드럼롤을 특정 값으로 이동 (스냅 포함)
+// animate=false: 애니메이션 없이 즉시 이동 (초기화 시 사용)
+function _drumSetValue(team, val, animate){
+  var scrollEl=g('drum-scroll-'+(team==='a'?'a':'b'));
+  if(!scrollEl)return;
+  // translateY = -(val+2)*DRUM_ITEM_H + 여백 보정 없음 (패딩 2개 앞에 있으므로 val번째가 3번째 위치)
+  // 실제 Y = -(val+2)*h + h (선택 구역은 top:44px이므로 1행 내려야 함)
+  // → 결국 -(val+1)*h
+  var y=-(val+1)*DRUM_ITEM_H;
+  if(!animate){
+    scrollEl.style.transition='none';
+    scrollEl.style.transform='translateY('+y+'px)';
+    // 리플로우 강제: transition 복원 전 layout 반영
+    scrollEl.getBoundingClientRect();
+    scrollEl.style.transition='';
+  } else {
+    scrollEl.style.transform='translateY('+y+'px)';
+  }
+  _drumUpdateSelected(scrollEl, val);
+}
+
+// 가운데 선택 아이템 하이라이트 갱신
+function _drumUpdateSelected(scrollEl, val){
+  var items=scrollEl.querySelectorAll('.drum-item[data-val]');
+  items.forEach(function(el){
+    var v=parseInt(el.getAttribute('data-val'),10);
+    if(v===val)el.classList.add('selected');
+    else el.classList.remove('selected');
+  });
+}
+
+// 드럼롤 피커 터치/마우스 이벤트 바인딩
+// 드래그한 거리에 비례해 스크롤, 손 떼면 가장 가까운 정수로 스냅
+function _bindDrum(team){
+  var pickEl=g('drum-'+(team==='a'?'a':'b'));
+  var scrollEl=g('drum-scroll-'+(team==='a'?'a':'b'));
+  if(!pickEl||!scrollEl)return;
+
+  var _startY=0;      // 터치/마우스 시작 Y
+  var _startVal=0;    // 시작 시 선택 값
+  var _curVal=0;      // 현재 드래그 중 값 (실수 가능)
+  var _isDrag=false;
+
+  // 현재 값 읽기 (전역 _scA/_scB 연동)
+  function getVal(){ return team==='a'?_scA:_scB; }
+  function setVal(v){
+    v=Math.round(v);
+    v=Math.max(0,Math.min(DRUM_MAX,v));
+    if(team==='a')_scA=v; else _scB=v;
+    // 숨겨진 disp 동기화 (addSet에서 참조)
+    var disp=g('sc-'+(team==='a'?'a':'b')+'-disp');
+    if(disp)disp.textContent=v;
+    return v;
+  }
+
+  function onStart(clientY){
+    _isDrag=true;
+    _startY=clientY;
+    _startVal=getVal();
+    _curVal=_startVal;
+    scrollEl.style.transition='none'; // 드래그 중 애니메이션 OFF
+  }
+  function onMove(clientY){
+    if(!_isDrag)return;
+    var dy=_startY-clientY; // 위로 드래그 → 양수 → 값 증가
+    var delta=dy/DRUM_ITEM_H; // 1아이템 높이당 1포인트 변화
+    _curVal=_startVal+delta;
+    _curVal=Math.max(0,Math.min(DRUM_MAX,_curVal));
+    // 실수 위치로 스크롤 (스냅 없이 자연스럽게)
+    var y=-(_curVal+1)*DRUM_ITEM_H;
+    scrollEl.style.transform='translateY('+y+'px)';
+    // 가장 가까운 정수로 선택 하이라이트
+    _drumUpdateSelected(scrollEl, Math.round(_curVal));
+  }
+  function onEnd(){
+    if(!_isDrag)return;
+    _isDrag=false;
+    // 스냅: 가장 가까운 정수로 이동
+    var snapped=setVal(_curVal);
+    _drumSetValue(team, snapped, true);
+  }
+
+  // ── 터치 이벤트 ──
+  pickEl.addEventListener('touchstart',function(e){
+    onStart(e.touches[0].clientY);
+    e.preventDefault(); // 부모 스크롤 차단
+  },{passive:false});
+  pickEl.addEventListener('touchmove',function(e){
+    onMove(e.touches[0].clientY);
+    e.preventDefault();
+  },{passive:false});
+  pickEl.addEventListener('touchend',function(e){
+    onEnd();
+    e.preventDefault();
+  },{passive:false});
+
+  // ── 마우스 이벤트 (PC 지원) ──
+  pickEl.addEventListener('mousedown',function(e){
+    onStart(e.clientY);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){
+    if(_isDrag)onMove(e.clientY);
+  });
+  document.addEventListener('mouseup',function(){
+    if(_isDrag)onEnd();
+  });
+
+  // ── 휠 이벤트 (PC 마우스 휠) ──
+  pickEl.addEventListener('wheel',function(e){
+    e.preventDefault();
+    var delta=e.deltaY>0?1:-1; // 아래 스크롤=값 증가, 위 스크롤=값 감소
+    var newVal=setVal(getVal()+delta);
+    _drumSetValue(team, newVal, true);
+  },{passive:false});
+}
+
+// ── 드럼롤 초기화 (결과 입력 모달 열릴 때 호출)
+function initDrums(){
+  ['a','b'].forEach(function(team){
+    var scrollEl=g('drum-scroll-'+team);
+    if(!scrollEl)return;
+    _initDrumScroll(scrollEl);
+    _bindDrum(team);
+  });
+}
+var _drumsInited=false; // 중복 바인딩 방지
+
+// ── stepScore: 하위 호환용 (외부에서 호출될 경우 대비 — 현재는 드럼롤로 대체됨)
 window.stepScore=function(team,delta){
   if(team==='a'){
-    _scA=Math.min(11,Math.max(0,_scA+delta));
-    var dispA=g('sc-a-disp');
-    if(dispA)dispA.textContent=_scA;
+    _scA=Math.max(0,_scA+delta);
+    _drumSetValue('a',_scA,true);
   } else {
-    _scB=Math.min(11,Math.max(0,_scB+delta));
-    var dispB=g('sc-b-disp');
-    if(dispB)dispB.textContent=_scB;
+    _scB=Math.max(0,_scB+delta);
+    _drumSetValue('b',_scB,true);
   }
 }
 
 // ── addSet: 스텝퍼 변수(_scA, _scB)에서 점수를 읽어 _sets 배열에 추가
 // ★ 기존 input text 필드 방식 제거 → iOS 키보드 미표시, 텍스트 안 보임 이슈 근본 해결
 window.addSet=function(){
-  // 스텝퍼 방식: 전역 변수에서 직접 읽기 (input.value 참조 불필요)
+  // 드럼롤 피커 방식: 전역 변수에서 직접 읽기
+  // 11점 상한 제한 없음 — 듀스(deuce) 상황 자유 입력 가능
   var va=_scA;
   var vb=_scB;
-  // 스텝퍼는 항상 정수이므로 isNaN/범위 체크는 방어용으로만 유지
-  if(isNaN(va)||isNaN(vb)){return;}
-  if(va<0||va>11||vb<0||vb>11){return;}
+  if(isNaN(va)||isNaN(vb)||va<0||vb<0){return;}
 
   // ── 경기 방식에 따른 최대 세트 수 계산 ──
   var maxSets = _gameMode==='bo3'?3 : _gameMode==='bo5'?5 : 7;
@@ -1487,11 +1723,14 @@ window.addSet=function(){
   }
 
   _sets.push({a:va,b:vb});
-  // 스텝퍼 초기화: 변수 및 화면 표시 모두 0으로 리셋
+  // 드럼롤 및 전역 변수 초기화: 0으로 리셋
   _scA=0;_scB=0;
   var dA=g('sc-a-disp'),dB=g('sc-b-disp');
   if(dA)dA.textContent='0';
   if(dB)dB.textContent='0';
+  // 드럼롤 피커도 0으로 스냅
+  _drumSetValue('a',0,true);
+  _drumSetValue('b',0,true);
   renderSets();
 
   // ── 자동 승리 감지: 경기 방식이 선택된 경우에만 동작 ──
