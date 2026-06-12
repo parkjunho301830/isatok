@@ -155,7 +155,6 @@
   background:var(--c2);
   color:var(--t2);
 }
-<<<<<<< HEAD
 
 /* ══ 드럼롤(Drum Roll) 점수 피커 ══
    위아래 스크롤로 점수를 선택하는 iOS 피커 스타일 컴포넌트
@@ -242,44 +241,6 @@
   bottom:0;
   background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
 }
-
-/* 모바일 성능 레이어: 화면 밖 콘텐츠 렌더 비용과 모달 합성 비용 최소화 */
-.main,.bs-body{
-  overscroll-behavior:contain;
-  backface-visibility:hidden;
-}
-#ch-list,.grid2,#nl,#bl{
-  contain:layout style;
-}
-.cc,.ni,.mc2,.card{
-  contain:layout style paint;
-}
-.cc,.ni{
-  content-visibility:auto;
-  contain-intrinsic-size:180px;
-}
-.mo,.bs-overlay{
-  contain:layout style paint;
-  backface-visibility:hidden;
-}
-.mo.on{
-  transform:translateZ(0);
-  will-change:opacity;
-}
-.mo .mb,.bs-ch{
-  transform:translate3d(0,0,0);
-  backface-visibility:hidden;
-}
-@media (max-width:768px){
-  .cc,.ni,.mc2,.btn,.msg-chip{
-    -webkit-tap-highlight-color:transparent;
-  }
-  .cc,.ni{
-    contain-intrinsic-size:200px;
-  }
-}
-=======
->>>>>>> parent of b1d423a (Update index.html)
 </style>
 </head>
 <body>
@@ -555,48 +516,46 @@
       <div class="fg" style="margin-bottom:0">
         <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 게임 수만큼 추가)</span></label>
 
-        <!-- 세트 입력 행: 스텝퍼(+/-) 버튼 방식 — 키보드 없이 터치로 점수 조절 -->
-        <!-- iOS Safari 텍스트 안 보임 / 키보드 가림 문제 근본 해결 -->
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;background:var(--c2);border-radius:16px;padding:12px 10px">
+        <!-- 세트 입력 행: 스크롤 드럼롤 피커 방식 — 위아래 스크롤로 점수 선택 -->
+        <!-- 듀스 대응: 11점 제한 없음, 0~30 범위 자유 선택 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;background:var(--c2);border-radius:16px;padding:14px 10px">
 
-          <!-- A팀 스텝퍼 -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
-            <div id="sc-lbl-a" style="font-size:11px;font-weight:700;color:var(--a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-align:center">A팀</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <!-- A팀 점수 감소 버튼 -->
-              <button type="button" onclick="stepScore('a',-1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--b3);background:var(--c1);color:var(--t1);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
-              <!-- A팀 점수 표시 -->
-              <div id="sc-a-disp"
-                style="width:44px;height:44px;border-radius:12px;background:var(--c1);border:2px solid var(--a);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--a);flex-shrink:0">0</div>
-              <!-- A팀 점수 증가 버튼 -->
-              <button type="button" onclick="stepScore('a',+1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--a);background:var(--adim);color:var(--a);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
+          <!-- A팀 드럼롤 피커 -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
+            <div id="sc-lbl-a" style="font-size:11px;font-weight:700;color:var(--a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center">A팀</div>
+            <!-- 드럼롤 피커 컨테이너 -->
+            <div class="drum-picker" id="drum-a" data-team="a">
+              <!-- 위 마스크 그라데이션 -->
+              <div class="drum-mask drum-mask-top"></div>
+              <!-- 선택 영역 하이라이트 -->
+              <div class="drum-highlight"></div>
+              <!-- 스크롤 목록 -->
+              <div class="drum-scroll" id="drum-scroll-a"></div>
+              <!-- 아래 마스크 그라데이션 -->
+              <div class="drum-mask drum-mask-bot"></div>
             </div>
+            <!-- 현재 선택 점수 표시 (참조용) -->
+            <div id="sc-a-disp" style="display:none">0</div>
           </div>
 
           <!-- 구분자 -->
-          <div style="font-size:22px;font-weight:900;color:var(--t3);flex-shrink:0;padding-top:18px">:</div>
+          <div style="font-size:26px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
 
-          <!-- B팀 스텝퍼 -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
-            <div id="sc-lbl-b" style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;text-align:center">B팀</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <!-- B팀 점수 감소 버튼 -->
-              <button type="button" onclick="stepScore('b',-1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--b3);background:var(--c1);color:var(--t1);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
-              <!-- B팀 점수 표시 -->
-              <div id="sc-b-disp"
-                style="width:44px;height:44px;border-radius:12px;background:var(--c1);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--blue);flex-shrink:0">0</div>
-              <!-- B팀 점수 증가 버튼 -->
-              <button type="button" onclick="stepScore('b',+1)"
-                style="width:36px;height:36px;border-radius:50%;border:2px solid var(--blue);background:rgba(59,130,246,.1);color:var(--blue);font-size:20px;font-weight:700;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
+          <!-- B팀 드럼롤 피커 -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
+            <div id="sc-lbl-b" style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center">B팀</div>
+            <div class="drum-picker" id="drum-b" data-team="b">
+              <div class="drum-mask drum-mask-top"></div>
+              <div class="drum-highlight drum-highlight-b"></div>
+              <div class="drum-scroll" id="drum-scroll-b"></div>
+              <div class="drum-mask drum-mask-bot"></div>
             </div>
+            <div id="sc-b-disp" style="display:none">0</div>
           </div>
 
           <!-- 세트 추가 버튼 -->
           <button class="btn btn-p" onclick="addSet()"
-            style="flex-shrink:0;min-height:56px;padding:0 14px;font-size:14px;font-weight:700;align-self:flex-end">＋<br>추가</button>
+            style="flex-shrink:0;min-height:64px;padding:0 14px;font-size:14px;font-weight:700;align-self:center">＋<br>추가</button>
         </div>
 
         <!-- 추가된 세트 목록 -->
@@ -851,85 +810,46 @@ function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5]
 function ini(n){return n?n[0]:'?';}
 function $ko(d){return new Date(d).toLocaleDateString('ko-KR',{month:'long',day:'numeric'});}
 
-// 모바일 렌더 스케줄러: 스크롤 중 Firestore/필터 렌더를 짧게 미뤄 프레임 드랍 방지
-const _perf={
-  scrolling:false,
-  scrollTimer:null,
-  tasks:{},
-  rafs:{},
-  chunks:{},
-  lastCKey:''
-};
-function _isInputActive(root){
-  const focused=document.activeElement;
-  return !!(root&&root.classList.contains('on')&&focused&&root.contains(focused)&&(focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'));
-}
-function _markScrolling(){
-  _perf.scrolling=true;
-  if(_perf.scrollTimer)clearTimeout(_perf.scrollTimer);
-  _perf.scrollTimer=setTimeout(function(){
-    _perf.scrolling=false;
-    _flushScheduled('challenge');
-    _flushScheduled('members');
-    _flushScheduled('lists');
-  },120);
-}
-function _scheduleRender(key,fn,opts){
-  opts=opts||{};
-  _perf.tasks[key]=fn;
-  if(_perf.rafs[key])cancelAnimationFrame(_perf.rafs[key]);
-  const delay=opts.deferDuringScroll&&_perf.scrolling?90:0;
-  _perf.rafs[key]=requestAnimationFrame(function(){
-    _perf.rafs[key]=null;
-    if(delay){
-      setTimeout(function(){ _flushScheduled(key); },delay);
-    }else{
-      _flushScheduled(key);
-    }
-  });
-}
-function _flushScheduled(key){
-  const fn=_perf.tasks[key];
-  if(!fn)return;
-  _perf.tasks[key]=null;
-  fn();
-}
-document.addEventListener('scroll',_markScrolling,{passive:true,capture:true});
-document.addEventListener('touchmove',_markScrolling,{passive:true});
-
 // ── 초기화 ──
 async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
     db=getFirestore(initializeApp(FB));
+    // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더 (깜빡임 방지)
+    let _rafC=null,_rafM=null;
     setDb(true);
     onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
       MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
-      _scheduleRender('members',function(){
+      if(_rafM)cancelAnimationFrame(_rafM);
+      _rafM=requestAnimationFrame(()=>{
         renderM();
+        // ── 바텀시트가 열려 있고 내부 입력 필드에 포커스 중이면
+        //    renderGridsBS 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
         var bsEl=g('bs-ch');
-        if(!_isInputActive(bsEl)){
+        var focused=document.activeElement;
+        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
+        if(!isInsideBS){
           renderGridsBS();
         }
-      },{deferDuringScroll:true});
+        _rafM=null;
+      });
     });
     onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
-      _scheduleRender('challenge',function(){
+      if(_rafC)cancelAnimationFrame(_rafC);
+      _rafC=requestAnimationFrame(()=>{
+        // ── bs-ch 포커스 가드: 바텀시트 열려 있고 내부 입력 중이면 renderC 차단 ──
         var bsEl=g('bs-ch');
-        if(!_isInputActive(bsEl)){
+        var focused=document.activeElement;
+        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
+        if(!isInsideBS){
           renderC();
         }
-      },{deferDuringScroll:true});
+        _rafC=null;
+      });
     });
-    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{
-      NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));
-      _scheduleRender('lists',function(){renderN();renderB();},{deferDuringScroll:true});
-    });
-    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{
-      BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));
-      _scheduleRender('lists',function(){renderN();renderB();},{deferDuringScroll:true});
-    });
+    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
+    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
@@ -1082,34 +1002,25 @@ window.submitChBS = async function(){
 
 function openMo(id){
   const el = g(id);
+  el.classList.add('on');
+  // 작성 모달: 첫 번째 입력 필드로 포커스
+  if(el.classList.contains('write-mo')){
+    setTimeout(()=>{
+      const first = el.querySelector('input:not([type=hidden]), textarea');
+      if(first) first.focus();
+    }, 320);
+  }
+  // 스크롤 잠금
   document.body.style.overflow = 'hidden';
-  requestAnimationFrame(function(){
-    el.classList.add('on');
-    // 작성 모달: 첫 번째 입력 필드로 포커스
-    if(el.classList.contains('write-mo')){
-      setTimeout(()=>{
-        const first = el.querySelector('input:not([type=hidden]), textarea');
-        if(first){
-          try{first.focus({preventScroll:true});}
-          catch(e){first.focus();}
-        }
-      }, 320);
-    }
-  });
 }
 window.closeMo=function(id){
-  const el=g(id);
-  requestAnimationFrame(function(){
-    el.classList.remove('on');
-    setTimeout(function(){document.body.style.overflow='';},120);
-  });
+  g(id).classList.remove('on');
+  document.body.style.overflow = '';
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){
-    requestAnimationFrame(function(){
-      m.classList.remove('on');
-      setTimeout(function(){document.body.style.overflow='';},120);
-    });
+    m.classList.remove('on');
+    document.body.style.overflow='';
   }
 }));
 
@@ -1165,7 +1076,6 @@ function updateOpenBadge(){
 
 function renderC(){
   const list=g('ch-list'),empty=g('ch-empty');
-  if(!list||!empty)return;
   // ── 오픈 챌린지 뱃지 갱신 (renderC 호출될 때마다 최신 반영)
   updateOpenBadge();
   let data=[...CHAL];
@@ -1180,15 +1090,7 @@ function renderC(){
   else if(_cf==='fd') data=data.filter(c=>c.type==='fd');
   else if(_cf==='mx') data=data.filter(c=>c.type==='mx');
   else if(_cf!=='all') data=data.filter(c=>c.type===_cf);
-  const renderKey=_cf+'|'+data.map(c=>[
-    c.id,c.status,c.isOpen?'1':'0',c.type,c.winner||'',c.score||'',c.place||'',c.message||'',c.date||'',c.time||'',
-    (c.myTeam||[]).join('·'),(c.oppTeam||[]).join('·')
-  ].join(':')).join(',');
-  if(_perf.lastCKey===renderKey&&list.children.length===data.length)return;
-  _perf.lastCKey=renderKey;
-
   if(!data.length){
-    _perf.chunks.challengeToken=(_perf.chunks.challengeToken||0)+1;
     // 기존 카드 노드 제거 (깜빡임 없이 개별 제거)
     while(list.firstChild)list.removeChild(list.firstChild);
     empty.style.display='block';
@@ -1199,7 +1101,6 @@ function renderC(){
   // ── diff-patch: DOM 노드를 유지하며 innerHTML만 갱신하여 깜빡임 완전 제거 ──
   // outerHTML 교체는 노드 파괴→생성으로 깜빡임 발생 → innerHTML 갱신 방식으로 변경
   const needed=data.map(c=>c.id);
-  const neededSet=new Set(needed);
 
   // ★ 레이아웃 스래싱 방지: READ를 먼저 모두 수행한 후 WRITE를 일괄 처리
   // PHASE 1: READ - 현재 DOM 상태를 한 번에 읽기 (reflow 1회)
@@ -1210,7 +1111,7 @@ function renderC(){
 
   // PHASE 2: WRITE - 불필요한 카드 제거
   Array.from(list.children).forEach(el=>{
-    if(!neededSet.has(el.dataset.cid))list.removeChild(el);
+    if(!needed.includes(el.dataset.cid))list.removeChild(el);
   });
 
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
@@ -1219,46 +1120,35 @@ function renderC(){
     hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
   });
 
-  // PHASE 4: WRITE - 카드 수가 많아도 한 프레임을 오래 점유하지 않도록 청크 처리
-  const token=(_perf.chunks.challengeToken||0)+1;
-  _perf.chunks.challengeToken=token;
-  let idx=0;
-  function patchChunk(){
-    if(_perf.chunks.challengeToken!==token)return;
-    const start=performance.now();
-    while(idx<data.length&&(idx<8||performance.now()-start<8)){
-      const c=data[idx];
-      const newHash=hashMap[c.id];
-      let existing=existingMap[c.id];
-      if(existing){
-        // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
-        if(existing.dataset.chash!==newHash){
-          const tmp=document.createElement('div');
-          tmp.innerHTML=buildCCard(c);
-          const newNode=tmp.firstElementChild;
-          // 클래스(::before 색상 결정) 및 chash 동기화
-          existing.className=newNode.className;
-          existing.dataset.chash=newHash;
-          existing.innerHTML=newNode.innerHTML;
-        }
-        // 순서 보정: 현재 위치가 idx와 다르면 이동
-        const cur=list.children[idx];
-        if(cur!==existing)list.insertBefore(existing,cur||null);
-      } else {
-        // 새 카드 삽입 (초기 chash 세팅 포함)
-        const div=document.createElement('div');
-        div.innerHTML=buildCCard(c);
-        const node=div.firstElementChild;
-        node.dataset.chash=newHash;
-        existingMap[c.id]=node;
-        const ref=list.children[idx]||null;
-        list.insertBefore(node,ref);
+  // PHASE 4: WRITE - DocumentFragment 사용으로 삽입/업데이트 일괄 처리
+  // ★ list.children을 미리 배열로 캐싱하여 반복 DOM 쿼리 제거
+  data.forEach((c,idx)=>{
+    const newHash=hashMap[c.id];
+    let existing=existingMap[c.id];
+    if(existing){
+      // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
+      if(existing.dataset.chash!==newHash){
+        const tmp=document.createElement('div');
+        tmp.innerHTML=buildCCard(c);
+        const newNode=tmp.firstElementChild;
+        // 클래스(::before 색상 결정) 및 chash 동기화
+        existing.className=newNode.className;
+        existing.dataset.chash=newHash;
+        existing.innerHTML=newNode.innerHTML;
       }
-      idx++;
+      // 순서 보정: 현재 위치가 idx와 다르면 이동
+      const cur=list.children[idx];
+      if(cur!==existing)list.insertBefore(existing,cur||null);
+    } else {
+      // 새 카드 삽입 (초기 chash 세팅 포함)
+      const div=document.createElement('div');
+      div.innerHTML=buildCCard(c);
+      const node=div.firstElementChild;
+      node.dataset.chash=newHash;
+      const ref=list.children[idx]||null;
+      list.insertBefore(node,ref);
     }
-    if(idx<data.length)requestAnimationFrame(patchChunk);
-  }
-  requestAnimationFrame(patchChunk);
+  });
 }
 
 // ── 대결 카드 HTML 생성 (renderC에서 분리) ──
@@ -1403,24 +1293,20 @@ function renderGrid(gid,sel,other,isMy){
   const m=TM[_type]||TM.ms;
   const max=isMy?m.maxM:m.maxO;
   let mems=MEMBERS.filter(x=>x.status!=='비활성');
-  const memberByName={};
-  MEMBERS.forEach(function(x){memberByName[x.name]=x;});
-  const otherSet=new Set(other);
-  const selSet=new Set(sel);
-  const myM=_my.filter(n=>memberByName[n]?.gender==='남성').length;
-  const myF=_my.filter(n=>memberByName[n]?.gender==='여성').length;
-  const opM=_opp.filter(n=>memberByName[n]?.gender==='남성').length;
-  const opF=_opp.filter(n=>memberByName[n]?.gender==='여성').length;
   mems=mems.map(x=>{
-    let dim=otherSet.has(x.name);
+    let dim=other.includes(x.name);
     if(!dim&&m.mix){
-      if(!selSet.has(x.name)){
+      const myM=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+      const myF=_my.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+      const opM=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='남성').length;
+      const opF=_opp.filter(n=>MEMBERS.find(x=>x.name===n)?.gender==='여성').length;
+      if(!sel.includes(x.name)){
         if(isMy){if((x.gender==='남성'&&myM>=1)||(x.gender==='여성'&&myF>=1)||sel.length>=max)dim=true;}
         else{if((x.gender==='남성'&&opM>=1)||(x.gender==='여성'&&opF>=1)||sel.length>=max)dim=true;}
       }
     } else if(!dim){
       const gf=isMy?m.gM:m.gO;
-      if(!selSet.has(x.name)&&(gf&&x.gender&&x.gender!==gf||sel.length>=max))dim=true;
+      if(!sel.includes(x.name)&&(gf&&x.gender&&x.gender!==gf||sel.length>=max))dim=true;
     }
     return{...x,_d:dim};
   });
@@ -1431,7 +1317,6 @@ function renderGrid(gid,sel,other,isMy){
   // ── diff-patch: 기존 mc2 노드를 재사용하여 입력 깜빡임 방지 ──
   // 필요한 이름 목록
   const neededNames=mems.map(x=>x.name);
-  const neededSet=new Set(neededNames);
 
   // ★ 레이아웃 스래싱 방지: READ 배치 → WRITE 배치 분리
   // PHASE 1: READ - 현재 DOM 상태를 Map으로 한 번에 읽기
@@ -1442,12 +1327,12 @@ function renderGrid(gid,sel,other,isMy){
 
   // PHASE 2: WRITE - 없어진 항목 일괄 제거
   Object.keys(existingNodeMap).forEach(name=>{
-    if(!neededSet.has(name))gr.removeChild(existingNodeMap[name]);
+    if(!neededNames.includes(name))gr.removeChild(existingNodeMap[name]);
   });
 
   // PHASE 3: WRITE - 삽입/업데이트 (루프 내 READ 제거: existingNodeMap 사용)
   mems.forEach((x,idx)=>{
-    const sSel=selSet.has(x.name);
+    const sSel=sel.includes(x.name);
     const newCls='mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':'');
     const newOnclick=x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')';
     const existing=existingNodeMap[x.name];
@@ -1662,7 +1547,7 @@ window.openRes=function(id){
   g('sc-lbl-a').textContent=lblA;
   g('sc-lbl-b').textContent=lblB;
 
-  // ── 스텝퍼 초기화: 전역 변수와 화면 표시 모두 0으로 리셋 ──
+  // ── 스텝퍼/드럼롤 초기화: 전역 변수와 화면 표시 모두 0으로 리셋 ──
   _scA=0;_scB=0;
   var dA=g('sc-a-disp'),dB=g('sc-b-disp');
   if(dA)dA.textContent='0';
@@ -1671,13 +1556,24 @@ window.openRes=function(id){
   g('sc-summary').style.display='none';
 
   openMo('mo-result');
+
+  // ── 드럼롤 피커 초기화 (모달이 DOM에 표시된 후 실행해야 레이아웃 정상) ──
+  // 최초 1회만 이벤트 바인딩, 이후에는 값만 리셋
+  requestAnimationFrame(function(){
+    if(!_drumsInited){
+      initDrums();
+      _drumsInited=true;
+    }
+    // 값 0으로 초기화 (애니메이션 없이 즉시)
+    _drumSetValue('a',0,false);
+    _drumSetValue('b',0,false);
+  });
 }
 window.setW=function(t){
   _rw=t;
   ['a','b'].forEach(k=>{g('w'+k).style.borderColor=k===t?'var(--a)':'var(--b2)';g('w'+k).style.background=k===t?'var(--adim)':'transparent';});
 }
 
-<<<<<<< HEAD
 // ── 드럼롤 피커 초기화 및 제어
 // 듀스 대응: 0~30 범위, 상한 제한 없음 (tabletTennis deuce rule)
 var DRUM_MAX = 30; // 드럼롤 표시 최대 점수
@@ -1829,32 +1725,24 @@ function initDrums(){
 var _drumsInited=false; // 중복 바인딩 방지
 
 // ── stepScore: 하위 호환용 (외부에서 호출될 경우 대비 — 현재는 드럼롤로 대체됨)
-=======
-// ── stepScore: 스텝퍼 버튼(+/-)으로 점수 조절
-// team: 'a' 또는 'b', delta: +1 또는 -1
-// 0~11 범위를 벗어나지 않도록 클램핑 처리
->>>>>>> parent of b1d423a (Update index.html)
 window.stepScore=function(team,delta){
   if(team==='a'){
-    _scA=Math.min(11,Math.max(0,_scA+delta));
-    var dispA=g('sc-a-disp');
-    if(dispA)dispA.textContent=_scA;
+    _scA=Math.max(0,_scA+delta);
+    _drumSetValue('a',_scA,true);
   } else {
-    _scB=Math.min(11,Math.max(0,_scB+delta));
-    var dispB=g('sc-b-disp');
-    if(dispB)dispB.textContent=_scB;
+    _scB=Math.max(0,_scB+delta);
+    _drumSetValue('b',_scB,true);
   }
 }
 
 // ── addSet: 스텝퍼 변수(_scA, _scB)에서 점수를 읽어 _sets 배열에 추가
 // ★ 기존 input text 필드 방식 제거 → iOS 키보드 미표시, 텍스트 안 보임 이슈 근본 해결
 window.addSet=function(){
-  // 스텝퍼 방식: 전역 변수에서 직접 읽기 (input.value 참조 불필요)
+  // 드럼롤 피커 방식: 전역 변수에서 직접 읽기
+  // 11점 상한 제한 없음 — 듀스(deuce) 상황 자유 입력 가능
   var va=_scA;
   var vb=_scB;
-  // 스텝퍼는 항상 정수이므로 isNaN/범위 체크는 방어용으로만 유지
-  if(isNaN(va)||isNaN(vb)){return;}
-  if(va<0||va>11||vb<0||vb>11){return;}
+  if(isNaN(va)||isNaN(vb)||va<0||vb<0){return;}
 
   // ── 경기 방식에 따른 최대 세트 수 계산 ──
   var maxSets = _gameMode==='bo3'?3 : _gameMode==='bo5'?5 : 7;
@@ -1876,11 +1764,14 @@ window.addSet=function(){
   }
 
   _sets.push({a:va,b:vb});
-  // 스텝퍼 초기화: 변수 및 화면 표시 모두 0으로 리셋
+  // 드럼롤 및 전역 변수 초기화: 0으로 리셋
   _scA=0;_scB=0;
   var dA=g('sc-a-disp'),dB=g('sc-b-disp');
   if(dA)dA.textContent='0';
   if(dB)dB.textContent='0';
+  // 드럼롤 피커도 0으로 스냅
+  _drumSetValue('a',0,true);
+  _drumSetValue('b',0,true);
   renderSets();
 
   // ── 자동 승리 감지: 경기 방식이 선택된 경우에만 동작 ──
