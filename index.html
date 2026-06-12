@@ -157,7 +157,7 @@
 
   <!-- PC 전용 사이드바 -->
   <nav class="sidebar" id="sidebar" style="display:none">
-    <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div></div>
+    <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div><div style="font-size:11px;color:var(--t3);font-weight:500;margin-top:4px;letter-spacing:0.02em">v2025.06.12</div></div>
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
     <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
@@ -171,7 +171,7 @@
 
   <!-- 모바일 헤더 -->
   <div class="mhdr">
-    <div class="mhdr-logo">🏓 이사탁</div>
+    <div class="mhdr-logo">🏓 이사탁 <span style="font-size:10px;font-weight:600;color:var(--t3);letter-spacing:0;vertical-align:middle;margin-left:2px">v2025.06.12</span></div>
     <div class="mhdr-r">
       <span id="dbm" title="연결 상태">🟢</span>
     </div>
@@ -1420,9 +1420,19 @@ window.setW=function(t){
 
 // ── addSet: 입력 필드의 점수를 _sets 배열에 추가하고 목록 갱신
 window.addSet=function(){
-  var va=parseInt(g('sc-a').value);
-  var vb=parseInt(g('sc-b').value);
-  // 양쪽 모두 숫자여야 추가 가능 (0점도 허용)
+  // ★ 수정: 빈 문자열("")은 0이 아닌 "미입력"으로 처리
+  //   → placeholder "0"만 보이고 실제 value가 ""인 경우 차단
+  //   → 숫자 "0"을 직접 입력한 경우는 정상 통과 (11:0 케이스 허용)
+  var rawA=g('sc-a').value;
+  var rawB=g('sc-b').value;
+  // 빈 문자열 또는 공백만 있는 경우를 "미입력"으로 판별
+  if(rawA.trim()===''||rawB.trim()===''){
+    toast('⚠️ 양쪽 점수를 모두 입력해주세요');
+    return;
+  }
+  var va=parseInt(rawA);
+  var vb=parseInt(rawB);
+  // 파싱 결과가 숫자가 아닌 경우 (이론상 위 체크에서 걸리지만 방어 처리)
   if(isNaN(va)||isNaN(vb)){
     toast('⚠️ 양쪽 점수를 모두 입력해주세요');
     return;
