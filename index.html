@@ -181,8 +181,7 @@
 /* 피커 전체 컨테이너 */
 .drum-picker{
   position:relative;
-  /* ★ 고정 72px → 최소 60px, 최대 100px: 화면 폭에 따라 유동 */
-  width:clamp(60px, 30vw, 100px);
+  width:72px;
   height:132px;         /* 아이템 높이 44px × 3개 표시 */
   overflow:hidden;
   border-radius:14px;
@@ -196,8 +195,6 @@
   transform:translateZ(0);
   /* ★ 내부 클립핑 격리 */
   contain:layout style paint;
-  /* ★ 부모 grid셀 내에서 너비를 꽉 채우되 최대 100px 제한 */
-  box-sizing:border-box;
 }
 .drum-picker:active{ cursor:grabbing; }
 
@@ -262,7 +259,6 @@
   bottom:0;
   background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
 }
-<<<<<<< HEAD
 
 /* ── 내기 참여 모달 회원 그리드 ── */
 #g-bet-member{
@@ -302,36 +298,16 @@
   min-width:80px;
 }
 
-/* ── 결과 입력 모달: 가로 스크롤 방지 + 스크롤 안정화 ── */
+/* ── 결과 입력 모달: 가로 스크롤 방지 강화 ── */
 #mo-result .mw{
   overflow-x:hidden;
-  /* ★ 모달 내부 스크롤이 외부로 전파되지 않도록 차단 (iOS Safari 포함) */
-  overscroll-behavior:contain;
-  /* ★ 레이아웃 격리: 내부 DOM 변경이 외부 reflow를 유발하지 않도록 */
-  contain:layout style;
 }
 #mo-result .mb{
   padding-left:14px;
   padding-right:14px;
   overflow-x:hidden;
-  /* ★ iOS Safari 관성 스크롤 활성화 */
-  -webkit-overflow-scrolling:touch;
-  /* ★ 터치 스크롤 compositor 처리 — pan-y만 허용하여 수평 스크롤 차단 */
-  touch-action:pan-y;
-  /* ★ GPU 레이어 분리: 스크롤 중 repaint 억제 */
-  transform:translateZ(0);
-  /* ★ 스크롤 컨테이너 레이아웃 격리 */
-  contain:layout;
 }
 
-/* ── 모달 공통: 스크롤 전파 차단 및 스크롤 성능 최적화 ── */
-.mo .mw{
-  /* ★ 모달 내부 스크롤이 배경(body)으로 전파되지 않도록 차단 */
-  overscroll-behavior:contain;
-}
-
-=======
->>>>>>> parent of ac0a24a (Update index.html)
 </style>
 </head>
 <body>
@@ -571,15 +547,20 @@
         <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 추가 버튼으로 기록)</span></label>
 
         <!-- 점수 입력 카드: 가로 스크롤 없는 모바일 최적화 레이아웃 -->
-        <div style="background:var(--c2);border-radius:16px;padding:14px 10px;margin-bottom:10px;box-sizing:border-box;width:100%;overflow:hidden">
+        <div style="background:var(--c2);border-radius:16px;padding:14px 12px;margin-bottom:10px">
+          <!-- 팀명 표시 행 -->
+          <div style="display:flex;align-items:center;margin-bottom:10px;gap:8px">
+            <div id="sc-lbl-a" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">A팀</div>
+            <div style="width:24px;flex-shrink:0;text-align:center;font-size:14px;color:var(--t3);font-weight:700">:</div>
+            <div id="sc-lbl-b" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">B팀</div>
+            <div style="width:48px;flex-shrink:0"></div>
+          </div>
 
-          <!-- ── 드럼롤 + 추가 버튼: 3열 grid로 배치 → 가로 스크롤 원천 차단 -->
-          <div style="display:grid;grid-template-columns:1fr 20px 1fr 44px;align-items:center;gap:6px;width:100%">
-
-            <!-- A팀 열: 팀명 라벨 + 드럼롤 -->
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0">
-              <div id="sc-lbl-a" style="font-size:11px;font-weight:800;color:var(--a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center">A팀</div>
-              <div class="drum-picker" id="drum-a" data-team="a" style="width:100%;max-width:100px">
+          <!-- 드럼롤 + 추가 버튼 행 -->
+          <div style="display:flex;align-items:center;gap:8px">
+            <!-- A팀 드럼롤 피커 -->
+            <div style="flex:1;display:flex;justify-content:center">
+              <div class="drum-picker" id="drum-a" data-team="a">
                 <div class="drum-mask drum-mask-top"></div>
                 <div class="drum-highlight"></div>
                 <div class="drum-scroll" id="drum-scroll-a"></div>
@@ -587,13 +568,12 @@
               </div>
             </div>
 
-            <!-- 구분자 열 -->
-            <div style="text-align:center;font-size:20px;font-weight:900;color:var(--t3);line-height:132px;flex-shrink:0">:</div>
+            <!-- 구분자 -->
+            <div style="width:24px;text-align:center;font-size:24px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
 
-            <!-- B팀 열: 팀명 라벨 + 드럼롤 -->
-            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0">
-              <div id="sc-lbl-b" style="font-size:11px;font-weight:800;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center">B팀</div>
-              <div class="drum-picker" id="drum-b" data-team="b" style="width:100%;max-width:100px">
+            <!-- B팀 드럼롤 피커 -->
+            <div style="flex:1;display:flex;justify-content:center">
+              <div class="drum-picker" id="drum-b" data-team="b">
                 <div class="drum-mask drum-mask-top"></div>
                 <div class="drum-highlight drum-highlight-b"></div>
                 <div class="drum-scroll" id="drum-scroll-b"></div>
@@ -601,12 +581,9 @@
               </div>
             </div>
 
-            <!-- 세트 추가 버튼 열 -->
+            <!-- 세트 추가 버튼 -->
             <button class="btn btn-p" onclick="addSet()"
-              style="width:44px;min-height:100px;padding:0;font-size:12px;font-weight:700;
-                     display:flex;flex-direction:column;align-items:center;justify-content:center;
-                     gap:2px;border-radius:14px;flex-shrink:0;
-                     -webkit-tap-highlight-color:transparent;align-self:end">
+              style="flex-shrink:0;width:48px;min-height:80px;padding:0;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:14px;-webkit-tap-highlight-color:transparent">
               <span style="font-size:20px;line-height:1">＋</span>
               <span style="font-size:10px;line-height:1.2">추가</span>
             </button>
@@ -958,27 +935,13 @@ async function init(){
         var bsEl=g('bs-ch');
         var focused=document.activeElement;
         var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
-        // ── mo-result 가드: 결과 입력 모달이 열려 있는 동안 renderC 차단 ──
-        // 이유: 드럼롤 피커 조작 중 Firestore 이벤트로 렌더가 실행되면 불필요한 레이아웃 작업 발생
-        var moResultEl=g('mo-result');
-        var isResultOpen=moResultEl&&moResultEl.classList.contains('on');
-        if(!isInsideBS&&!isResultOpen){
+        if(!isInsideBS){
           renderC();
         }
         _rafC=null;
       });
     });
-    // ★ notices/boards도 RAF 디바운스 적용 (기존 즉시 렌더 → 프레임 보호)
-    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{
-      NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(_rafN)cancelAnimationFrame(_rafN);
-      _rafN=requestAnimationFrame(()=>{renderN();_rafN=null;});
-    });
-    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{
-      BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(_rafB)cancelAnimationFrame(_rafB);
-      _rafB=requestAnimationFrame(()=>{renderB();_rafB=null;});
-    });
+    // 공지사항·자유게시판은 UI 제거로 구독 불필요 (Firebase 데이터는 보존)
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
@@ -1004,7 +967,7 @@ function finish(){
       });
     }
     // 유효한 페이지 ID인 경우 해당 탭으로 이동
-    var validPages = ['challenge','members','notice','board'];
+    var validPages = ['challenge','members'];
     if(validPages.indexOf(pageId) > -1){
       nav(pageId);
       // 대결 탭이고 filter 파라미터가 있으면 필터 칩도 자동 선택
@@ -1160,11 +1123,6 @@ window.closeMo=function(id){
   requestAnimationFrame(function(){
     document.body.style.overflow = '';
   });
-  // ★ 결과 입력 모달 닫힐 때: 그 동안 차단됐던 renderC를 한 번 실행
-  // 모달 열린 동안 Firestore 변경이 있었다면 닫힌 직후 최신 상태 반영
-  if(id==='mo-result'){
-    setTimeout(function(){ renderC(); }, 50);
-  }
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){
@@ -1282,7 +1240,7 @@ function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'');
   });
 
   // PHASE 4: WRITE - DocumentFragment 사용으로 삽입/업데이트 일괄 처리
@@ -2089,79 +2047,55 @@ window.setGameMode=function(mode){
 }
 
 // ── renderSets: 추가된 세트 목록 및 합산 요약을 DOM에 반영
-// ★ 성능 개선: innerHTML 전체 교체 → diff-patch 방식으로 변경
-//   - 기존 세트 행은 속성만 갱신, 새 행만 생성, 불필요한 행만 제거
-//   - 세트 추가/삭제 시 전체 reflow 방지
 function renderSets(){
   var list=g('sc-list');
   var summary=g('sc-summary');
 
   if(!_sets.length){
-    // ★ innerHTML='' 대신 개별 제거: 노드 파괴에 따른 reflow 범위 최소화
-    while(list.firstChild)list.removeChild(list.firstChild);
+    list.innerHTML='';
     summary.style.display='none';
     return;
   }
 
-  // ── PHASE 1: READ — 현재 DOM 행 목록을 한 번에 읽기 (reflow 1회)
-  var existingRows=Array.from(list.children);
-  var existingCount=existingRows.length;
-  var newCount=_sets.length;
-
-  // ── PHASE 2: WRITE — 기존 행 업데이트 또는 신규 행 생성
-  _sets.forEach(function(s,i){
+  // ── 세트별 행 렌더링 ──
+  // 각 행: 세트 번호 / A점수 굵게 / : / B점수 굵게 / 삭제 버튼
+  // 이긴 쪽 점수에 색상 강조 적용
+  list.innerHTML=_sets.map(function(s,i){
     var aWin=s.a>s.b;
     var bWin=s.b>s.a;
+    var setNum=i+1;
     var aStyle=aWin?'color:var(--a);font-weight:800':'color:var(--t2);font-weight:700';
     var bStyle=bWin?'color:var(--blue);font-weight:800':'color:var(--t2);font-weight:700';
-    // 세트 행 내부 HTML (구조 고정, 값만 변동)
-    var innerHtml=
-      '<span style="font-size:11px;color:var(--t3);font-weight:600;width:36px;flex-shrink:0">게임'+(i+1)+'</span>'
-      +'<span class="rs-a" style="flex:1;text-align:right;font-size:18px;'+aStyle+'">'+s.a+'</span>'
+    return '<div style="display:flex;align-items:center;gap:8px;'
+      +'background:var(--c2);border-radius:10px;padding:8px 12px;">'
+      // 세트 번호
+      +'<span style="font-size:11px;color:var(--t3);font-weight:600;width:36px;flex-shrink:0">게임'+setNum+'</span>'
+      // A팀 점수
+      +'<span style="flex:1;text-align:right;font-size:18px;'+aStyle+'">'+s.a+'</span>'
+      // 구분자
       +'<span style="font-size:16px;color:var(--t3);font-weight:600;flex-shrink:0">:</span>'
-      +'<span class="rs-b" style="flex:1;text-align:left;font-size:18px;'+bStyle+'">'+s.b+'</span>'
+      // B팀 점수
+      +'<span style="flex:1;text-align:left;font-size:18px;'+bStyle+'">'+s.b+'</span>'
+      // 삭제 버튼
       +'<button class="btn btn-d btn-xs" onclick="removeSet('+i+')" '
-      +'style="flex-shrink:0;opacity:.6">✕</button>';
-
-    if(i < existingCount){
-      // ★ 기존 행: innerHTML만 갱신 (노드 유지 → 불필요한 reflow 없음)
-      var row=existingRows[i];
-      // data-idx 변경 여부 확인하여 불필요한 갱신 차단
-      if(row.dataset.idx !== String(i) || row.innerHTML !== innerHtml){
-        row.innerHTML=innerHtml;
-        row.dataset.idx=String(i);
-      }
-    } else {
-      // ★ 신규 행 생성: DocumentFragment로 한번에 삽입
-      var div=document.createElement('div');
-      div.dataset.idx=String(i);
-      div.style.cssText='display:flex;align-items:center;gap:8px;'
-        +'background:var(--c2);border-radius:10px;padding:8px 12px;';
-      div.innerHTML=innerHtml;
-      list.appendChild(div);
-    }
-  });
-
-  // ── PHASE 3: 남은 불필요 행 제거 (뒤에서부터 제거 → reflow 최소화)
-  for(var j=existingCount-1; j>=newCount; j--){
-    list.removeChild(existingRows[j]);
-  }
+      +'style="flex-shrink:0;opacity:.6">✕</button>'
+      +'</div>';
+  }).join('');
 
   // ── 2세트 이상일 때 합산 요약 표시 ──
   if(_sets.length>=2){
-    var totalA=_sets.reduce(function(acc,x){return acc+x.a;},0);
-    var totalB=_sets.reduce(function(acc,x){return acc+x.b;},0);
+    var totalA=_sets.reduce(function(s,x){return s+x.a;},0);
+    var totalB=_sets.reduce(function(s,x){return s+x.b;},0);
+    // 각 팀이 이긴 세트 수
     var winsA=_sets.filter(function(x){return x.a>x.b;}).length;
     var winsB=_sets.filter(function(x){return x.b>x.a;}).length;
-    var newSummary=
+    summary.innerHTML=
       '<span style="color:var(--a);font-weight:800">'+winsA+'세트</span>'
       +' <span style="color:var(--t3)">vs</span> '
       +'<span style="color:var(--blue);font-weight:800">'+winsB+'세트</span>'
       +'<span style="color:var(--t3);margin:0 8px">|</span>'
       +'총점 <span style="color:var(--a)">'+totalA+'</span>'
       +' : <span style="color:var(--blue)">'+totalB+'</span>';
-    // ★ 내용 변경 시에만 DOM 갱신 (불필요한 repaint 차단)
-    if(summary.innerHTML !== newSummary) summary.innerHTML=newSummary;
     summary.style.display='block';
   } else {
     summary.style.display='none';
@@ -2362,21 +2296,21 @@ function buildShareText(c){
   var myT=(c.myTeam||[]).join(' · ');
   var opT=(c.oppTeam||[]).join(' · ');
   var dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
-  // 텍스트 본문에 직접 삽입할 URL: 클릭 시 대결 신청 탭 + 수락 대기중 필터 자동 이동
   var baseUrl = window.location.href.split('#')[0];
   var appUrl = baseUrl + '#challenge?filter=pending';
+  var betLabel=c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
   var lines=[
-    '🏓 이사탁 탁구 동호회 대결 신청',
+    '🏓 이사탁 탁구 대결 신청',
     '─────────────────',
     '🏅 유형: '+tm.lb,
     '⚔️ '+myT+' VS '+opT,
     '',
   ];
   if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
-  if(c.message)       lines.push('💬 한마디: '+c.message);
+  if(betLabel)        lines.push('🎰 내기: '+betLabel);
   lines.push('─────────────────');
   lines.push('아래 링크에서 수락/거절해주세요! 🙏');
-  lines.push(appUrl);  // URL을 텍스트로 직접 삽입 → 카카오톡이 자동으로 링크 처리
+  lines.push(appUrl);
   return lines.join('\n');
 }
 
@@ -2509,6 +2443,146 @@ window.toast=function(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2800);
 }
+// ════ 내기 참여 ════
+
+// ── openBetPick: 내기 참여 모달 열기
+// 내기가 있는(커피/짜장면) 수락된 대결에서 비참여 회원이 예측 참여
+window.openBetPick = function(id){
+  var c = CHAL.find(function(c){ return c.id === id; });
+  if(!c) return;
+  _betPickId = id;
+  _betPickSide = null;
+  _betPickMember = null;
+
+  // 내기 제목 표시
+  var betLabel = c.bet==='coffee' ? '☕ 커피 내기' : '🍜 짜장면 내기';
+  g('bet-mo-title').innerHTML = (c.bet==='coffee'?'☕ 커피':'🍜 짜장면') + ' <em>내기</em>';
+  // 대결 정보
+  var myN = (c.myTeam||[]).join(' · ') || 'A팀';
+  var opN = (c.oppTeam||[]).join(' · ') || 'B팀';
+  g('bet-info').innerHTML = '<strong>'+myN+'</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>'+opN+'</strong>';
+
+  // 팀명 라벨 세팅
+  g('bet-pick-a-lbl').textContent = myN + ' 승';
+  g('bet-pick-b-lbl').textContent = opN + ' 승';
+
+  // 선택 초기화
+  ['bet-pick-a','bet-pick-b'].forEach(function(eid){
+    var el = g(eid);
+    el.style.borderColor = 'var(--b2)';
+    el.style.background = 'transparent';
+  });
+
+  // 에러 초기화
+  g('e-bet-member').classList.remove('on');
+
+  // 회원 그리드 렌더링 (참여 선수 제외)
+  _renderBetMemberGrid(c);
+
+  openMo('mo-bet');
+};
+
+// ── _renderBetMemberGrid: 내기 참여 모달 회원 선택 그리드
+// 참여 선수(myTeam+oppTeam)는 제외, 나머지만 표시
+function _renderBetMemberGrid(c){
+  var gr = g('g-bet-member');
+  if(!gr) return;
+  var players = (c.myTeam||[]).concat(c.oppTeam||[]);
+  var mems = MEMBERS.filter(function(x){
+    return x.status !== '비활성' && players.indexOf(x.name) < 0;
+  });
+
+  var existingMap = {};
+  Array.from(gr.querySelectorAll('[data-mname]')).forEach(function(el){
+    existingMap[el.dataset.mname] = el;
+  });
+  var needed = mems.map(function(x){ return x.name; });
+  Object.keys(existingMap).forEach(function(nm){
+    if(needed.indexOf(nm) < 0) gr.removeChild(existingMap[nm]);
+  });
+
+  if(!mems.length){
+    gr.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:8px">참여 가능한 회원이 없습니다</div>';
+    return;
+  }
+
+  mems.forEach(function(x, idx){
+    var isSel = x.name === _betPickMember;
+    var newCls = 'mc2' + (isSel ? ' sel' : '');
+    var newOnclick = 'tglBetMember(\'' + x.name + '\')';
+    var existing = existingMap[x.name];
+    if(existing){
+      if(existing.className !== newCls) existing.className = newCls;
+      existing.setAttribute('onclick', newOnclick);
+      var cur = gr.children[idx];
+      if(cur !== existing) gr.insertBefore(existing, cur||null);
+    } else {
+      var div = document.createElement('div');
+      div.className = newCls;
+      div.dataset.mname = x.name;
+      div.setAttribute('onclick', newOnclick);
+      div.innerHTML = '<div class="mn">'+x.name+'</div>'
+        +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+'</div>';
+      gr.insertBefore(div, gr.children[idx]||null);
+    }
+  });
+}
+
+// ── tglBetMember: 내기 참여 회원 선택 토글
+window.tglBetMember = function(name){
+  _betPickMember = (_betPickMember === name) ? null : name;
+  var c = CHAL.find(function(c){ return c.id === _betPickId; });
+  if(c) _renderBetMemberGrid(c);
+};
+
+// ── setBetPick: 예측 팀 선택 (a=내팀, b=상대팀)
+window.setBetPick = function(side){
+  _betPickSide = side;
+  // A버튼
+  g('bet-pick-a').style.borderColor = side==='a' ? 'var(--a)' : 'var(--b2)';
+  g('bet-pick-a').style.background  = side==='a' ? 'var(--adim)' : 'transparent';
+  // B버튼
+  g('bet-pick-b').style.borderColor = side==='b' ? 'var(--blue)' : 'var(--b2)';
+  g('bet-pick-b').style.background  = side==='b' ? 'rgba(59,130,246,.12)' : 'transparent';
+};
+
+// ── submitBetPick: 예측 참여 확정 → Firestore betPicks 맵에 저장
+window.submitBetPick = async function(){
+  if(!_betPickSide){
+    toast('⚠️ 어느 팀이 이길지 선택해주세요');
+    return;
+  }
+  if(!_betPickMember){
+    g('e-bet-member').classList.add('on');
+    return;
+  }
+  g('e-bet-member').classList.remove('on');
+
+  var c = CHAL.find(function(c){ return c.id === _betPickId; });
+  if(!c) return;
+
+  // 이미 참여한 경우 덮어쓰기
+  var updField = 'betPicks.' + _betPickMember; // Firestore 점 표기법으로 특정 키만 업데이트
+  closeMo('mo-bet');
+  try {
+    if(db){
+      // Firestore FieldValue 없이 점 표기법으로 중첩 필드 업데이트
+      var updateObj = {};
+      updateObj[updField] = _betPickSide;
+      await updateDoc(doc(db,'challenges',_betPickId), updateObj);
+    } else {
+      // 로컬 폴백
+      if(!c.betPicks) c.betPicks = {};
+      c.betPicks[_betPickMember] = _betPickSide;
+      renderC();
+    }
+    var sideLabel = _betPickSide==='a'
+      ? (c.myTeam||[])[0]||'A팀'
+      : (c.oppTeam||[])[0]||'B팀';
+    toast('🎯 '+_betPickMember+' → '+sideLabel+' 승 예측 완료!');
+  } catch(e){ toast('❌ '+e.message); }
+};
+
 // 시작
 window.setF('all');
 init();
