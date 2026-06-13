@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0f">
-<title>이사탁 탁구 동호회</title>
+<title>이사탁 탁구 대결</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <!-- 카카오 JavaScript SDK (채팅방 선택 후 직접 전송 기능) -->
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
@@ -275,10 +275,8 @@
   <nav class="sidebar" id="sidebar" style="display:none">
     <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div><div style="font-size:11px;color:var(--t3);font-weight:500;margin-top:4px;letter-spacing:0.02em">v2025.06.12</div></div>
     <span class="nav-g">메뉴</span>
-    <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 신청</div>
-    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 관리</div>
-    <div class="nav-i"     data-page="notice" onclick="nav('notice')"><span class="ni-icon">📢</span>공지사항</div>
-    <div class="nav-i"     data-page="board" onclick="nav('board')"><span class="ni-icon">💬</span>자유게시판</div>
+    <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 현황</div>
+    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 목록</div>
     <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
   </nav>
 
@@ -344,28 +342,6 @@
       </div>
     </div>
 
-    <!-- ══ 공지사항 ══ -->
-    <div class="page" id="page-notice">
-      <div class="ph">
-        <div class="ph-t">공지 <em>사항</em></div>
-        <button class="btn btn-p btn-sm" onclick="openNoticeModal()">+ 작성</button>
-      </div>
-      <div class="card card-p">
-        <div id="nl"><div style="text-align:center;padding:48px 20px;color:var(--t3);font-size:15px">공지사항이 없습니다</div></div>
-      </div>
-    </div>
-
-    <!-- ══ 자유게시판 ══ -->
-    <div class="page" id="page-board">
-      <div class="ph">
-        <div class="ph-t">자유 <em>게시판</em></div>
-        <button class="btn btn-p btn-sm" onclick="openBoardModal()">+ 글쓰기</button>
-      </div>
-      <div class="card card-p">
-        <div id="bl"><div style="text-align:center;padding:48px 20px;color:var(--t3);font-size:15px">게시글이 없습니다</div></div>
-      </div>
-    </div>
-
   </main>
 </div><!-- /app-wrap -->
 </div><!-- /app-layout -->
@@ -374,8 +350,6 @@
 <nav class="bnav">
   <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
   <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">👥</span><span>회원</span></div>
-  <div class="bni"    onclick="nav('notice')"    data-p="notice"><span class="bi">📢</span><span>공지</span></div>
-  <div class="bni"    onclick="nav('board')"     data-p="board"><span class="bi">💬</span><span>게시판</span></div>
 </nav>
 
 <!-- ══ 대결 신청 Bottom Sheet ══ -->
@@ -461,20 +435,13 @@
       <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
     </div>
 
-    <!-- 한마디: textarea 완전 제거 → 선택형 버튼 방식으로 교체 -->
-    <!-- iOS Safari 키보드 팝업 · 텍스트 안 보임 이슈 근본 해결 -->
+    <!-- 내기 제목: 없음 / 커피 내기 / 짜장면 내기 -->
     <div class="fg" style="margin-bottom:0">
-      <label>한마디 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 탭으로 고르세요)</span></label>
-      <div class="msg-chips" id="msg-chips">
-        <!-- 각 버튼 onclick: selectMsg(문구키) 호출, 선택 시 .on 클래스 토글 -->
-        <button class="msg-chip" data-msg="한번 붙어봅시다! 💪"      onclick="selectMsg(this)">한번 붙어봅시다! 💪</button>
-        <button class="msg-chip" data-msg="가볍게 한 게임 어때요? 😄" onclick="selectMsg(this)">가볍게 한 게임 어때요? 😄</button>
-        <button class="msg-chip" data-msg="실력 좀 봐봅시다 😎"       onclick="selectMsg(this)">실력 좀 봐봅시다 😎</button>
-        <button class="msg-chip" data-msg="지난번 설욕전! 🔥"         onclick="selectMsg(this)">지난번 설욕전! 🔥</button>
-        <button class="msg-chip" data-msg="친선 게임 해봐요 🤝"       onclick="selectMsg(this)">친선 게임 해봐요 🤝</button>
-        <button class="msg-chip" data-msg="오늘 몸 좀 풀어봅시다 🏓"  onclick="selectMsg(this)">오늘 몸 좀 풀어봅시다 🏓</button>
-        <button class="msg-chip" data-msg="실력 많이 늘었죠? 👀"      onclick="selectMsg(this)">실력 많이 늘었죠? 👀</button>
-        <button class="msg-chip none-chip" data-msg="" onclick="selectMsg(this)">없음</button>
+      <label>내기 제목 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>
+      <div class="msg-chips" id="bet-chips">
+        <button class="msg-chip none-chip on" data-bet="" onclick="selectBet(this)">없음</button>
+        <button class="msg-chip" data-bet="coffee" onclick="selectBet(this)">☕ 커피 내기</button>
+        <button class="msg-chip" data-bet="jjajang" onclick="selectBet(this)">🍜 짜장면 내기</button>
       </div>
     </div>
 
@@ -500,12 +467,12 @@
       <!-- 승리 팀 선택 -->
       <div class="fg">
         <label>승리 팀 선택</label>
-        <div style="display:flex;gap:12px">
-          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 10px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s">
-            <div id="wan" style="font-size:14px;font-weight:800;color:var(--t2)">A팀 승리</div>
+        <div style="display:flex;gap:10px">
+          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
+            <div id="wan" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승리</div>
           </div>
-          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 10px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s">
-            <div id="wbn" style="font-size:14px;font-weight:800;color:var(--t2)">B팀 승리</div>
+          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
+            <div id="wbn" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승리</div>
           </div>
         </div>
       </div>
@@ -513,67 +480,69 @@
       <!-- ── 경기 방식 선택 ── -->
       <div class="fg">
         <label>경기 방식 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 시 선승 자동 감지)</span></label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <!-- 3판2선 버튼 -->
+        <div style="display:flex;gap:8px">
           <button id="gm-bo3" class="btn btn-g" onclick="setGameMode('bo3')"
-            style="flex:1;min-height:40px;font-size:13px;font-weight:700">3판 2선</button>
-          <!-- 5판3선 버튼 -->
+            style="flex:1;min-height:44px;font-size:13px;font-weight:700">3판2선</button>
           <button id="gm-bo5" class="btn btn-g" onclick="setGameMode('bo5')"
-            style="flex:1;min-height:40px;font-size:13px;font-weight:700">5판 3선</button>
-          <!-- 7판4선 버튼 -->
+            style="flex:1;min-height:44px;font-size:13px;font-weight:700">5판3선</button>
           <button id="gm-bo7" class="btn btn-g" onclick="setGameMode('bo7')"
-            style="flex:1;min-height:40px;font-size:13px;font-weight:700">7판 4선</button>
+            style="flex:1;min-height:44px;font-size:13px;font-weight:700">7판4선</button>
         </div>
-        <!-- 현재 선택된 방식 안내 문구 -->
         <div id="gm-hint" style="font-size:12px;color:var(--t3);margin-top:6px;text-align:center">
           방식 미선택 — 점수만 기록합니다
         </div>
       </div>
 
-      <!-- ── 세트별 스코어 입력 ── -->
+      <!-- ── 세트별 스코어 입력 (모바일 최적화) ── -->
       <div class="fg" style="margin-bottom:0">
-        <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 게임 수만큼 추가)</span></label>
+        <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 추가 버튼으로 기록)</span></label>
 
-        <!-- 세트 입력 행: 스크롤 드럼롤 피커 방식 — 위아래 스크롤로 점수 선택 -->
-        <!-- 듀스 대응: 11점 제한 없음, 0~30 범위 자유 선택 -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;background:var(--c2);border-radius:16px;padding:14px 10px">
-
-          <!-- A팀 드럼롤 피커 -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
-            <div id="sc-lbl-a" style="font-size:11px;font-weight:700;color:var(--a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center">A팀</div>
-            <!-- 드럼롤 피커 컨테이너 -->
-            <div class="drum-picker" id="drum-a" data-team="a">
-              <!-- 위 마스크 그라데이션 -->
-              <div class="drum-mask drum-mask-top"></div>
-              <!-- 선택 영역 하이라이트 -->
-              <div class="drum-highlight"></div>
-              <!-- 스크롤 목록 -->
-              <div class="drum-scroll" id="drum-scroll-a"></div>
-              <!-- 아래 마스크 그라데이션 -->
-              <div class="drum-mask drum-mask-bot"></div>
-            </div>
-            <!-- 현재 선택 점수 표시 (참조용) -->
-            <div id="sc-a-disp" style="display:none">0</div>
+        <!-- 점수 입력 카드: 가로 스크롤 없는 모바일 최적화 레이아웃 -->
+        <div style="background:var(--c2);border-radius:16px;padding:14px 12px;margin-bottom:10px">
+          <!-- 팀명 표시 행 -->
+          <div style="display:flex;align-items:center;margin-bottom:10px;gap:8px">
+            <div id="sc-lbl-a" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">A팀</div>
+            <div style="width:24px;flex-shrink:0;text-align:center;font-size:14px;color:var(--t3);font-weight:700">:</div>
+            <div id="sc-lbl-b" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">B팀</div>
+            <div style="width:48px;flex-shrink:0"></div>
           </div>
 
-          <!-- 구분자 -->
-          <div style="font-size:26px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
-
-          <!-- B팀 드럼롤 피커 -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
-            <div id="sc-lbl-b" style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;text-align:center">B팀</div>
-            <div class="drum-picker" id="drum-b" data-team="b">
-              <div class="drum-mask drum-mask-top"></div>
-              <div class="drum-highlight drum-highlight-b"></div>
-              <div class="drum-scroll" id="drum-scroll-b"></div>
-              <div class="drum-mask drum-mask-bot"></div>
+          <!-- 드럼롤 + 추가 버튼 행 -->
+          <div style="display:flex;align-items:center;gap:8px">
+            <!-- A팀 드럼롤 피커 -->
+            <div style="flex:1;display:flex;justify-content:center">
+              <div class="drum-picker" id="drum-a" data-team="a">
+                <div class="drum-mask drum-mask-top"></div>
+                <div class="drum-highlight"></div>
+                <div class="drum-scroll" id="drum-scroll-a"></div>
+                <div class="drum-mask drum-mask-bot"></div>
+              </div>
             </div>
-            <div id="sc-b-disp" style="display:none">0</div>
+
+            <!-- 구분자 -->
+            <div style="width:24px;text-align:center;font-size:24px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
+
+            <!-- B팀 드럼롤 피커 -->
+            <div style="flex:1;display:flex;justify-content:center">
+              <div class="drum-picker" id="drum-b" data-team="b">
+                <div class="drum-mask drum-mask-top"></div>
+                <div class="drum-highlight drum-highlight-b"></div>
+                <div class="drum-scroll" id="drum-scroll-b"></div>
+                <div class="drum-mask drum-mask-bot"></div>
+              </div>
+            </div>
+
+            <!-- 세트 추가 버튼 -->
+            <button class="btn btn-p" onclick="addSet()"
+              style="flex-shrink:0;width:48px;min-height:80px;padding:0;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:14px;-webkit-tap-highlight-color:transparent">
+              <span style="font-size:20px;line-height:1">＋</span>
+              <span style="font-size:10px;line-height:1.2">추가</span>
+            </button>
           </div>
 
-          <!-- 세트 추가 버튼 -->
-          <button class="btn btn-p" onclick="addSet()"
-            style="flex-shrink:0;min-height:64px;padding:0 14px;font-size:14px;font-weight:700;align-self:center">＋<br>추가</button>
+          <!-- 숨겨진 값 저장용 -->
+          <div id="sc-a-disp" style="display:none">0</div>
+          <div id="sc-b-disp" style="display:none">0</div>
         </div>
 
         <!-- 추가된 세트 목록 -->
@@ -587,6 +556,45 @@
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-result')">취소</button>
       <button class="btn btn-p" onclick="submitResult()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 내기 참여 모달 ══ -->
+<!-- 내기가 있는 대결(커피/짜장면)에서 비참여 회원이 승리 팀을 예측하는 모달 -->
+<div class="mo" id="mo-bet">
+  <div class="mw">
+    <div class="mh">
+      <div class="mt" id="bet-mo-title">☕ 커피 <em>내기</em></div>
+      <button class="mc-btn" onclick="closeMo('mo-bet')">✕</button>
+    </div>
+    <div class="mb">
+      <!-- 내기 대결 정보 -->
+      <div id="bet-info" style="background:var(--c2);border-radius:14px;padding:14px 16px;margin-bottom:16px;text-align:center;font-size:15px;font-weight:700;color:var(--t2)"></div>
+      <!-- 예측 선택 -->
+      <div class="fg">
+        <label>어느 팀이 이길까요?</label>
+        <div style="display:flex;gap:12px">
+          <div id="bet-pick-a" onclick="setBetPick('a')"
+            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
+            <div id="bet-pick-a-lbl" style="font-size:15px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승</div>
+          </div>
+          <div id="bet-pick-b" onclick="setBetPick('b')"
+            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
+            <div id="bet-pick-b-lbl" style="font-size:15px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승</div>
+          </div>
+        </div>
+      </div>
+      <!-- 참여자 이름 입력 -->
+      <div class="fg" style="margin-bottom:0">
+        <label>내 이름 선택 <span style="color:var(--red);font-size:12px;font-weight:400">*</span></label>
+        <div class="msg" id="g-bet-member"></div>
+        <div class="emsg" id="e-bet-member">이름을 선택해주세요</div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-bet')">취소</button>
+      <button class="btn btn-p" onclick="submitBetPick()">🎯 예측 참여</button>
     </div>
   </div>
 </div>
@@ -799,27 +807,21 @@ let _sets=[];
 // _gameMode: 경기 방식 (null=미선택, 'bo3'=3판2선, 'bo5'=5판3선, 'bo7'=7판4선)
 let _gameMode=null;
 let _type='ms',_my=[],_opp=[];
-// _msg: 한마디 선택형 버튼에서 고른 문구 (빈 문자열 = "없음")
-let _msg='';
-// _scA, _scB: 스텝퍼 방식 점수 입력 변수 (0~11)
-// input 텍스트 필드 대신 +/- 버튼으로 조절하여 iOS 키보드 가림 문제 근본 해결
+// _bet: 내기 제목 선택 ('' = 없음, 'coffee' = 커피 내기, 'jjajang' = 짜장면 내기)
+let _bet='';
+// _betPickId: 현재 내기 참여 중인 챌린지 ID
+// _betPickSide: 예측 선택 ('a' or 'b')
+// _betPickMember: 선택한 회원 이름
+let _betPickId=null,_betPickSide=null,_betPickMember=null;
+// _scA, _scB: 드럼롤 피커 점수 변수
 let _scA=0,_scB=0;
 
-// ── selectMsg: 한마디 칩 버튼 선택 처리
-// 이미 선택된 버튼을 다시 누르면 해제(토글), 다른 버튼 누르면 단일 선택
-window.selectMsg = function(btn){
-  var chips = document.querySelectorAll('#msg-chips .msg-chip');
-  var already = btn.classList.contains('on');
-  // 모든 칩 선택 해제
+// ── selectBet: 내기 제목 칩 버튼 선택 처리
+window.selectBet = function(btn){
+  var chips = document.querySelectorAll('#bet-chips .msg-chip');
   chips.forEach(function(c){ c.classList.remove('on'); });
-  if(!already){
-    // 같은 버튼 다시 누른 게 아니면 선택
-    btn.classList.add('on');
-    _msg = btn.dataset.msg || '';
-  } else {
-    // 이미 선택된 버튼을 다시 누르면 해제 (없음 상태)
-    _msg = '';
-  }
+  btn.classList.add('on');
+  _bet = btn.dataset.bet || '';
 }
 const ELO={초급:1400,중급:1550,고급:1700};
 const AVC=['avG','avB','avA','avR','avP'];
@@ -967,9 +969,11 @@ window.openBS = function(){
   const d = new Date(); d.setDate(d.getDate() + 1);
   g('ch-date').value = d.toISOString().slice(0, 10);
   g('ch-time').value = '10:00';
-  // 한마디 선택 초기화: _msg 변수 및 모든 칩 버튼의 .on 클래스 제거
-  _msg = '';
-  document.querySelectorAll('#msg-chips .msg-chip').forEach(function(btn){ btn.classList.remove('on'); });
+  // 내기 제목 초기화: _bet 변수 및 칩 버튼 초기화 (없음 선택 상태로)
+  _bet = '';
+  document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){ btn.classList.remove('on'); });
+  var noneChip = document.querySelector('#bet-chips .none-chip');
+  if(noneChip) noneChip.classList.add('on');
   ['e-my','e-opp'].forEach(function(id){ g(id).classList.remove('on'); });
   setType('ms');
   // STEP1부터 시작
@@ -1040,7 +1044,8 @@ window.submitChBS = async function(){
     date: g('ch-date').value,
     time: g('ch-time').value,
     place: '',                              // 장소 필드 제거됨 — 빈 문자열 고정
-    message: _msg,                          // 한마디: 선택형 버튼으로 결정된 _msg 변수 사용
+    bet: _bet,                              // 내기 제목: '' / 'coffee' / 'jjajang'
+    betPicks: {},                           // 내기 참여자 예측: {이름: 'a'|'b'}
     status: 'pending',
     isOpen: !!isOpenMode,
     createdAt: new Date().toISOString(),
@@ -1241,20 +1246,20 @@ function buildCCard(c){
       ?`<div class="vs-player" style="opacity:.55"><div class="av avA" style="width:34px;height:34px;font-size:16px">?</div><span class="vs-name" style="color:var(--amber)">누구나 도전 가능!</span></div>`
       :(c.oppTeam||[]).map(n=>`<div class="vs-player"><div class="av ${avc(n)}" style="width:34px;height:34px;font-size:14px">${ini(n)}</div><span class="vs-name">${n}</span></div>`).join('');
     const dt=c.date?$ko(c.date+'T00:00'):'';
-    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',c.message?`<span class="pill">💬 ${c.message}</span>`:''].filter(Boolean).join('');
+    // 내기 제목 표시용 텍스트
+    const betLabel=c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
+    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',betLabel?`<span class="pill" style="color:var(--amber);font-weight:700">${betLabel}</span>`:''].filter(Boolean).join('');
+
     // ── 완료 카드 결과 표시 ──
-    // 스코어가 "21:18, 15:21, 21:19" 형식이면 세트별 칩으로, 아니면 텍스트 그대로 표시
     var resHtml='';
     if(c.status==='completed'&&c.winner){
       var winnerName=c.winner==='a'?(c.myTeam||[]).join('·'):(c.oppTeam||[]).join('·');
       var scoreHtml='';
       if(c.score){
-        // "숫자:숫자" 패턴이 하나라도 있으면 구조화 스코어로 파싱 시도
         var setPattern=/^\d+:\d+$/;
         var parts=c.score.split(',').map(function(s){return s.trim();});
         var isStructured=parts.length>0&&parts.every(function(p){return setPattern.test(p);});
         if(isStructured&&parts.length>1){
-          // 세트별 칩 렌더링: 이긴 쪽 점수에 강조 색상
           var chips=parts.map(function(p,i){
             var scores=p.split(':');
             var sa=parseInt(scores[0]);
@@ -1270,40 +1275,74 @@ function buildCCard(c){
               +'<span style="'+bColor+'">'+sb+'</span>'
               +'</span>';
           }).join('');
-          // 세트 승 요약
           var wA=parts.filter(function(p){var s=p.split(':');return parseInt(s[0])>parseInt(s[1]);}).length;
           var wB=parts.filter(function(p){var s=p.split(':');return parseInt(s[1])>parseInt(s[0]);}).length;
           scoreHtml='<div style="margin-top:5px;display:flex;flex-wrap:wrap;align-items:center;gap:2px">'
             +'<span style="font-size:11px;color:var(--t3);margin-right:2px">'+wA+':'+wB+'</span>'
             +chips+'</div>';
         } else {
-          // 단일 세트 or 자유 텍스트 — 기존 방식대로 텍스트 표시
           scoreHtml='<span style="color:var(--t3);font-size:13px"> · '+c.score+'</span>';
         }
       }
       resHtml='<div class="cc-result">🏆 '+winnerName+' 팀 승리'+scoreHtml+'</div>';
     }
     const res=resHtml;
+
+    // ── 내기 참여자 표시 (수락됨 이후 + 내기가 있는 경우) ──
+    var betPicksHtml='';
+    var hasBet=c.bet==='coffee'||c.bet==='jjajang';
+    if(hasBet&&(c.status==='accepted'||c.status==='completed')){
+      var picks=c.betPicks||{};
+      var aPickNames=Object.keys(picks).filter(function(n){return picks[n]==='a';});
+      var bPickNames=Object.keys(picks).filter(function(n){return picks[n]==='b';});
+      var myTeamLabel=(c.myTeam||[])[0]||'A팀';
+      var oppTeamLabel=(c.oppTeam||[])[0]||'B팀';
+
+      // 완료된 경우: 적중/실패 표시
+      if(c.status==='completed'&&c.winner){
+        var hitSide=c.winner; // 'a' or 'b'
+        var hitNames=hitSide==='a'?aPickNames:bPickNames;
+        var failNames=hitSide==='a'?bPickNames:aPickNames;
+        var hitLabel=betLabel+'<br>';
+        if(hitNames.length>0)
+          hitLabel+='<span style="color:var(--a);font-weight:700">🎯 적중 ('+hitNames.length+'명)</span> '+hitNames.join(' ')+'<br>';
+        if(failNames.length>0)
+          hitLabel+='<span style="color:var(--red);font-weight:700">💔 빗나감 ('+failNames.length+'명)</span> '+failNames.join(' ');
+        betPicksHtml='<div style="font-size:12px;color:var(--t2);background:var(--c2);border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.8">'+hitLabel+'</div>';
+      } else {
+        // 진행 중: A/B 예측 현황 표시
+        var pickHtml=betLabel;
+        pickHtml+='<br><span style="color:var(--a);font-weight:700">'+myTeamLabel+' 승 예상</span> '+(aPickNames.length?aPickNames.join(' '):'없음');
+        pickHtml+='<br><span style="color:var(--blue);font-weight:700">'+oppTeamLabel+' 승 예상</span> '+(bPickNames.length?bPickNames.join(' '):'없음');
+        betPicksHtml='<div style="font-size:12px;color:var(--t2);background:var(--c2);border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.8">'+pickHtml+'</div>';
+      }
+    }
+
     // ── 오픈 챌린지 뱃지 ──
     const openBadge=isOpen?`<span class="badge ba">🔥 오픈 챌린지</span>`:'';
+    // 내기 뱃지
+    const betBadge=hasBet?`<span class="badge ba" style="background:rgba(245,158,11,.15);color:var(--amber)">${betLabel}</span>`:'';
+
     // ── 액션 버튼 ──
     let acts='';
     if(isOpen){
-      // 오픈 챌린지 대기 상태: "수락하기(내 팀 선택)" + 거절 + 카톡 공유
       acts=`<button class="btn btn-p btn-sm" onclick="openAcceptOpen('${c.id}')">🔥 수락하기</button>`
           +`<button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button>`
           +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     } else if(c.status==='pending'){
       acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     } else if(c.status==='accepted'){
-      acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+      // 내기가 있으면 참여 버튼 추가
+      var betBtn=hasBet?`<button class="btn btn-sm" onclick="openBetPick('${c.id}')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기 참여</button>`:'';
+      acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button>`+betBtn+`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     }
     acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
+
     // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
     // data-cid: diff-patch용 고유 식별자 (data-chash는 renderC에서 외부 세팅)
     return `<div class="${cardClass}" data-cid="${c.id}">
-      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
+      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}${betBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
       <div class="vs-row">
         <div class="vs-team">${myH}</div>
         <div class="vs-mid"><span class="vs-txt">VS</span></div>
@@ -1311,6 +1350,7 @@ function buildCCard(c){
       </div>
       ${pills?`<div class="cc-pills">${pills}</div>`:''}
       ${res}
+      ${betPicksHtml}
       <div class="cc-acts">${acts}</div>
     </div>`;
 }
