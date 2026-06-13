@@ -156,7 +156,25 @@
   color:var(--t2);
 }
 
-/* ══ 드럼롤(Drum Roll) 점수 피커 ══
+/* ── 성능 최적화 CSS ──
+   기능 변경 없이 GPU 레이어 승격 및 레이아웃 격리 적용 */
+
+/* 대결 카드 리스트 컨테이너: 내부 카드 변경이 외부 레이아웃에 전파되지 않도록 격리 */
+#ch-list{
+  contain:layout style;
+}
+
+/* 모달 오버레이: opacity/transform 전환을 compositor 스레드에서 처리 */
+.mo{
+  will-change:opacity;
+}
+/* 모달 창: transform 승격으로 열기/닫기 애니메이션 GPU 처리 */
+.mw{
+  will-change:transform;
+  /* iOS Safari: 모달 내부 스크롤 시 관성 스크롤 활성화 */
+  -webkit-overflow-scrolling:touch;
+}
+
    위아래 스크롤로 점수를 선택하는 iOS 피커 스타일 컴포넌트
    11점 제한 없음 — 듀스(deuce) 상황에서도 자유롭게 점수 입력 가능 */
 
@@ -815,13 +833,32 @@ async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
     db=getFirestore(initializeApp(FB));
+    // ★ 스크롤 중 렌더 차단: main 스크롤 이벤트로 isScrolling 플래그 관리
+    // Firestore 이벤트가 스크롤 중에 들어오면 RAF 큐에 누적되고
+    // 스크롤 종료 후 마지막 1회만 실제 렌더 → 스크롤 끊김 원천 제거
+    let _isScrolling=false,_scrollTimer=null;
+    const _mainEl=document.querySelector('.main');
+    if(_mainEl){
+      _mainEl.addEventListener('scroll',function(){
+        _isScrolling=true;
+        if(_scrollTimer)clearTimeout(_scrollTimer);
+        // 스크롤 종료 80ms 후 플래그 해제 (iOS 관성 스크롤 여유시간 포함)
+        _scrollTimer=setTimeout(function(){_isScrolling=false;},80);
+      },{passive:true}); // ★ passive:true → 브라우저 스크롤 최적화 활성화
+    }
+
     // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더 (깜빡임 방지)
-    let _rafC=null,_rafM=null;
+    let _rafC=null,_rafM=null,_rafN=null,_rafB=null;
     setDb(true);
     onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
       MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafM)cancelAnimationFrame(_rafM);
       _rafM=requestAnimationFrame(()=>{
+        // ★ 스크롤 중이면 렌더 16ms 뒤로 지연 (스크롤 프레임 보호)
+        if(_isScrolling){
+          setTimeout(()=>{renderM();renderGridsBS();},16);
+          _rafM=null;return;
+        }
         renderM();
         // ── 바텀시트가 열려 있고 내부 입력 필드에 포커스 중이면
         //    renderGridsBS 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
@@ -838,6 +875,11 @@ async function init(){
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafC)cancelAnimationFrame(_rafC);
       _rafC=requestAnimationFrame(()=>{
+        // ★ 스크롤 중이면 렌더 지연 (스크롤 프레임 보호)
+        if(_isScrolling){
+          setTimeout(()=>{renderC();},16);
+          _rafC=null;return;
+        }
         // ── bs-ch 포커스 가드: 바텀시트 열려 있고 내부 입력 중이면 renderC 차단 ──
         var bsEl=g('bs-ch');
         var focused=document.activeElement;
@@ -848,8 +890,17 @@ async function init(){
         _rafC=null;
       });
     });
-    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));renderN();});
-    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));renderB();});
+    // ★ notices/boards도 RAF 디바운스 적용 (기존 즉시 렌더 → 프레임 보호)
+    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{
+      NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafN)cancelAnimationFrame(_rafN);
+      _rafN=requestAnimationFrame(()=>{renderN();_rafN=null;});
+    });
+    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{
+      BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafB)cancelAnimationFrame(_rafB);
+      _rafB=requestAnimationFrame(()=>{renderB();_rafB=null;});
+    });
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
@@ -926,14 +977,20 @@ window.openBS = function(){
   // 바텀시트 + 딤 오버레이 표시
   g('bs-ch').classList.add('on');
   g('bs-overlay').classList.add('on');
-  document.body.style.overflow = 'hidden';
+  // ★ overflow 변경 RAF defer: 바텀시트 GPU 레이어 승격 후 다음 프레임에서 처리
+  requestAnimationFrame(function(){
+    document.body.style.overflow = 'hidden';
+  });
 }
 
 // ── 바텀시트 닫기
 window.closeBS = function(){
   g('bs-ch').classList.remove('on');
   g('bs-overlay').classList.remove('on');
-  document.body.style.overflow = '';
+  // ★ overflow 복원 RAF defer
+  requestAnimationFrame(function(){
+    document.body.style.overflow = '';
+  });
   // 닫힌 후 최신 그리드 반영 (포커스 가드로 미뤄진 경우 대비)
   setTimeout(function(){ renderGridsBS(); }, 50);
 }
@@ -1010,30 +1067,50 @@ function openMo(id){
       if(first) first.focus();
     }, 320);
   }
-  // 스크롤 잠금
-  document.body.style.overflow = 'hidden';
+  // ★ overflow 변경을 RAF로 defer: 모달 클래스 추가 직후 즉각 reflow 방지
+  // classList.add('on') 로 GPU 레이어가 승격된 후 다음 프레임에서 overflow 처리
+  requestAnimationFrame(function(){
+    document.body.style.overflow = 'hidden';
+  });
 }
 window.closeMo=function(id){
   g(id).classList.remove('on');
-  document.body.style.overflow = '';
+  // ★ overflow 복원도 RAF defer: 모달 닫힘 애니메이션과 reflow 분리
+  requestAnimationFrame(function(){
+    document.body.style.overflow = '';
+  });
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){
     m.classList.remove('on');
-    document.body.style.overflow='';
+    requestAnimationFrame(function(){
+      document.body.style.overflow='';
+    });
   }
 }));
 
 // ── 네비 ──
+// ★ 성능 최적화: querySelectorAll 결과를 모듈 스코프에서 한 번만 캐싱
+// nav() 가 탭 전환마다 호출될 때마다 전체 DOM 탐색하는 비용 제거
+let _navPages=null,_navItems=null,_navBni=null,_navFab=null,_navMain=null;
+function _initNavCache(){
+  _navPages=Array.from(document.querySelectorAll('.page'));
+  _navItems=Array.from(document.querySelectorAll('.nav-i'));
+  _navBni=Array.from(document.querySelectorAll('.bni'));
+  _navFab=Array.from(g('app').querySelectorAll('.fab'));
+  _navMain=document.querySelector('.main');
+}
 window.nav=function(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
-  g('page-'+id)?.classList.add('on');
-  // ── 사이드바 nav-i 하이라이트: data-page 속성 기준 ──
-  document.querySelectorAll('.nav-i').forEach(n=>n.classList.toggle('on',n.dataset.page===id));
-  document.querySelectorAll('.bni').forEach(n=>n.classList.toggle('on',n.dataset.p===id));
-  document.querySelector('.main')?.scrollTo(0,0);
+  // 최초 1회 캐싱 (DOM 로드 후 변하지 않는 노드)
+  if(!_navPages)_initNavCache();
+  _navPages.forEach(p=>p.classList.toggle('on',p.id==='page-'+id));
+  _navItems.forEach(n=>n.classList.toggle('on',n.dataset.page===id));
+  _navBni.forEach(n=>n.classList.toggle('on',n.dataset.p===id));
+  // ★ scrollTo: instant로 즉시 이동 (smooth 스크롤 미사용으로 불필요한 애니메이션 비용 제거)
+  if(_navMain)_navMain.scrollTo(0,0);
   // FAB: 대결 탭에서만
-  g('app').querySelectorAll('.fab').forEach(f=>f.style.display=id==='challenge'?'flex':'none');
+  const fabDisplay=id==='challenge'?'flex':'none';
+  _navFab.forEach(f=>f.style.display=fabDisplay);
 }
 
 // ════ 대결 ════
@@ -1051,7 +1128,9 @@ const SB={pending:'ba',accepted:'bg',rejected:'br',completed:'bz'};
 
 window.setF=function(f){
   _cf=f;
-  document.querySelectorAll('.fc').forEach(el=>el.classList.toggle('on',el.id==='f-'+f));
+  // ★ 성능 최적화: querySelectorAll 결과 캐싱 (setF 호출마다 DOM 탐색 방지)
+  if(!window._fcEls)window._fcEls=Array.from(document.querySelectorAll('.fc'));
+  window._fcEls.forEach(el=>el.classList.toggle('on',el.id==='f-'+f));
   renderC();
 }
 // ── 오픈 챌린지 대기 중 개수 뱃지 업데이트
@@ -1403,20 +1482,18 @@ window.openAcceptOpen=function(id){
 }
 
 // ── 오픈 챌린지 수락용 회원 그리드 렌더링 ──
+// ★ 성능 최적화: innerHTML 전체 교체 → diff-patch 방식으로 변경 (Forced Reflow 방지)
 function renderAcceptGrid(c){
   var gr=g('g-accept');if(!gr)return;
   var tm=TM[c.type]||TM.ms;
   var max=tm.maxO;
-  // 도전자 팀 이름 목록 (선택 불가 dim 처리)
   var challengerTeam=c.myTeam||[];
-
   var mems=MEMBERS.filter(function(x){return x.status!=='비활성';});
-  gr.innerHTML=mems.map(function(x){
-    var isSelected=_acceptTeam.indexOf(x.name)>-1;
-    // 도전자 팀원이면 dim 처리
-    var isDim=challengerTeam.indexOf(x.name)>-1;
 
-    // 혼합복식: 성별 쿼터 제한
+  // ── 각 회원 상태 계산 (READ-only, DOM 접근 없음)
+  var memStates=mems.map(function(x){
+    var isSelected=_acceptTeam.indexOf(x.name)>-1;
+    var isDim=challengerTeam.indexOf(x.name)>-1;
     if(!isDim&&tm.mix){
       var mCount=_acceptTeam.filter(function(n){
         var mb=MEMBERS.find(function(m){return m.name===n;});return mb&&mb.gender==='남성';
@@ -1431,13 +1508,49 @@ function renderAcceptGrid(c){
       var gf=tm.gO;
       if(!isSelected&&(gf&&x.gender&&x.gender!==gf||_acceptTeam.length>=max))isDim=true;
     }
-
-    // 도전자 팀원은 이름 옆에 🏓 표시
     var isChallengerMember=challengerTeam.indexOf(x.name)>-1;
-    return '<div class="mc2'+(isSelected?' selp':'')+(isDim?' dim':'')+'" '
-      +'onclick="'+(isDim?'':'tglAccept(\''+x.name+'\')')+'"><div class="mn">'+x.name+'</div>'
-      +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+(isChallengerMember?' 🏓':'')+'</div></div>';
-  }).join('')||'<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+    return{name:x.name,grade:x.grade,gender:x.gender,isSelected:isSelected,isDim:isDim,isChallengerMember:isChallengerMember};
+  });
+
+  // ★ READ 배치: 현재 DOM 노드 맵 한 번에 읽기
+  var existingMap={};
+  Array.from(gr.querySelectorAll('[data-mname]')).forEach(function(el){
+    existingMap[el.dataset.mname]=el;
+  });
+  var neededNames=memStates.map(function(x){return x.name;});
+
+  // ★ WRITE 배치 1: 불필요한 노드 제거
+  Object.keys(existingMap).forEach(function(name){
+    if(neededNames.indexOf(name)<0)gr.removeChild(existingMap[name]);
+  });
+
+  // ★ WRITE 배치 2: 삽입/업데이트
+  if(!memStates.length){
+    gr.innerHTML='<div style="color:var(--t3);font-size:12px;padding:8px">해당 회원 없음</div>';
+    return;
+  }
+  memStates.forEach(function(x,idx){
+    var newCls='mc2'+(x.isSelected?' selp':'')+(x.isDim?' dim':'');
+    var newOnclick=x.isDim?'':'tglAccept(\''+x.name+'\')';
+    var existing=existingMap[x.name];
+    if(existing){
+      if(existing.className!==newCls)existing.className=newCls;
+      var curOnclick=existing.getAttribute('onclick')||'';
+      if(x.isDim){existing.removeAttribute('onclick');}
+      else if(curOnclick!==newOnclick){existing.setAttribute('onclick',newOnclick);}
+      var cur=gr.children[idx];
+      if(cur!==existing)gr.insertBefore(existing,cur||null);
+    } else {
+      var div=document.createElement('div');
+      div.className=newCls;
+      div.dataset.mname=x.name;
+      if(!x.isDim)div.setAttribute('onclick',newOnclick);
+      div.innerHTML='<div class="mn">'+x.name+'</div>'
+        +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+(x.isChallengerMember?' 🏓':'')+'</div>';
+      var ref=gr.children[idx]||null;
+      gr.insertBefore(div,ref);
+    }
+  });
 }
 
 // ── 수락팀 회원 선택 토글 ──
