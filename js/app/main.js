@@ -46,6 +46,51 @@ let _betPickId=null,_betPickSide=null,_betPickMember=null;
 // _scA, _scB: 드럼롤 피커 점수 변수
 let _scA=0,_scB=0;
 
+// ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
+let _currentPage='challenge';
+let _isScrolling=false,_scrollTimer=null;
+let _pendingRender={c:false,m:false,grids:false};
+
+function _isBSOpen(){
+  var bs=g('bs-ch');
+  return bs&&bs.classList.contains('on');
+}
+function _isBSFocused(){
+  if(!_isBSOpen())return false;
+  var focused=document.activeElement;
+  return focused&&g('bs-ch').contains(focused);
+}
+function _flushPendingRenders(){
+  if(_pendingRender.m&&_currentPage==='members')renderM();
+  if(_pendingRender.grids&&_isBSOpen()&&!_isBSFocused())renderGridsBS();
+  if(_pendingRender.c&&_currentPage==='challenge'&&!_isBSFocused())renderC();
+  _pendingRender.c=false;_pendingRender.m=false;_pendingRender.grids=false;
+}
+function _applyMembersSnapshotRender(){
+  if(_isScrolling){
+    _pendingRender.m=true;
+    if(_isBSOpen()&&!_isBSFocused())_pendingRender.grids=true;
+    return;
+  }
+  if(_currentPage==='members')renderM();
+  if(_isBSOpen()&&!_isBSFocused())renderGridsBS();
+}
+function _applyChallengesSnapshotRender(){
+  if(_isScrolling){_pendingRender.c=true;return;}
+  if(_currentPage==='challenge'&&!_isBSFocused())renderC();
+}
+function _onMainScroll(){
+  _isScrolling=true;
+  document.documentElement.classList.add('is-scrolling');
+  if(_scrollTimer)clearTimeout(_scrollTimer);
+  _scrollTimer=setTimeout(function(){
+    _isScrolling=false;
+    _scrollTimer=null;
+    document.documentElement.classList.remove('is-scrolling');
+    requestAnimationFrame(_flushPendingRenders);
+  },100);
+}
+
 // ── selectBet: 내기 제목 칩 버튼 선택 처리
 window.selectBet = function(btn){
   var chips = document.querySelectorAll('#bet-chips .msg-chip');
@@ -103,41 +148,20 @@ async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
     db=getFirestore(initializeApp(FB));
-    // ★ 스크롤 중 렌더 차단: main 스크롤 이벤트로 isScrolling 플래그 관리
-    // Firestore 이벤트가 스크롤 중에 들어오면 RAF 큐에 누적되고
-    // 스크롤 종료 후 마지막 1회만 실제 렌더 → 스크롤 끊김 원천 제거
-    let _isScrolling=false,_scrollTimer=null;
+    // ★ 스크롤 중 DOM 갱신 디바운스: pending 큐에 누적 → 스크롤 종료 후 RAF 1회 flush
     const _mainEl=document.querySelector('.main');
     if(_mainEl){
-      _mainEl.addEventListener('scroll',function(){
-        _isScrolling=true;
-        if(_scrollTimer)clearTimeout(_scrollTimer);
-        // 스크롤 종료 80ms 후 플래그 해제 (iOS 관성 스크롤 여유시간 포함)
-        _scrollTimer=setTimeout(function(){_isScrolling=false;},80);
-      },{passive:true}); // ★ passive:true → 브라우저 스크롤 최적화 활성화
+      _mainEl.addEventListener('scroll',_onMainScroll,{passive:true});
     }
 
-    // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더 (깜빡임 방지)
+    // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더
     let _rafC=null,_rafM=null,_rafN=null,_rafB=null;
     setDb(true);
     onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
       MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafM)cancelAnimationFrame(_rafM);
       _rafM=requestAnimationFrame(()=>{
-        // ★ 스크롤 중이면 렌더 16ms 뒤로 지연 (스크롤 프레임 보호)
-        if(_isScrolling){
-          setTimeout(()=>{renderM();renderGridsBS();},16);
-          _rafM=null;return;
-        }
-        renderM();
-        // ── 바텀시트가 열려 있고 내부 입력 필드에 포커스 중이면
-        //    renderGridsBS 호출 차단 (Firestore 이벤트 → DOM 재렌더 → 깜빡임 방지)
-        var bsEl=g('bs-ch');
-        var focused=document.activeElement;
-        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
-        if(!isInsideBS){
-          renderGridsBS();
-        }
+        _applyMembersSnapshotRender();
         _rafM=null;
       });
     });
@@ -145,18 +169,7 @@ async function init(){
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafC)cancelAnimationFrame(_rafC);
       _rafC=requestAnimationFrame(()=>{
-        // ★ 스크롤 중이면 렌더 지연 (스크롤 프레임 보호)
-        if(_isScrolling){
-          setTimeout(()=>{renderC();},16);
-          _rafC=null;return;
-        }
-        // ── bs-ch 포커스 가드: 바텀시트 열려 있고 내부 입력 중이면 renderC 차단 ──
-        var bsEl=g('bs-ch');
-        var focused=document.activeElement;
-        var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
-        if(!isInsideBS){
-          renderC();
-        }
+        _applyChallengesSnapshotRender();
         _rafC=null;
       });
     });
@@ -366,14 +379,16 @@ function _initNavCache(){
 window.nav=function(id){
   // 최초 1회 캐싱 (DOM 로드 후 변하지 않는 노드)
   if(!_navPages)_initNavCache();
+  _currentPage=id;
   _navPages.forEach(p=>p.classList.toggle('on',p.id==='page-'+id));
   _navItems.forEach(n=>n.classList.toggle('on',n.dataset.page===id));
   _navBni.forEach(n=>n.classList.toggle('on',n.dataset.p===id));
-  // ★ scrollTo: instant로 즉시 이동 (smooth 스크롤 미사용으로 불필요한 애니메이션 비용 제거)
   if(_navMain)_navMain.scrollTo(0,0);
-  // FAB: 대결 탭에서만
   const fabDisplay=id==='challenge'?'flex':'none';
   _navFab.forEach(f=>f.style.display=fabDisplay);
+  // 탭 전환 시 스냅샷 중 스킵된 렌더 1회 보정
+  if(id==='members')renderM();
+  else if(id==='challenge')renderC();
 }
 
 // ════ 대결 ════
@@ -462,33 +477,31 @@ function renderC(){
     hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'');
   });
 
-  // PHASE 4: WRITE - DocumentFragment 사용으로 삽입/업데이트 일괄 처리
-  // ★ list.children을 미리 배열로 캐싱하여 반복 DOM 쿼리 제거
+  // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
+  var childList=Array.from(list.children);
   data.forEach((c,idx)=>{
     const newHash=hashMap[c.id];
     let existing=existingMap[c.id];
     if(existing){
-      // 변경이 있을 때만 innerHTML 갱신 (노드 자체 유지 → 리페인트 최소화)
       if(existing.dataset.chash!==newHash){
         const tmp=document.createElement('div');
         tmp.innerHTML=buildCCard(c);
         const newNode=tmp.firstElementChild;
-        // 클래스(::before 색상 결정) 및 chash 동기화
         existing.className=newNode.className;
         existing.dataset.chash=newHash;
         existing.innerHTML=newNode.innerHTML;
       }
-      // 순서 보정: 현재 위치가 idx와 다르면 이동
-      const cur=list.children[idx];
-      if(cur!==existing)list.insertBefore(existing,cur||null);
+      if(childList[idx]!==existing){
+        list.insertBefore(existing,childList[idx]||null);
+        childList=Array.from(list.children);
+      }
     } else {
-      // 새 카드 삽입 (초기 chash 세팅 포함)
       const div=document.createElement('div');
       div.innerHTML=buildCCard(c);
       const node=div.firstElementChild;
       node.dataset.chash=newHash;
-      const ref=list.children[idx]||null;
-      list.insertBefore(node,ref);
+      list.insertBefore(node,childList[idx]||null);
+      childList=Array.from(list.children);
     }
   });
 }
@@ -1280,16 +1293,67 @@ window.submitResult=async function(){
 }
 
 // ════ 회원 ════
-function renderM(){
-  const q=g('ms')?.value||'',gr=_fg;
-  const f=MEMBERS.filter(m=>m.name?.includes(q)&&(!gr||m.grade===gr));
-  g('mtb').innerHTML=f.map(m=>`<tr>
-    <td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av ${avc(m.name)}" style="width:34px;height:34px;font-size:13px">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--t3)">${m.phone}</div>`:''}</div></div></td>
+
+function _memberRowHash(m){
+  return m.id+'|'+(m.name||'')+'|'+(m.phone||'')+'|'+(m.grade||'')+'|'+(m.gender||'')+'|'+(m.status||'');
+}
+function _buildMemberRowCells(m){
+  return `<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av ${avc(m.name)}" style="width:34px;height:34px;font-size:13px">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--t3)">${m.phone}</div>`:''}</div></div></td>
     <td data-label="등급"><span class="badge ${m.grade==='고급'?'bg':m.grade==='중급'?'ba':'bz'}">${m.grade||'초급'}</span></td>
     <td data-label="성별">${m.gender||'-'}</td>
     <td data-label="상태"><span class="badge ${m.status==='활성'?'bg':'br'}">${m.status||'활성'}</span></td>
-    <td class="ta"><div style="display:flex;gap:6px"><button class="btn btn-g btn-xs" onclick="openEdit('${m.id}')">✏️ 수정</button><button class="btn btn-d btn-xs" onclick="openDel('${m.id}')">🗑</button></div></td>
-  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--t3)">회원이 없습니다</td></tr>';
+    <td class="ta"><div style="display:flex;gap:6px"><button class="btn btn-g btn-xs" onclick="openEdit('${m.id}')">✏️ 수정</button><button class="btn btn-d btn-xs" onclick="openDel('${m.id}')">🗑</button></div></td>`;
+}
+
+function renderM(){
+  const q=g('ms')?.value||'',gr=_fg;
+  const f=MEMBERS.filter(m=>m.name?.includes(q)&&(!gr||m.grade===gr));
+  const tb=g('mtb');
+  if(!tb)return;
+
+  if(!f.length){
+    Array.from(tb.querySelectorAll('tr[data-mid]')).forEach(function(el){tb.removeChild(el);});
+    if(!tb.querySelector('tr[data-empty]')){
+      var emptyTr=document.createElement('tr');
+      emptyTr.dataset.empty='1';
+      emptyTr.innerHTML='<td colspan="5" style="text-align:center;padding:24px;color:var(--t3)">회원이 없습니다</td>';
+      tb.appendChild(emptyTr);
+    }
+    return;
+  }
+  var emptyRow=tb.querySelector('tr[data-empty]');
+  if(emptyRow)tb.removeChild(emptyRow);
+
+  const needed=f.map(m=>m.id);
+  const existingMap={};
+  Array.from(tb.querySelectorAll('tr[data-mid]')).forEach(function(el){
+    existingMap[el.dataset.mid]=el;
+  });
+  Object.keys(existingMap).forEach(function(id){
+    if(needed.indexOf(id)<0)tb.removeChild(existingMap[id]);
+  });
+  var childList=Array.from(tb.children);
+  f.forEach(function(m,idx){
+    const newHash=_memberRowHash(m);
+    var existing=existingMap[m.id];
+    if(existing){
+      if(existing.dataset.mhash!==newHash){
+        existing.innerHTML=_buildMemberRowCells(m);
+        existing.dataset.mhash=newHash;
+      }
+      if(childList[idx]!==existing){
+        tb.insertBefore(existing,childList[idx]||null);
+        childList=Array.from(tb.children);
+      }
+    } else {
+      var tr=document.createElement('tr');
+      tr.dataset.mid=m.id;
+      tr.dataset.mhash=newHash;
+      tr.innerHTML=_buildMemberRowCells(m);
+      tb.insertBefore(tr,childList[idx]||null);
+      childList=Array.from(tb.children);
+    }
+  });
 }
 window.filterM=function(){renderM();}
 window.filterG=function(gr){_fg=gr;renderM();}

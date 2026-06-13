@@ -17,9 +17,11 @@
   position:fixed;inset:0;
   background:rgba(0,0,0,.55);
   z-index:900;
+}
+.bs-overlay.on{
+  display:block;
   will-change:opacity;
 }
-.bs-overlay.on{ display:block; }
 
 /* 바텀시트 컨테이너 */
 .bs-ch{
@@ -37,10 +39,12 @@
   overflow:hidden;
   max-width:560px;
   margin:0 auto;
-  will-change:transform;
   contain:layout style;
 }
-.bs-ch.on{ transform:translateY(0); }
+.bs-ch.on{
+  transform:translateY(0);
+  will-change:transform;
+}
 
 /* 핸들바 */
 .bs-handle{
@@ -137,10 +141,10 @@
 #ch-list{
   contain:layout style;
 }
-.mo{
+.mo.on{
   will-change:opacity;
 }
-.mw{
+.mo.on .mw{
   will-change:transform;
   -webkit-overflow-scrolling:touch;
 }
