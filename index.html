@@ -262,6 +262,7 @@
   bottom:0;
   background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
 }
+<<<<<<< HEAD
 
 /* ── 내기 참여 모달 회원 그리드 ── */
 #g-bet-member{
@@ -329,6 +330,8 @@
   overscroll-behavior:contain;
 }
 
+=======
+>>>>>>> parent of ac0a24a (Update index.html)
 </style>
 </head>
 <body>
@@ -965,7 +968,17 @@ async function init(){
         _rafC=null;
       });
     });
-    // 공지사항·자유게시판은 UI 제거로 구독 불필요 (Firebase 데이터는 보존)
+    // ★ notices/boards도 RAF 디바운스 적용 (기존 즉시 렌더 → 프레임 보호)
+    onSnapshot(query(collection(db,'notices'),orderBy('createdAt','desc')),s=>{
+      NOTICES=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafN)cancelAnimationFrame(_rafN);
+      _rafN=requestAnimationFrame(()=>{renderN();_rafN=null;});
+    });
+    onSnapshot(query(collection(db,'boards'),orderBy('createdAt','desc')),s=>{
+      BOARDS=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafB)cancelAnimationFrame(_rafB);
+      _rafB=requestAnimationFrame(()=>{renderB();_rafB=null;});
+    });
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
@@ -991,7 +1004,7 @@ function finish(){
       });
     }
     // 유효한 페이지 ID인 경우 해당 탭으로 이동
-    var validPages = ['challenge','members'];
+    var validPages = ['challenge','members','notice','board'];
     if(validPages.indexOf(pageId) > -1){
       nav(pageId);
       // 대결 탭이고 filter 파라미터가 있으면 필터 칩도 자동 선택
@@ -1269,7 +1282,7 @@ function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'');
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.message||'')+'|'+(c.date||'')+'|'+(c.time||'');
   });
 
   // PHASE 4: WRITE - DocumentFragment 사용으로 삽입/업데이트 일괄 처리
@@ -2349,21 +2362,21 @@ function buildShareText(c){
   var myT=(c.myTeam||[]).join(' · ');
   var opT=(c.oppTeam||[]).join(' · ');
   var dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
+  // 텍스트 본문에 직접 삽입할 URL: 클릭 시 대결 신청 탭 + 수락 대기중 필터 자동 이동
   var baseUrl = window.location.href.split('#')[0];
   var appUrl = baseUrl + '#challenge?filter=pending';
-  var betLabel=c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
   var lines=[
-    '🏓 이사탁 탁구 대결 신청',
+    '🏓 이사탁 탁구 동호회 대결 신청',
     '─────────────────',
     '🏅 유형: '+tm.lb,
     '⚔️ '+myT+' VS '+opT,
     '',
   ];
   if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
-  if(betLabel)        lines.push('🎰 내기: '+betLabel);
+  if(c.message)       lines.push('💬 한마디: '+c.message);
   lines.push('─────────────────');
   lines.push('아래 링크에서 수락/거절해주세요! 🙏');
-  lines.push(appUrl);
+  lines.push(appUrl);  // URL을 텍스트로 직접 삽입 → 카카오톡이 자동으로 링크 처리
   return lines.join('\n');
 }
 
@@ -2496,146 +2509,6 @@ window.toast=function(msg){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2800);
 }
-// ════ 내기 참여 ════
-
-// ── openBetPick: 내기 참여 모달 열기
-// 내기가 있는(커피/짜장면) 수락된 대결에서 비참여 회원이 예측 참여
-window.openBetPick = function(id){
-  var c = CHAL.find(function(c){ return c.id === id; });
-  if(!c) return;
-  _betPickId = id;
-  _betPickSide = null;
-  _betPickMember = null;
-
-  // 내기 제목 표시
-  var betLabel = c.bet==='coffee' ? '☕ 커피 내기' : '🍜 짜장면 내기';
-  g('bet-mo-title').innerHTML = (c.bet==='coffee'?'☕ 커피':'🍜 짜장면') + ' <em>내기</em>';
-  // 대결 정보
-  var myN = (c.myTeam||[]).join(' · ') || 'A팀';
-  var opN = (c.oppTeam||[]).join(' · ') || 'B팀';
-  g('bet-info').innerHTML = '<strong>'+myN+'</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>'+opN+'</strong>';
-
-  // 팀명 라벨 세팅
-  g('bet-pick-a-lbl').textContent = myN + ' 승';
-  g('bet-pick-b-lbl').textContent = opN + ' 승';
-
-  // 선택 초기화
-  ['bet-pick-a','bet-pick-b'].forEach(function(eid){
-    var el = g(eid);
-    el.style.borderColor = 'var(--b2)';
-    el.style.background = 'transparent';
-  });
-
-  // 에러 초기화
-  g('e-bet-member').classList.remove('on');
-
-  // 회원 그리드 렌더링 (참여 선수 제외)
-  _renderBetMemberGrid(c);
-
-  openMo('mo-bet');
-};
-
-// ── _renderBetMemberGrid: 내기 참여 모달 회원 선택 그리드
-// 참여 선수(myTeam+oppTeam)는 제외, 나머지만 표시
-function _renderBetMemberGrid(c){
-  var gr = g('g-bet-member');
-  if(!gr) return;
-  var players = (c.myTeam||[]).concat(c.oppTeam||[]);
-  var mems = MEMBERS.filter(function(x){
-    return x.status !== '비활성' && players.indexOf(x.name) < 0;
-  });
-
-  var existingMap = {};
-  Array.from(gr.querySelectorAll('[data-mname]')).forEach(function(el){
-    existingMap[el.dataset.mname] = el;
-  });
-  var needed = mems.map(function(x){ return x.name; });
-  Object.keys(existingMap).forEach(function(nm){
-    if(needed.indexOf(nm) < 0) gr.removeChild(existingMap[nm]);
-  });
-
-  if(!mems.length){
-    gr.innerHTML = '<div style="color:var(--t3);font-size:13px;padding:8px">참여 가능한 회원이 없습니다</div>';
-    return;
-  }
-
-  mems.forEach(function(x, idx){
-    var isSel = x.name === _betPickMember;
-    var newCls = 'mc2' + (isSel ? ' sel' : '');
-    var newOnclick = 'tglBetMember(\'' + x.name + '\')';
-    var existing = existingMap[x.name];
-    if(existing){
-      if(existing.className !== newCls) existing.className = newCls;
-      existing.setAttribute('onclick', newOnclick);
-      var cur = gr.children[idx];
-      if(cur !== existing) gr.insertBefore(existing, cur||null);
-    } else {
-      var div = document.createElement('div');
-      div.className = newCls;
-      div.dataset.mname = x.name;
-      div.setAttribute('onclick', newOnclick);
-      div.innerHTML = '<div class="mn">'+x.name+'</div>'
-        +'<div class="ms2">'+(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+'</div>';
-      gr.insertBefore(div, gr.children[idx]||null);
-    }
-  });
-}
-
-// ── tglBetMember: 내기 참여 회원 선택 토글
-window.tglBetMember = function(name){
-  _betPickMember = (_betPickMember === name) ? null : name;
-  var c = CHAL.find(function(c){ return c.id === _betPickId; });
-  if(c) _renderBetMemberGrid(c);
-};
-
-// ── setBetPick: 예측 팀 선택 (a=내팀, b=상대팀)
-window.setBetPick = function(side){
-  _betPickSide = side;
-  // A버튼
-  g('bet-pick-a').style.borderColor = side==='a' ? 'var(--a)' : 'var(--b2)';
-  g('bet-pick-a').style.background  = side==='a' ? 'var(--adim)' : 'transparent';
-  // B버튼
-  g('bet-pick-b').style.borderColor = side==='b' ? 'var(--blue)' : 'var(--b2)';
-  g('bet-pick-b').style.background  = side==='b' ? 'rgba(59,130,246,.12)' : 'transparent';
-};
-
-// ── submitBetPick: 예측 참여 확정 → Firestore betPicks 맵에 저장
-window.submitBetPick = async function(){
-  if(!_betPickSide){
-    toast('⚠️ 어느 팀이 이길지 선택해주세요');
-    return;
-  }
-  if(!_betPickMember){
-    g('e-bet-member').classList.add('on');
-    return;
-  }
-  g('e-bet-member').classList.remove('on');
-
-  var c = CHAL.find(function(c){ return c.id === _betPickId; });
-  if(!c) return;
-
-  // 이미 참여한 경우 덮어쓰기
-  var updField = 'betPicks.' + _betPickMember; // Firestore 점 표기법으로 특정 키만 업데이트
-  closeMo('mo-bet');
-  try {
-    if(db){
-      // Firestore FieldValue 없이 점 표기법으로 중첩 필드 업데이트
-      var updateObj = {};
-      updateObj[updField] = _betPickSide;
-      await updateDoc(doc(db,'challenges',_betPickId), updateObj);
-    } else {
-      // 로컬 폴백
-      if(!c.betPicks) c.betPicks = {};
-      c.betPicks[_betPickMember] = _betPickSide;
-      renderC();
-    }
-    var sideLabel = _betPickSide==='a'
-      ? (c.myTeam||[])[0]||'A팀'
-      : (c.oppTeam||[])[0]||'B팀';
-    toast('🎯 '+_betPickMember+' → '+sideLabel+' 승 예측 완료!');
-  } catch(e){ toast('❌ '+e.message); }
-};
-
 // 시작
 window.setF('all');
 init();
