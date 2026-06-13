@@ -45,6 +45,8 @@ let _bet='';
 let _betPickId=null,_betPickSide=null,_betPickMember=null;
 // _scA, _scB: 드럼롤 피커 점수 변수
 let _scA=0,_scB=0;
+// _resEditMode: 완료된 경기 결과 수정 여부
+let _resEditMode=false;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -606,6 +608,9 @@ function buildCCard(c){
       // 내기가 있으면 참여 버튼 추가
       var betBtn=hasBet?`<button class="btn btn-sm" onclick="openBetPick('${c.id}')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기 참여</button>`:'';
       acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button>`+betBtn+`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+    } else if(c.status==='completed'){
+      acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">✏️ 결과 수정</button>`
+          +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     }
     acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
 
@@ -873,8 +878,23 @@ window.delC=async function(id){
   try{if(db)await deleteDoc(doc(db,'challenges',id));else{CHAL=CHAL.filter(c=>c.id!==id);renderC();}toast('🗑 삭제됐습니다');}
   catch(e){toast('❌ '+e.message);}
 }
+// ── 저장된 score 문자열 → _sets 배열 복원 ("21:18, 15:21" 형식)
+function _parseScoreToSets(score){
+  if(!score)return[];
+  var setPattern=/^\d+:\d+$/;
+  var parts=score.split(',').map(function(s){return s.trim();});
+  if(!parts.length||!parts.every(function(p){return setPattern.test(p);}))return[];
+  return parts.map(function(p){
+    var ab=p.split(':');
+    return{a:parseInt(ab[0],10),b:parseInt(ab[1],10)};
+  });
+}
+
 window.openRes=function(id){
-  _rid=id;_rw=null;
+  const c=CHAL.find(c=>c.id===id);if(!c)return;
+  _rid=id;
+  _resEditMode=c.status==='completed';
+  _rw=null;
   // ── 세트 배열 초기화 ──
   _sets=[];
   // ── 경기 방식 초기화 (미선택 상태로 리셋) ──
@@ -885,7 +905,6 @@ window.openRes=function(id){
   });
   var hint=g('gm-hint');
   if(hint)hint.textContent='방식 미선택 — 점수만 기록합니다';
-  const c=CHAL.find(c=>c.id===id);if(!c)return;
 
   // ── 대결 정보 배너 ──
   var myNames=(c.myTeam||[]).join(' · ');
@@ -910,6 +929,20 @@ window.openRes=function(id){
   if(dB)dB.textContent='0';
   g('sc-list').innerHTML='';
   g('sc-summary').style.display='none';
+
+  // ── 결과 수정: 기존 승자·세트 점수 복원 ──
+  if(_resEditMode){
+    if(c.winner)setW(c.winner);
+    var parsed=_parseScoreToSets(c.score);
+    if(parsed.length){
+      _sets=parsed;
+      renderSets();
+    }
+  }
+
+  // 모달 제목: 입력 / 수정
+  var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
+  if(mtEm)mtEm.textContent=_resEditMode?'수정':'입력';
 
   openMo('mo-result');
 
@@ -1285,8 +1318,14 @@ window.submitResult=async function(){
       renderC();
     }
     closeMo('mo-result');
+    var wasEdit=_resEditMode;
+    _resEditMode=false;
+    var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
+    if(mtEm)mtEm.textContent='입력';
     // 세트 수 포함해서 토스트 메시지 표시
-    var msg=_sets.length>0?('🏆 결과 기록! ('+_sets.length+'세트)'):'🏆 결과 기록!';
+    var msg=wasEdit
+      ?(_sets.length>0?'✏️ 결과 수정 완료! ('+_sets.length+'세트)':'✏️ 결과 수정 완료!')
+      :(_sets.length>0?'🏆 결과 기록! ('+_sets.length+'세트)':'🏆 결과 기록!');
     toast(msg);
   }
   catch(e){toast('❌ '+e.message);}
