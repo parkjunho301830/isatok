@@ -1,9 +1,16 @@
 /**
- * Firebase 초기화 및 공통 함수
- * - Firebase 설정 및 초기화
- * - 인증 관련 공통 기능
- * - 데이터베이스 공통 함수
+ * Firebase 초기화 및 공통 함수 (members.html, tournament.html)
+ *
+ * 섹션 구성:
+ *  1. Firebase 설정 및 초기화
+ *  2. 인증
+ *  3. Firestore CRUD 헬퍼
+ *  4. 네비게이션
  */
+
+// ─────────────────────────────────────────
+// 1. Firebase 설정 및 초기화
+// ─────────────────────────────────────────
 
 // Firebase 설정
 const firebaseConfig = {
@@ -24,6 +31,10 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const storage = firebase.storage();
 
+// ─────────────────────────────────────────
+// 2. 인증
+// ─────────────────────────────────────────
+
 /**
  * 현재 로그인한 사용자 정보 가져오기
  */
@@ -43,6 +54,10 @@ auth.onAuthStateChanged((user) => {
         document.dispatchEvent(new CustomEvent('userLoggedOut'));
     }
 });
+
+// ─────────────────────────────────────────
+// 3. Firestore CRUD 헬퍼
+// ─────────────────────────────────────────
 
 /**
  * Firestore에서 데이터 가져오기
@@ -119,6 +134,10 @@ async function deleteDocument(collection, docId) {
         return false;
     }
 }
+
+// ─────────────────────────────────────────
+// 4. 네비게이션
+// ─────────────────────────────────────────
 
 /**
  * 네비게이션 메뉴 렌더링

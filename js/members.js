@@ -1,11 +1,49 @@
 /**
- * 회원 관련 기능
+ * 회원 관련 기능 (members.html)
  * - 회원 목록 조회
  * - 회원 정보 수정
  * - 회원 검색
  */
 
 const MEMBERS_COLLECTION = 'members';
+
+// ─────────────────────────────────────────
+// 렌더링 헬퍼
+// ─────────────────────────────────────────
+
+/**
+ * 회원 카드 HTML 생성 (목록/검색 공통)
+ * @param {object} member - 회원 데이터
+ * @param {boolean} showJoinDate - 가입일 표시 여부
+ */
+function buildMemberCardHTML(member, showJoinDate) {
+    const joinDateHTML = showJoinDate
+        ? `<p>가입일: ${member.createdAt ? new Date(member.createdAt.toDate()).toLocaleDateString() : '미정'}</p>`
+        : '';
+    return `
+            <div class="member-card">
+                <h3>${member.name}</h3>
+                <p>이메일: ${member.email}</p>
+                <p>연락처: ${member.phone || '미등록'}</p>
+                ${joinDateHTML}
+                <div class="member-actions">
+                    <button onclick="editMember('${member.id}')">수정</button>
+                    <button onclick="deleteMember('${member.id}')">삭제</button>
+                </div>
+            </div>
+        `;
+}
+
+/**
+ * 회원 목록 HTML 렌더링
+ */
+function renderMembersListHTML(members, showJoinDate) {
+    return members.map(m => buildMemberCardHTML(m, showJoinDate)).join('');
+}
+
+// ─────────────────────────────────────────
+// CRUD
+// ─────────────────────────────────────────
 
 /**
  * 회원 목록 렌더링
@@ -22,18 +60,7 @@ async function renderMembers() {
             return;
         }
 
-        const membersHTML = members.map(member => `
-            <div class="member-card">
-                <h3>${member.name}</h3>
-                <p>이메일: ${member.email}</p>
-                <p>연락처: ${member.phone || '미등록'}</p>
-                <p>가입일: ${member.createdAt ? new Date(member.createdAt.toDate()).toLocaleDateString() : '미정'}</p>
-                <div class="member-actions">
-                    <button onclick="editMember('${member.id}')">수정</button>
-                    <button onclick="deleteMember('${member.id}')">삭제</button>
-                </div>
-            </div>
-        `).join('');
+        const membersHTML = renderMembersListHTML(members, true);
 
         container.innerHTML = `
             <div class="members-list">
@@ -127,17 +154,7 @@ async function searchMembers(searchTerm) {
             return;
         }
 
-        const membersHTML = filtered.map(member => `
-            <div class="member-card">
-                <h3>${member.name}</h3>
-                <p>이메일: ${member.email}</p>
-                <p>연락처: ${member.phone || '미등록'}</p>
-                <div class="member-actions">
-                    <button onclick="editMember('${member.id}')">수정</button>
-                    <button onclick="deleteMember('${member.id}')">삭제</button>
-                </div>
-            </div>
-        `).join('');
+        const membersHTML = renderMembersListHTML(filtered, false);
 
         container.innerHTML = `
             <div class="members-list">
