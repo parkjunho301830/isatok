@@ -181,7 +181,8 @@
 /* 피커 전체 컨테이너 */
 .drum-picker{
   position:relative;
-  width:72px;
+  /* ★ 고정 72px → 최소 60px, 최대 100px: 화면 폭에 따라 유동 */
+  width:clamp(60px, 30vw, 100px);
   height:132px;         /* 아이템 높이 44px × 3개 표시 */
   overflow:hidden;
   border-radius:14px;
@@ -195,6 +196,8 @@
   transform:translateZ(0);
   /* ★ 내부 클립핑 격리 */
   contain:layout style paint;
+  /* ★ 부모 grid셀 내에서 너비를 꽉 채우되 최대 100px 제한 */
+  box-sizing:border-box;
 }
 .drum-picker:active{ cursor:grabbing; }
 
@@ -298,14 +301,32 @@
   min-width:80px;
 }
 
-/* ── 결과 입력 모달: 가로 스크롤 방지 강화 ── */
+/* ── 결과 입력 모달: 가로 스크롤 방지 + 스크롤 안정화 ── */
 #mo-result .mw{
   overflow-x:hidden;
+  /* ★ 모달 내부 스크롤이 외부로 전파되지 않도록 차단 (iOS Safari 포함) */
+  overscroll-behavior:contain;
+  /* ★ 레이아웃 격리: 내부 DOM 변경이 외부 reflow를 유발하지 않도록 */
+  contain:layout style;
 }
 #mo-result .mb{
   padding-left:14px;
   padding-right:14px;
   overflow-x:hidden;
+  /* ★ iOS Safari 관성 스크롤 활성화 */
+  -webkit-overflow-scrolling:touch;
+  /* ★ 터치 스크롤 compositor 처리 — pan-y만 허용하여 수평 스크롤 차단 */
+  touch-action:pan-y;
+  /* ★ GPU 레이어 분리: 스크롤 중 repaint 억제 */
+  transform:translateZ(0);
+  /* ★ 스크롤 컨테이너 레이아웃 격리 */
+  contain:layout;
+}
+
+/* ── 모달 공통: 스크롤 전파 차단 및 스크롤 성능 최적화 ── */
+.mo .mw{
+  /* ★ 모달 내부 스크롤이 배경(body)으로 전파되지 않도록 차단 */
+  overscroll-behavior:contain;
 }
 
 </style>
@@ -547,20 +568,15 @@
         <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 추가 버튼으로 기록)</span></label>
 
         <!-- 점수 입력 카드: 가로 스크롤 없는 모바일 최적화 레이아웃 -->
-        <div style="background:var(--c2);border-radius:16px;padding:14px 12px;margin-bottom:10px">
-          <!-- 팀명 표시 행 -->
-          <div style="display:flex;align-items:center;margin-bottom:10px;gap:8px">
-            <div id="sc-lbl-a" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">A팀</div>
-            <div style="width:24px;flex-shrink:0;text-align:center;font-size:14px;color:var(--t3);font-weight:700">:</div>
-            <div id="sc-lbl-b" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">B팀</div>
-            <div style="width:48px;flex-shrink:0"></div>
-          </div>
+        <div style="background:var(--c2);border-radius:16px;padding:14px 10px;margin-bottom:10px;box-sizing:border-box;width:100%;overflow:hidden">
 
-          <!-- 드럼롤 + 추가 버튼 행 -->
-          <div style="display:flex;align-items:center;gap:8px">
-            <!-- A팀 드럼롤 피커 -->
-            <div style="flex:1;display:flex;justify-content:center">
-              <div class="drum-picker" id="drum-a" data-team="a">
+          <!-- ── 드럼롤 + 추가 버튼: 3열 grid로 배치 → 가로 스크롤 원천 차단 -->
+          <div style="display:grid;grid-template-columns:1fr 20px 1fr 44px;align-items:center;gap:6px;width:100%">
+
+            <!-- A팀 열: 팀명 라벨 + 드럼롤 -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0">
+              <div id="sc-lbl-a" style="font-size:11px;font-weight:800;color:var(--a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center">A팀</div>
+              <div class="drum-picker" id="drum-a" data-team="a" style="width:100%;max-width:100px">
                 <div class="drum-mask drum-mask-top"></div>
                 <div class="drum-highlight"></div>
                 <div class="drum-scroll" id="drum-scroll-a"></div>
@@ -568,12 +584,13 @@
               </div>
             </div>
 
-            <!-- 구분자 -->
-            <div style="width:24px;text-align:center;font-size:24px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
+            <!-- 구분자 열 -->
+            <div style="text-align:center;font-size:20px;font-weight:900;color:var(--t3);line-height:132px;flex-shrink:0">:</div>
 
-            <!-- B팀 드럼롤 피커 -->
-            <div style="flex:1;display:flex;justify-content:center">
-              <div class="drum-picker" id="drum-b" data-team="b">
+            <!-- B팀 열: 팀명 라벨 + 드럼롤 -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0">
+              <div id="sc-lbl-b" style="font-size:11px;font-weight:800;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-align:center">B팀</div>
+              <div class="drum-picker" id="drum-b" data-team="b" style="width:100%;max-width:100px">
                 <div class="drum-mask drum-mask-top"></div>
                 <div class="drum-highlight drum-highlight-b"></div>
                 <div class="drum-scroll" id="drum-scroll-b"></div>
@@ -581,9 +598,12 @@
               </div>
             </div>
 
-            <!-- 세트 추가 버튼 -->
+            <!-- 세트 추가 버튼 열 -->
             <button class="btn btn-p" onclick="addSet()"
-              style="flex-shrink:0;width:48px;min-height:80px;padding:0;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:14px;-webkit-tap-highlight-color:transparent">
+              style="width:44px;min-height:100px;padding:0;font-size:12px;font-weight:700;
+                     display:flex;flex-direction:column;align-items:center;justify-content:center;
+                     gap:2px;border-radius:14px;flex-shrink:0;
+                     -webkit-tap-highlight-color:transparent;align-self:end">
               <span style="font-size:20px;line-height:1">＋</span>
               <span style="font-size:10px;line-height:1.2">추가</span>
             </button>
@@ -935,7 +955,11 @@ async function init(){
         var bsEl=g('bs-ch');
         var focused=document.activeElement;
         var isInsideBS=bsEl&&bsEl.classList.contains('on')&&focused&&bsEl.contains(focused);
-        if(!isInsideBS){
+        // ── mo-result 가드: 결과 입력 모달이 열려 있는 동안 renderC 차단 ──
+        // 이유: 드럼롤 피커 조작 중 Firestore 이벤트로 렌더가 실행되면 불필요한 레이아웃 작업 발생
+        var moResultEl=g('mo-result');
+        var isResultOpen=moResultEl&&moResultEl.classList.contains('on');
+        if(!isInsideBS&&!isResultOpen){
           renderC();
         }
         _rafC=null;
@@ -1123,6 +1147,11 @@ window.closeMo=function(id){
   requestAnimationFrame(function(){
     document.body.style.overflow = '';
   });
+  // ★ 결과 입력 모달 닫힐 때: 그 동안 차단됐던 renderC를 한 번 실행
+  // 모달 열린 동안 Firestore 변경이 있었다면 닫힌 직후 최신 상태 반영
+  if(id==='mo-result'){
+    setTimeout(function(){ renderC(); }, 50);
+  }
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m){
@@ -2047,55 +2076,79 @@ window.setGameMode=function(mode){
 }
 
 // ── renderSets: 추가된 세트 목록 및 합산 요약을 DOM에 반영
+// ★ 성능 개선: innerHTML 전체 교체 → diff-patch 방식으로 변경
+//   - 기존 세트 행은 속성만 갱신, 새 행만 생성, 불필요한 행만 제거
+//   - 세트 추가/삭제 시 전체 reflow 방지
 function renderSets(){
   var list=g('sc-list');
   var summary=g('sc-summary');
 
   if(!_sets.length){
-    list.innerHTML='';
+    // ★ innerHTML='' 대신 개별 제거: 노드 파괴에 따른 reflow 범위 최소화
+    while(list.firstChild)list.removeChild(list.firstChild);
     summary.style.display='none';
     return;
   }
 
-  // ── 세트별 행 렌더링 ──
-  // 각 행: 세트 번호 / A점수 굵게 / : / B점수 굵게 / 삭제 버튼
-  // 이긴 쪽 점수에 색상 강조 적용
-  list.innerHTML=_sets.map(function(s,i){
+  // ── PHASE 1: READ — 현재 DOM 행 목록을 한 번에 읽기 (reflow 1회)
+  var existingRows=Array.from(list.children);
+  var existingCount=existingRows.length;
+  var newCount=_sets.length;
+
+  // ── PHASE 2: WRITE — 기존 행 업데이트 또는 신규 행 생성
+  _sets.forEach(function(s,i){
     var aWin=s.a>s.b;
     var bWin=s.b>s.a;
-    var setNum=i+1;
     var aStyle=aWin?'color:var(--a);font-weight:800':'color:var(--t2);font-weight:700';
     var bStyle=bWin?'color:var(--blue);font-weight:800':'color:var(--t2);font-weight:700';
-    return '<div style="display:flex;align-items:center;gap:8px;'
-      +'background:var(--c2);border-radius:10px;padding:8px 12px;">'
-      // 세트 번호
-      +'<span style="font-size:11px;color:var(--t3);font-weight:600;width:36px;flex-shrink:0">게임'+setNum+'</span>'
-      // A팀 점수
-      +'<span style="flex:1;text-align:right;font-size:18px;'+aStyle+'">'+s.a+'</span>'
-      // 구분자
+    // 세트 행 내부 HTML (구조 고정, 값만 변동)
+    var innerHtml=
+      '<span style="font-size:11px;color:var(--t3);font-weight:600;width:36px;flex-shrink:0">게임'+(i+1)+'</span>'
+      +'<span class="rs-a" style="flex:1;text-align:right;font-size:18px;'+aStyle+'">'+s.a+'</span>'
       +'<span style="font-size:16px;color:var(--t3);font-weight:600;flex-shrink:0">:</span>'
-      // B팀 점수
-      +'<span style="flex:1;text-align:left;font-size:18px;'+bStyle+'">'+s.b+'</span>'
-      // 삭제 버튼
+      +'<span class="rs-b" style="flex:1;text-align:left;font-size:18px;'+bStyle+'">'+s.b+'</span>'
       +'<button class="btn btn-d btn-xs" onclick="removeSet('+i+')" '
-      +'style="flex-shrink:0;opacity:.6">✕</button>'
-      +'</div>';
-  }).join('');
+      +'style="flex-shrink:0;opacity:.6">✕</button>';
+
+    if(i < existingCount){
+      // ★ 기존 행: innerHTML만 갱신 (노드 유지 → 불필요한 reflow 없음)
+      var row=existingRows[i];
+      // data-idx 변경 여부 확인하여 불필요한 갱신 차단
+      if(row.dataset.idx !== String(i) || row.innerHTML !== innerHtml){
+        row.innerHTML=innerHtml;
+        row.dataset.idx=String(i);
+      }
+    } else {
+      // ★ 신규 행 생성: DocumentFragment로 한번에 삽입
+      var div=document.createElement('div');
+      div.dataset.idx=String(i);
+      div.style.cssText='display:flex;align-items:center;gap:8px;'
+        +'background:var(--c2);border-radius:10px;padding:8px 12px;';
+      div.innerHTML=innerHtml;
+      list.appendChild(div);
+    }
+  });
+
+  // ── PHASE 3: 남은 불필요 행 제거 (뒤에서부터 제거 → reflow 최소화)
+  for(var j=existingCount-1; j>=newCount; j--){
+    list.removeChild(existingRows[j]);
+  }
 
   // ── 2세트 이상일 때 합산 요약 표시 ──
   if(_sets.length>=2){
-    var totalA=_sets.reduce(function(s,x){return s+x.a;},0);
-    var totalB=_sets.reduce(function(s,x){return s+x.b;},0);
-    // 각 팀이 이긴 세트 수
+    var totalA=_sets.reduce(function(acc,x){return acc+x.a;},0);
+    var totalB=_sets.reduce(function(acc,x){return acc+x.b;},0);
     var winsA=_sets.filter(function(x){return x.a>x.b;}).length;
     var winsB=_sets.filter(function(x){return x.b>x.a;}).length;
-    summary.innerHTML=
+    var newSummary=
       '<span style="color:var(--a);font-weight:800">'+winsA+'세트</span>'
       +' <span style="color:var(--t3)">vs</span> '
       +'<span style="color:var(--blue);font-weight:800">'+winsB+'세트</span>'
       +'<span style="color:var(--t3);margin:0 8px">|</span>'
       +'총점 <span style="color:var(--a)">'+totalA+'</span>'
       +' : <span style="color:var(--blue)">'+totalB+'</span>';
+    // ★ 내용 변경 시에만 DOM 갱신 (불필요한 repaint 차단)
+    if(summary.innerHTML !== newSummary) summary.innerHTML=newSummary;
     summary.style.display='block';
   } else {
     summary.style.display='none';
