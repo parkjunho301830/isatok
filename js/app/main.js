@@ -228,48 +228,145 @@ function setDb(ok){
 //   레이아웃 변동이 없어 깜빡임 자체가 발생하지 않음
 // ════════════════════════════════════════════════════════
 
-var _bsDragInited=false,_bsClosing=false;
+var _bsSwipeInited=false,_bsClosing=false;
 var BS_ANIM_MS=320;
+var BS_DISMISS_VEL=0.55; // px/ms — 빠른 아래 flick 시 닫기
 
-function _initBSDrag(){
-  if(_bsDragInited)return;
-  var zone=g('bs-drag-zone'),sheet=g('bs-ch');
-  if(!zone||!sheet)return;
-  _bsDragInited=true;
-  var drag={active:false,startY:0,curY:0};
+function _getActiveBSBody(){
+  var s2=g('bs-step2');
+  if(s2&&s2.style.display!=='none')return s2;
+  return g('bs-step1');
+}
+
+function _isBSInteractive(target){
+  if(!target||!target.closest)return false;
+  var tag=target.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='BUTTON'||tag==='LABEL')return true;
+  return!!target.closest('.mc-btn,.msg-chip,.tb,.mc2,.oc-toggle-wrap,.sw,.btn');
+}
+
+function _applyBSDragOffset(sheet,overlay,y){
+  sheet.style.transform='translateY('+y+'px)';
+  if(!overlay)return;
+  var h=sheet.offsetHeight||400;
+  var p=Math.min(1,y/(h*0.45));
+  overlay.style.opacity=String(Math.max(0,1-p));
+}
+
+function _resetBSDragStyles(sheet,overlay){
+  if(sheet){
+    sheet.style.transform='';
+    sheet.style.transition='';
+    sheet.classList.remove('bs-dragging');
+  }
+  if(overlay){
+    overlay.style.opacity='';
+    overlay.style.transition='';
+    overlay.classList.remove('bs-dragging');
+  }
+}
+
+function _initBSSwipe(){
+  if(_bsSwipeInited)return;
+  var sheet=g('bs-ch'),overlay=g('bs-overlay');
+  if(!sheet||!overlay)return;
+  _bsSwipeInited=true;
+
+  var drag={
+    active:false,mode:null,startY:0,curY:0,
+    lastY:0,lastT:0,vel:0
+  };
+
+  function canSheetDrag(target){
+    if(target&&target.closest&&target.closest('.bs-drag-zone,.bs-steps,.bs-foot'))return true;
+    var body=_getActiveBSBody();
+    return!body||body.scrollTop<=0;
+  }
 
   function onStart(clientY,target){
     if(_bsClosing||!sheet.classList.contains('on'))return;
-    if(target&&target.closest&&target.closest('.mc-btn'))return;
-    drag.active=true;drag.startY=clientY;drag.curY=0;
-    sheet.style.transition='none';
+    if(_isBSInteractive(target))return;
+    drag.active=true;
+    drag.mode=null;
+    drag.startY=clientY;
+    drag.curY=0;
+    drag.lastY=clientY;
+    drag.lastT=Date.now();
+    drag.vel=0;
   }
-  function onMove(clientY){
+
+  function onMove(clientY,e){
     if(!drag.active)return;
-    drag.curY=Math.max(0,clientY-drag.startY);
-    sheet.style.transform='translateY('+drag.curY+'px)';
+    var now=Date.now();
+    var dt=now-drag.lastT;
+    if(dt>0)drag.vel=(clientY-drag.lastY)/dt;
+    drag.lastY=clientY;
+    drag.lastT=now;
+
+    var totalDy=clientY-drag.startY;
+    if(drag.mode===null){
+      if(Math.abs(totalDy)<8)return;
+      if(totalDy>0&&canSheetDrag(e&&e.target)){
+        drag.mode='sheet';
+        sheet.classList.add('bs-dragging');
+        overlay.classList.add('bs-dragging');
+        sheet.style.transition='none';
+        overlay.style.transition='none';
+      }else{
+        drag.mode='scroll';
+        drag.active=false;
+        return;
+      }
+    }
+    if(drag.mode!=='sheet')return;
+
+    drag.curY=Math.max(0,totalDy);
+    _applyBSDragOffset(sheet,overlay,drag.curY);
+    if(e&&e.cancelable)e.preventDefault();
   }
+
   function onEnd(){
     if(!drag.active)return;
+    var wasSheet=drag.mode==='sheet';
+    var y=drag.curY;
+    var vel=drag.vel;
     drag.active=false;
+    drag.mode=null;
+    sheet.classList.remove('bs-dragging');
+    overlay.classList.remove('bs-dragging');
     sheet.style.transition='';
-    if(drag.curY>=100)closeBS();
-    else sheet.style.transform='';
+    overlay.style.transition='';
+
+    if(!wasSheet)return;
+
+    var threshold=Math.min(120,(sheet.offsetHeight||400)*0.22);
+    if(y>=threshold||vel>BS_DISMISS_VEL){
+      _resetBSDragStyles(sheet,overlay);
+      closeBS();
+      return;
+    }
+    sheet.style.transition='transform .28s cubic-bezier(.32,.72,0,1)';
+    overlay.style.transition='opacity .28s ease';
+    _applyBSDragOffset(sheet,overlay,0);
+    setTimeout(function(){_resetBSDragStyles(sheet,overlay);},280);
   }
 
-  zone.addEventListener('touchstart',function(e){onStart(e.touches[0].clientY,e.target);},{passive:true});
-  zone.addEventListener('touchmove',function(e){
-    onMove(e.touches[0].clientY);
-    if(drag.active&&drag.curY>5)e.preventDefault();
+  sheet.addEventListener('touchstart',function(e){
+    onStart(e.touches[0].clientY,e.target);
+  },{passive:true});
+  sheet.addEventListener('touchmove',function(e){
+    onMove(e.touches[0].clientY,e);
   },{passive:false});
-  zone.addEventListener('touchend',function(){onEnd();});
+  sheet.addEventListener('touchend',function(){onEnd();});
+  sheet.addEventListener('touchcancel',function(){onEnd();});
 
-  zone.addEventListener('mousedown',function(e){
-    if(e.button!==0)return;
-    onStart(e.clientY,e.target);e.preventDefault();
+  sheet.addEventListener('mousedown',function(e){
+    if(e.button!==0||_isBSInteractive(e.target))return;
+    onStart(e.clientY,e.target);
+    e.preventDefault();
   });
   document.addEventListener('mousemove',function(e){
-    if(drag.active)onMove(e.clientY);
+    if(drag.active)onMove(e.clientY,null);
   });
   document.addEventListener('mouseup',function(){
     if(drag.active)onEnd();
@@ -277,12 +374,11 @@ function _initBSDrag(){
 }
 
 function _showBS(){
-  _initBSDrag();
+  _initBSSwipe();
   var sheet=g('bs-ch'),overlay=g('bs-overlay');
   if(!sheet||!overlay)return;
   _bsClosing=false;
-  sheet.style.transform='';
-  sheet.style.transition='';
+  _resetBSDragStyles(sheet,overlay);
   overlay.classList.add('on');
   sheet.classList.remove('on');
   void sheet.offsetHeight;
@@ -298,13 +394,12 @@ function _hideBS(done){
     if(done)done();return;
   }
   _bsClosing=true;
-  sheet.style.transform='';
-  sheet.style.transition='';
+  _resetBSDragStyles(sheet,overlay);
   sheet.classList.remove('on');
   overlay.classList.remove('on');
   setTimeout(function(){
     _bsClosing=false;
-    sheet.style.transform='';
+    _resetBSDragStyles(sheet,overlay);
     if(done)done();
   },BS_ANIM_MS);
 }
