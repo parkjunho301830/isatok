@@ -37,6 +37,8 @@ let _sets=[];
 // _gameMode: 경기 방식 (null=미선택, 'bo3'=3판2선, 'bo5'=5판3선, 'bo7'=7판4선)
 let _gameMode=null;
 let _type='ms',_my=[],_opp=[];
+// _editChId: 대기 중 대결 신청 수정 시 편집 대상 ID (null이면 신규)
+let _editChId=null;
 // _bet: 내기 제목 선택 ('' = 없음, 'coffee' = 커피 내기, 'jjajang' = 짜장면 내기)
 let _bet='';
 // _betPickId: 현재 내기 참여 중인 챌린지 ID
@@ -226,8 +228,9 @@ function setDb(ok){
 //   레이아웃 변동이 없어 깜빡임 자체가 발생하지 않음
 // ════════════════════════════════════════════════════════
 
-// ── 바텀시트 열기
+// ── 바텀시트 열기 (신규 신청)
 window.openBS = function(){
+  _editChId = null;
   _my = []; _opp = [];
   // 오픈 챌린지 초기화
   var chk = g('oc-chk');
@@ -238,6 +241,8 @@ window.openBS = function(){
   if(oppSec) oppSec.style.display = '';
   var submitBtn = g('ch-submit-btn');
   if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
+  var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
+  if(bsTitleEm) bsTitleEm.textContent = '신청';
   // 날짜 초기값: 내일
   const d = new Date(); d.setDate(d.getDate() + 1);
   g('ch-date').value = d.toISOString().slice(0, 10);
@@ -260,8 +265,57 @@ window.openBS = function(){
   });
 }
 
+// ── 대기 중 대결 신청 수정: 기존 바텀시트 재사용 + 값 복원
+window.openEditCh = function(id){
+  var c = CHAL.find(function(x){ return x.id === id; });
+  if(!c || c.status !== 'pending') return;
+
+  _editChId = id;
+  var isOpen = !!c.isOpen;
+
+  // 오픈 챌린지 토글 복원
+  var chk = g('oc-chk');
+  var wrap = g('oc-toggle-wrap');
+  var oppSec = g('opp-section');
+  if(chk) chk.checked = isOpen;
+  if(wrap) wrap.classList.toggle('on', isOpen);
+  if(oppSec) oppSec.style.display = isOpen ? 'none' : '';
+
+  setType(c.type || 'ms');
+  _my = [...(c.myTeam || [])];
+  _opp = isOpen ? [] : [...(c.oppTeam || [])];
+
+  g('ch-date').value = c.date || '';
+  g('ch-time').value = c.time || '10:00';
+
+  _bet = c.bet || '';
+  document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){
+    btn.classList.toggle('on', (btn.dataset.bet || '') === _bet);
+  });
+
+  ['e-my','e-opp'].forEach(function(eid){ g(eid).classList.remove('on'); });
+
+  var submitBtn = g('ch-submit-btn');
+  if(submitBtn) submitBtn.textContent = isOpen ? '💾 오픈 챌린지 수정' : '💾 수정 저장';
+  var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
+  if(bsTitleEm) bsTitleEm.textContent = '수정';
+
+  renderGridsBS();
+  bsStep(1);
+  g('bs-ch').classList.add('on');
+  g('bs-overlay').classList.add('on');
+  requestAnimationFrame(function(){
+    document.body.style.overflow = 'hidden';
+  });
+}
+
 // ── 바텀시트 닫기
 window.closeBS = function(){
+  _editChId = null;
+  var submitBtn = g('ch-submit-btn');
+  if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
+  var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
+  if(bsTitleEm) bsTitleEm.textContent = '신청';
   g('bs-ch').classList.remove('on');
   g('bs-overlay').classList.remove('on');
   // ★ overflow 복원 RAF defer
@@ -309,24 +363,39 @@ window.bsStep = function(n){
 // ── 바텀시트 전용 신청 저장 (기존 submitCh 로직 재사용, ID 참조만 동일하게 유지)
 window.submitChBS = async function(){
   var isOpenMode = g('oc-chk') && g('oc-chk').checked;
-  // ── Firestore 저장 데이터 구성 (기존 Firebase 데이터 구조 그대로 유지) ──
-  const data = {
+  var editId = _editChId;
+  var fields = {
     type: _type,
     myTeam: [..._my],
     oppTeam: isOpenMode ? [] : [..._opp],
     date: g('ch-date').value,
     time: g('ch-time').value,
-    place: '',                              // 장소 필드 제거됨 — 빈 문자열 고정
-    bet: _bet,                              // 내기 제목: '' / 'coffee' / 'jjajang'
+    place: '',
+    bet: _bet,
+    isOpen: !!isOpenMode
+  };
+  closeBS();
+  try {
+    if(editId){
+      if(db){
+        await updateDoc(doc(db,'challenges',editId), fields);
+      } else {
+        var target = CHAL.find(function(c){ return c.id === editId; });
+        if(target) Object.assign(target, fields);
+        renderC();
+      }
+      toast(isOpenMode ? '✏️ 오픈 챌린지가 수정됐습니다!' : '✏️ 대결 신청이 수정됐습니다!');
+      return;
+    }
+  // ── Firestore 저장 데이터 구성 (기존 Firebase 데이터 구조 그대로 유지) ──
+  const data = {
+    ...fields,
     betPicks: {},                           // 내기 참여자 예측: {이름: 'a'|'b'}
     status: 'pending',
-    isOpen: !!isOpenMode,
     createdAt: new Date().toISOString(),
     winner: null,
     score: null
   };
-  closeBS();
-  try {
     let newId = 'l' + Date.now();
     if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
@@ -476,7 +545,7 @@ function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'');
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[]);
   });
 
   // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
@@ -599,11 +668,13 @@ function buildCCard(c){
     // ── 액션 버튼 ──
     let acts='';
     if(isOpen){
-      acts=`<button class="btn btn-p btn-sm" onclick="openAcceptOpen('${c.id}')">🔥 수락하기</button>`
+      acts=`<button class="btn btn-g btn-sm" onclick="openEditCh('${c.id}')">✏️ 수정</button>`
+          +`<button class="btn btn-p btn-sm" onclick="openAcceptOpen('${c.id}')">🔥 수락하기</button>`
           +`<button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button>`
           +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     } else if(c.status==='pending'){
-      acts=`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+      acts=`<button class="btn btn-g btn-sm" onclick="openEditCh('${c.id}')">✏️ 수정</button>`
+          +`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     } else if(c.status==='accepted'){
       // 내기가 있으면 참여 버튼 추가
       var betBtn=hasBet?`<button class="btn btn-sm" onclick="openBetPick('${c.id}')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기 참여</button>`:'';
