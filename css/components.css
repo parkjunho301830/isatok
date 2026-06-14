@@ -1,293 +1,283 @@
-/* ═══════════════════════════════════════════════════════════
-   페이지 전용 컴포넌트 스타일 (index.html)
-   - Bottom Sheet (대결 신청)
-   - msg-chip (한마디 선택)
-   - 드럼롤 점수 피커
-   - 내기 참여 그리드
-   - 성능 최적화 오버라이드
-   ═══════════════════════════════════════════════════════════ */
-
-/* ══ Bottom Sheet: 대결 신청 전용 ══
-   기존 mo-ch(중앙 오버레이 모달) 대체
-   position:fixed;bottom:0 구조로 키보드 팝업에도 레이아웃 변동 없음 → 깜빡임 근본 제거 */
-
-/* 딤 오버레이 — iOS 스타일 페이드 인/아웃 */
-.bs-overlay{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.55);
-  z-index:900;
-  opacity:0;
-  visibility:hidden;
-  pointer-events:none;
-  transition:opacity .3s ease, visibility .3s ease;
-}
-.bs-overlay.on{
-  opacity:1;
-  visibility:visible;
-  pointer-events:auto;
-  will-change:opacity;
-}
-.bs-overlay.bs-dragging{
-  transition:none;
-}
-
-/* 바텀시트 컨테이너 — 하단 고정 + 슬라이드 업 */
-.bs-ch{
-  position:fixed;
-  left:0;right:0;bottom:0;
-  z-index:901;
-  background:var(--c1);
-  border-radius:20px 20px 0 0;
-  box-shadow:0 -8px 40px rgba(0,0,0,.35);
-  transform:translateY(100%);
-  transition:transform .32s cubic-bezier(.32,.72,0,1);
-  max-height:88vh;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  width:100%;
-  max-width:560px;
-  margin:0 auto;
-  contain:layout style;
-  touch-action:pan-y;
-}
-.bs-ch.on{
-  transform:translateY(0);
-  will-change:transform;
-}
-.bs-ch.bs-dragging{
-  transition:none;
-}
-
-/* 드래그 핸들 영역 (시각적 힌트 — 전체 시트 스와이프는 JS에서 처리) */
-.bs-drag-zone{
-  flex-shrink:0;
-  user-select:none;
-  -webkit-user-select:none;
-}
-
-/* 핸들바 — iOS 스타일 */
-.bs-handle{
-  width:40px;height:4px;
-  border-radius:999px;
-  background:rgba(128,128,128,.45);
-  margin:10px auto 0;
-  flex-shrink:0;
-}
-
-/* 헤더 */
-.bs-hdr{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:10px 20px 6px;
-}
-.bs-title{
-  font-size:18px;font-weight:800;color:var(--t1);
-}
-.bs-title em{ color:var(--a);font-style:normal; }
-
-/* STEP 인디케이터 */
-.bs-steps{
-  display:flex;align-items:center;justify-content:center;
-  gap:6px;padding:4px 0 10px;
-}
-.bs-step-dot{
-  width:8px;height:8px;border-radius:50%;
-  background:var(--b3);transition:background .2s,transform .2s;
-}
-.bs-step-dot.on{ background:var(--a);transform:scale(1.2); }
-.bs-step-line{
-  width:28px;height:2px;border-radius:1px;background:var(--b3);
-}
-
-/* 바디 */
-.bs-body{
-  padding:0 18px;
-  flex:1;
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
-  transform:translateZ(0);
-  touch-action:pan-y;
-  contain:layout;
-}
-
-/* 하단 버튼 */
-.bs-foot{
-  display:flex;gap:10px;
-  padding:14px 18px calc(14px + env(safe-area-inset-bottom));
-  flex-shrink:0;
-  background:var(--c1);
-  border-top:1px solid var(--b2);
-}
-.bs-foot .btn{ flex:1;min-height:48px; }
-
-/* ══ 한마디 선택형 버튼 (msg-chip) ══ */
-.msg-chips{
-  display:flex;flex-wrap:wrap;gap:8px;
-  margin-top:6px;
-}
-.msg-chip{
-  border:none;background:none;
-  cursor:pointer;
-  padding:9px 13px;
-  border-radius:20px;
-  border:1.5px solid var(--b3);
-  background:var(--c2);
-  color:var(--t2);
-  font-size:13px;font-weight:500;
-  font-family:inherit;
-  line-height:1.3;
-  text-align:left;
-  transition:all .15s;
-  min-height:40px;
-  -webkit-tap-highlight-color:transparent;
-}
-.msg-chip:active{ transform:scale(.96); }
-.msg-chip.on{
-  border-color:var(--a);
-  background:rgba(99,102,241,.13);
-  color:var(--a);
-  font-weight:700;
-}
-.msg-chip.none-chip{
-  color:var(--t3);
-  border-style:dashed;
-}
-.msg-chip.none-chip.on{
-  border-color:var(--b3);
-  background:var(--c2);
-  color:var(--t2);
-}
-
-/* ══ 성능 최적화 ══ */
-#ch-list{
-  contain:layout style;
-}
-.mo.on{
-  will-change:opacity;
-}
-.mo.on .mw{
-  will-change:transform;
-  -webkit-overflow-scrolling:touch;
-}
-
-/* ══ 드럼롤 점수 피커 ══
-   위아래 스크롤로 점수를 선택하는 iOS 피커 스타일 컴포넌트
-   11점 제한 없음 — 듀스(deuce) 상황에서도 자유롭게 점수 입력 가능 */
-.drum-picker{
-  position:relative;
-  width:72px;
-  height:132px;
-  overflow:hidden;
-  border-radius:14px;
-  border:2px solid var(--b2);
-  background:var(--c1);
-  cursor:grab;
-  user-select:none;
-  -webkit-user-select:none;
-  touch-action:none;
-  transform:translateZ(0);
-  contain:layout style paint;
-}
-.drum-picker:active{ cursor:grabbing; }
-
-.drum-scroll{
-  position:absolute;
-  top:0; left:0; right:0;
-  will-change:transform;
-  transition:transform .18s cubic-bezier(.4,0,.2,1);
-}
-
-.drum-item{
-  height:44px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:22px;
-  font-weight:800;
-  color:var(--t3);
-  transition:color .15s, font-size .15s;
-}
-.drum-item.selected{
-  color:var(--a);
-  font-size:26px;
-}
-#drum-b .drum-item.selected{
-  color:var(--blue);
-}
-
-.drum-highlight{
-  position:absolute;
-  top:44px;
-  left:0; right:0;
-  height:44px;
-  border-radius:10px;
-  background:var(--adim);
-  pointer-events:none;
-  z-index:1;
-}
-.drum-highlight-b{
-  background:rgba(59,130,246,.12);
-}
-
-.drum-mask{
-  position:absolute;
-  left:0; right:0;
-  height:44px;
-  pointer-events:none;
-  z-index:2;
-}
-.drum-mask-top{
-  top:0;
-  background:linear-gradient(to bottom, var(--c1) 10%, transparent 100%);
-}
-.drum-mask-bot{
-  bottom:0;
-  background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
-}
-
-/* ══ 내기 참여 모달 회원 그리드 ══ */
-#g-bet-member{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top:6px;
-}
-#g-bet-member .mc2{
-  padding:10px 14px;
-  border-radius:12px;
-  background:var(--c2);
-  border:1.5px solid var(--b2);
-  cursor:pointer;
-  min-height:44px;
-  transition:all .15s;
-  -webkit-tap-highlight-color:transparent;
-}
-#g-bet-member .mc2.sel{
-  border-color:var(--a);
-  background:var(--adim);
-}
-#g-bet-member .mc2 .mn{
-  font-size:14px;font-weight:700;color:var(--t1);
-}
-#g-bet-member .mc2 .ms2{
-  font-size:11px;color:var(--t3);margin-top:2px;
-}
-
-/* ══ 탭바 (2개 메뉴) ══ */
-.bnav{
-  justify-content:space-around;
-}
-.bni{
-  flex:0 0 auto;
-  min-width:80px;
-}
-
-/* ══ 결과 입력 모달 ══ */
-#mo-result .mw{
-  overflow-x:hidden;
-}
-#mo-result .mb{
-  padding-left:14px;
-  padding-right:14px;
-  overflow-x:hidden;
-}
+/* ═══════════════════════════════════════════════════════════
+   페이지 전용 컴포넌트 스타일 (index.html)
+   - Bottom Sheet (대결 신청)
+   - msg-chip (한마디 선택)
+   - 드럼롤 점수 피커
+   - 내기 참여 그리드
+   - 성능 최적화 오버라이드
+   ═══════════════════════════════════════════════════════════ */
+
+/* ══ Bottom Sheet: 대결 신청 — iOS sheet ══ */
+
+.bs-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.4);
+  z-index:900;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .28s var(--ios-ease, ease), visibility .28s;
+}
+.bs-overlay.on{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  will-change:opacity;
+}
+.bs-overlay.bs-dragging{
+  transition:none;
+}
+
+.bs-ch{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  z-index:901;
+  background:var(--c1);
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -4px 32px rgba(0,0,0,.12);
+  transform:translateY(100%);
+  transition:transform .32s var(--ios-ease, cubic-bezier(.32,.72,0,1));
+  max-height:88vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  width:100%;
+  max-width:560px;
+  margin:0 auto;
+  contain:layout style;
+  touch-action:pan-y;
+}
+.bs-ch.on{
+  transform:translateY(0);
+  will-change:transform;
+}
+.bs-ch.bs-dragging{
+  transition:none;
+}
+
+.bs-drag-zone{
+  flex-shrink:0;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.bs-handle{
+  width:40px;height:4px;
+  border-radius:999px;
+  background:rgba(60,60,67,.25);
+  margin:10px auto 0;
+  flex-shrink:0;
+}
+
+.bs-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px 6px;
+}
+.bs-title{
+  font-size:17px;font-weight:700;color:var(--t1);letter-spacing:-.3px;
+}
+.bs-title em{ color:var(--a);font-style:normal; }
+
+.bs-steps{
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;padding:4px 0 10px;
+}
+.bs-step-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--c3);transition:background .2s,transform .2s;
+}
+.bs-step-dot.on{ background:var(--a);transform:scale(1.15); }
+.bs-step-line{
+  width:28px;height:2px;border-radius:1px;background:var(--c3);
+}
+
+.bs-body{
+  padding:0 18px;
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  transform:translateZ(0);
+  touch-action:pan-y;
+  contain:layout;
+}
+
+.bs-foot{
+  display:flex;gap:10px;
+  padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+  flex-shrink:0;
+  background:var(--c1);
+  border-top:1px solid var(--b1);
+}
+.bs-foot .btn{ flex:1;min-height:50px;border-radius:14px; }
+
+/* ══ 한마디 선택형 버튼 (msg-chip) — iOS pill ══ */
+.msg-chips{
+  display:flex;flex-wrap:wrap;gap:8px;
+  margin-top:6px;
+}
+.msg-chip{
+  border:none;
+  cursor:pointer;
+  padding:10px 14px;
+  border-radius:999px;
+  background:var(--c2);
+  color:var(--t2);
+  font-size:13px;font-weight:500;
+  font-family:inherit;
+  line-height:1.3;
+  text-align:left;
+  transition:transform .15s var(--ios-ease),background .15s,color .15s;
+  min-height:40px;
+  box-shadow:inset 0 0 0 1px var(--b2);
+  -webkit-tap-highlight-color:transparent;
+}
+.msg-chip:active{ transform:scale(.97); }
+.msg-chip.on{
+  background:var(--a);
+  color:#fff;
+  font-weight:600;
+  box-shadow:none;
+}
+.msg-chip.none-chip{
+  color:var(--t3);
+}
+.msg-chip.none-chip.on{
+  background:var(--c3);
+  color:var(--t2);
+  box-shadow:none;
+}
+
+/* ══ 성능 최적화 ══ */
+#ch-list{
+  contain:layout style;
+}
+.mo.on{
+  will-change:opacity;
+}
+.mo.on .mw{
+  will-change:transform;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* ══ 드럼롤 점수 피커 — iOS picker wheel ══ */
+.drum-picker{
+  position:relative;
+  width:72px;
+  height:132px;
+  overflow:hidden;
+  border-radius:14px;
+  border:none;
+  box-shadow:inset 0 0 0 1.5px var(--b2);
+  background:var(--c1);
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:none;
+  transform:translateZ(0);
+  contain:layout style paint;
+}
+.drum-picker:active{ cursor:grabbing; }
+
+.drum-scroll{
+  position:absolute;
+  top:0; left:0; right:0;
+  will-change:transform;
+  transition:transform .18s var(--ios-ease, cubic-bezier(.4,0,.2,1));
+}
+
+.drum-item{
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:700;
+  color:var(--t3);
+  transition:color .15s, font-size .15s;
+}
+.drum-item.selected{
+  color:var(--a);
+  font-size:26px;
+}
+#drum-b .drum-item.selected{
+  color:var(--blue);
+}
+
+.drum-highlight{
+  position:absolute;
+  top:44px;
+  left:0; right:0;
+  height:44px;
+  border-radius:10px;
+  background:var(--adim);
+  pointer-events:none;
+  z-index:1;
+}
+.drum-highlight-b{
+  background:rgba(0,122,255,.10);
+}
+
+.drum-mask{
+  position:absolute;
+  left:0; right:0;
+  height:44px;
+  pointer-events:none;
+  z-index:2;
+}
+.drum-mask-top{
+  top:0;
+  background:linear-gradient(to bottom, var(--c1) 10%, transparent 100%);
+}
+.drum-mask-bot{
+  bottom:0;
+  background:linear-gradient(to top, var(--c1) 10%, transparent 100%);
+}
+
+/* ══ 내기 참여 모달 회원 그리드 ══ */
+#g-bet-member{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:6px;
+}
+#g-bet-member .mc2{
+  padding:10px 14px;
+  border-radius:12px;
+  background:var(--c1);
+  box-shadow:inset 0 0 0 1px var(--b2);
+  cursor:pointer;
+  min-height:44px;
+  transition:transform .15s var(--ios-ease),box-shadow .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+#g-bet-member .mc2:active{transform:scale(.97);}
+#g-bet-member .mc2.sel{
+  box-shadow:inset 0 0 0 2px var(--a);
+  background:var(--adim);
+}
+#g-bet-member .mc2 .mn{
+  font-size:14px;font-weight:600;color:var(--t1);
+}
+#g-bet-member .mc2 .ms2{
+  font-size:11px;color:var(--t3);margin-top:2px;
+}
+
+/* ══ 탭바 (2개 메뉴) ══ */
+.bnav{
+  justify-content:space-around;
+}
+.bni{
+  flex:0 0 auto;
+  min-width:80px;
+}
+
+/* ══ 결과 입력 모달 ══ */
+#mo-result .mw{
+  overflow-x:hidden;
+}
+#mo-result .mb{
+  padding-left:16px;
+  padding-right:16px;
+  overflow-x:hidden;
+}
+
