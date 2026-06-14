@@ -11,32 +11,38 @@
    기존 mo-ch(중앙 오버레이 모달) 대체
    position:fixed;bottom:0 구조로 키보드 팝업에도 레이아웃 변동 없음 → 깜빡임 근본 제거 */
 
-/* 딤 오버레이 */
+/* 딤 오버레이 — iOS 스타일 페이드 인/아웃 */
 .bs-overlay{
-  display:none;
   position:fixed;inset:0;
   background:rgba(0,0,0,.55);
   z-index:900;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .3s ease, visibility .3s ease;
 }
 .bs-overlay.on{
-  display:block;
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
   will-change:opacity;
 }
 
-/* 바텀시트 컨테이너 */
+/* 바텀시트 컨테이너 — 하단 고정 + 슬라이드 업 */
 .bs-ch{
   position:fixed;
   left:0;right:0;bottom:0;
   z-index:901;
   background:var(--c1);
-  border-radius:22px 22px 0 0;
-  box-shadow:0 -4px 32px rgba(0,0,0,.45);
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -8px 40px rgba(0,0,0,.35);
   transform:translateY(100%);
-  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  transition:transform .32s cubic-bezier(.32,.72,0,1);
   max-height:88vh;
   display:flex;
   flex-direction:column;
   overflow:hidden;
+  width:100%;
   max-width:560px;
   margin:0 auto;
   contain:layout style;
@@ -46,12 +52,23 @@
   will-change:transform;
 }
 
-/* 핸들바 */
+/* 드래그 영역: 핸들 + 헤더 (스크롤 영역과 분리) */
+.bs-drag-zone{
+  flex-shrink:0;
+  touch-action:none;
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.bs-drag-zone:active{ cursor:grabbing; }
+
+/* 핸들바 — iOS 스타일 */
 .bs-handle{
-  width:44px;height:5px;
-  border-radius:3px;
-  background:var(--b3);
-  margin:12px auto 0;
+  width:40px;height:4px;
+  border-radius:999px;
+  background:rgba(128,128,128,.45);
+  margin:10px auto 0;
+  flex-shrink:0;
 }
 
 /* 헤더 */

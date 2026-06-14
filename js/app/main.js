@@ -228,6 +228,87 @@ function setDb(ok){
 //   레이아웃 변동이 없어 깜빡임 자체가 발생하지 않음
 // ════════════════════════════════════════════════════════
 
+var _bsDragInited=false,_bsClosing=false;
+var BS_ANIM_MS=320;
+
+function _initBSDrag(){
+  if(_bsDragInited)return;
+  var zone=g('bs-drag-zone'),sheet=g('bs-ch');
+  if(!zone||!sheet)return;
+  _bsDragInited=true;
+  var drag={active:false,startY:0,curY:0};
+
+  function onStart(clientY,target){
+    if(_bsClosing||!sheet.classList.contains('on'))return;
+    if(target&&target.closest&&target.closest('.mc-btn'))return;
+    drag.active=true;drag.startY=clientY;drag.curY=0;
+    sheet.style.transition='none';
+  }
+  function onMove(clientY){
+    if(!drag.active)return;
+    drag.curY=Math.max(0,clientY-drag.startY);
+    sheet.style.transform='translateY('+drag.curY+'px)';
+  }
+  function onEnd(){
+    if(!drag.active)return;
+    drag.active=false;
+    sheet.style.transition='';
+    if(drag.curY>=100)closeBS();
+    else sheet.style.transform='';
+  }
+
+  zone.addEventListener('touchstart',function(e){onStart(e.touches[0].clientY,e.target);},{passive:true});
+  zone.addEventListener('touchmove',function(e){
+    onMove(e.touches[0].clientY);
+    if(drag.active&&drag.curY>5)e.preventDefault();
+  },{passive:false});
+  zone.addEventListener('touchend',function(){onEnd();});
+
+  zone.addEventListener('mousedown',function(e){
+    if(e.button!==0)return;
+    onStart(e.clientY,e.target);e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){
+    if(drag.active)onMove(e.clientY);
+  });
+  document.addEventListener('mouseup',function(){
+    if(drag.active)onEnd();
+  });
+}
+
+function _showBS(){
+  _initBSDrag();
+  var sheet=g('bs-ch'),overlay=g('bs-overlay');
+  if(!sheet||!overlay)return;
+  _bsClosing=false;
+  sheet.style.transform='';
+  sheet.style.transition='';
+  overlay.classList.add('on');
+  sheet.classList.remove('on');
+  void sheet.offsetHeight;
+  requestAnimationFrame(function(){sheet.classList.add('on');});
+  requestAnimationFrame(function(){document.body.style.overflow='hidden';});
+}
+
+function _hideBS(done){
+  var sheet=g('bs-ch'),overlay=g('bs-overlay');
+  if(!sheet||!overlay){if(done)done();return;}
+  if(_bsClosing){if(done)done();return;}
+  if(!sheet.classList.contains('on')&&!overlay.classList.contains('on')){
+    if(done)done();return;
+  }
+  _bsClosing=true;
+  sheet.style.transform='';
+  sheet.style.transition='';
+  sheet.classList.remove('on');
+  overlay.classList.remove('on');
+  setTimeout(function(){
+    _bsClosing=false;
+    sheet.style.transform='';
+    if(done)done();
+  },BS_ANIM_MS);
+}
+
 // ── 바텀시트 열기 (신규 신청)
 window.openBS = function(){
   _editChId = null;
@@ -256,13 +337,7 @@ window.openBS = function(){
   setType('ms');
   // STEP1부터 시작
   bsStep(1);
-  // 바텀시트 + 딤 오버레이 표시
-  g('bs-ch').classList.add('on');
-  g('bs-overlay').classList.add('on');
-  // ★ overflow 변경 RAF defer: 바텀시트 GPU 레이어 승격 후 다음 프레임에서 처리
-  requestAnimationFrame(function(){
-    document.body.style.overflow = 'hidden';
-  });
+  _showBS();
 }
 
 // ── 대기 중 대결 신청 수정: 기존 바텀시트 재사용 + 값 복원
@@ -302,28 +377,22 @@ window.openEditCh = function(id){
 
   renderGridsBS();
   bsStep(1);
-  g('bs-ch').classList.add('on');
-  g('bs-overlay').classList.add('on');
-  requestAnimationFrame(function(){
-    document.body.style.overflow = 'hidden';
-  });
+  _showBS();
 }
 
 // ── 바텀시트 닫기
 window.closeBS = function(){
-  _editChId = null;
-  var submitBtn = g('ch-submit-btn');
-  if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
-  var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
-  if(bsTitleEm) bsTitleEm.textContent = '신청';
-  g('bs-ch').classList.remove('on');
-  g('bs-overlay').classList.remove('on');
-  // ★ overflow 복원 RAF defer
-  requestAnimationFrame(function(){
-    document.body.style.overflow = '';
+  _hideBS(function(){
+    _editChId = null;
+    var submitBtn = g('ch-submit-btn');
+    if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
+    var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
+    if(bsTitleEm) bsTitleEm.textContent = '신청';
+    requestAnimationFrame(function(){
+      document.body.style.overflow = '';
+    });
+    setTimeout(function(){ renderGridsBS(); }, 50);
   });
-  // 닫힌 후 최신 그리드 반영 (포커스 가드로 미뤄진 경우 대비)
-  setTimeout(function(){ renderGridsBS(); }, 50);
 }
 
 // ── STEP 전환: 1 → 2는 팀 선택 유효성 검사 후 진행
