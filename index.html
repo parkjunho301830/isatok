@@ -109,13 +109,13 @@
 <!-- 이유: 모바일 키보드 팝업 시 뷰포트/scroll 변동으로 인한 깜빡임 근본 제거 -->
 <div class="bs-overlay" id="bs-overlay" onclick="closeBS()"></div>
 <div class="bs-ch" id="bs-ch">
-  <!-- 핸들바: 스와이프 닫기 UX 힌트 -->
-  <div class="bs-handle"></div>
-
-  <!-- 헤더 -->
-  <div class="bs-hdr">
-    <div class="bs-title">🏓 대결 <em>신청</em></div>
-    <button class="mc-btn" onclick="closeBS()">✕</button>
+  <!-- 드래그 영역: 핸들 + 헤더 (아래로 끌어 닫기) -->
+  <div class="bs-drag-zone" id="bs-drag-zone">
+    <div class="bs-handle"></div>
+    <div class="bs-hdr">
+      <div class="bs-title">🏓 대결 <em>신청</em></div>
+      <button class="mc-btn" onclick="closeBS()">✕</button>
+    </div>
   </div>
 
   <!-- ── STEP 인디케이터 ── -->
