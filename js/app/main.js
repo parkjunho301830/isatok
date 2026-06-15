@@ -20,6 +20,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{getStorage,ref,uploadBytes,getDownloadURL}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const FB={
   apiKey:"AIzaSyDttEMgDQx3iS2siRzVIizxBBDZ4KjcJEw",
@@ -30,7 +31,7 @@ const FB={
   appId:"1:480704214424:web:1f02fea9630e395bbb27ed"
 };
 
-let db,MEMBERS=[],CHAL=[],NOTICES=[],BOARDS=[];
+let db,storage,_fbApp,MEMBERS=[],CHAL=[],NOTICES=[],BOARDS=[];
 let _delId=null,_fg='',_cf='all',_rid=null,_rw=null;
 // _sets: 결과 입력 모달에서 추가된 세트별 점수 배열 [{a:숫자, b:숫자}, ...]
 let _sets=[];
@@ -198,7 +199,9 @@ function patchMc2Grid(gr, items, emptyMsg){
 async function init(){
   const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
   try{
-    db=getFirestore(initializeApp(FB));
+    _fbApp=initializeApp(FB);
+    db=getFirestore(_fbApp);
+    storage=getStorage(_fbApp);
     // ★ 스크롤 중 DOM 갱신 디바운스: pending 큐에 누적 → 스크롤 종료 후 RAF 1회 flush
     const _mainEl=document.querySelector('.main');
     if(_mainEl){
@@ -1969,11 +1972,134 @@ function _siteBase(){
   var dir=idx>=0?path.slice(0,idx+1):'/';
   return window.location.origin+dir;
 }
-var _SHARE_IMG_VER='3';
+var _SHARE_IMG_VER='4';
+var _shareFontsReady=false;
+var _shareImgCache={};
 function _shareOgImageUrl(c){
-  var img=_siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
-  if(c&&c.id)img+='&ch='+encodeURIComponent(c.id);
-  return img;
+  return _siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
+}
+function _shareCardFingerprint(c){
+  var v=_shareCardVisual(c);
+  return [c.id,c.status,!!c.isOpen,c.winner||'',c.score||'',c.date||'',c.time||'',v.main,v.sub].join('|');
+}
+function _shareCardVisual(c){
+  var v=_shareVsLine(c);
+  var tm=v.tm.lb;
+  var dtStr=c.date?$ko(c.date+'T00:00'):'';
+  var when=dtStr+(c.time?' '+c.time:'');
+  var bet=_shareBetLabel(c);
+  if(c.status==='completed'&&c.winner){
+    var wn=c.winner==='a'?v.myT:v.opT;
+    return {badge:'경기 결과',top:tm,main:wn+' 승리',sub:c.score||(bet||'이사탁 탁구'),c1:'#5856D6',c2:'#3634A3'};
+  }
+  if(c.status==='accepted'){
+    return {badge:'경기 확정',top:tm,main:v.vs,sub:when||(bet||'경기 예정'),c1:'#34C759',c2:'#248A3D'};
+  }
+  if(v.isOpen){
+    return {badge:'오픈 챌린지',top:tm,main:v.myT,sub:when||'누구나 수락 가능',c1:'#FF9500',c2:'#C93400'};
+  }
+  return {badge:'도전장',top:tm,main:v.vs,sub:when||'수락/거절 부탁드려요',c1:'#007AFF',c2:'#0051A8'};
+}
+async function _ensureShareFonts(){
+  if(_shareFontsReady)return;
+  await document.fonts.load('700 36px "Noto Sans KR"');
+  await document.fonts.load('500 26px "Noto Sans KR"');
+  await document.fonts.load('900 48px "Noto Sans KR"');
+  _shareFontsReady=true;
+}
+function _truncateShareText(ctx,text,maxW){
+  if(!text)return '';
+  if(ctx.measureText(text).width<=maxW)return text;
+  var t=text;
+  while(t.length>1&&ctx.measureText(t+'…').width>maxW)t=t.slice(0,-1);
+  return t+'…';
+}
+function _drawShareCardCanvas(c){
+  var vis=_shareCardVisual(c);
+  var size=800;
+  var canvas=document.createElement('canvas');
+  canvas.width=size;canvas.height=size;
+  var ctx=canvas.getContext('2d');
+  var g=ctx.createLinearGradient(0,0,0,size);
+  g.addColorStop(0,vis.c1);g.addColorStop(1,vis.c2);
+  ctx.fillStyle=g;ctx.fillRect(0,0,size,size);
+  ctx.fillStyle='rgba(255,255,255,.12)';
+  ctx.beginPath();ctx.arc(620,140,90,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(160,660,110,0,Math.PI*2);ctx.fill();
+  var pad=56,maxW=size-pad*2;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='700 34px "Noto Sans KR", sans-serif';
+  var badgeW=Math.min(maxW,ctx.measureText(vis.badge).width+48);
+  var badgeX=(size-badgeW)/2,badgeY=88,badgeH=52;
+  ctx.fillStyle='rgba(255,255,255,.22)';
+  _roundRect(ctx,badgeX,badgeY,badgeW,badgeH,26);ctx.fill();
+  ctx.fillStyle='#fff';ctx.fillText(vis.badge,size/2,badgeY+badgeH/2);
+  ctx.font='500 26px "Noto Sans KR", sans-serif';
+  ctx.fillStyle='rgba(255,255,255,.88)';
+  ctx.fillText(_truncateShareText(ctx,vis.top,maxW),size/2,168);
+  ctx.font='900 48px "Noto Sans KR", sans-serif';
+  ctx.fillStyle='#fff';
+  var main=vis.main;
+  if(main.indexOf(' VS ')>-1){
+    var parts=main.split(' VS ');
+    ctx.font='900 42px "Noto Sans KR", sans-serif';
+    ctx.fillText(_truncateShareText(ctx,parts[0],maxW),size/2,300);
+    ctx.font='700 30px "Noto Sans KR", sans-serif';
+    ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillText('VS',size/2,360);
+    ctx.font='900 42px "Noto Sans KR", sans-serif';
+    ctx.fillStyle='#fff';
+    ctx.fillText(_truncateShareText(ctx,parts[1]||'',maxW),size/2,420);
+  }else{
+    ctx.font='900 48px "Noto Sans KR", sans-serif';
+    ctx.fillText(_truncateShareText(ctx,main,maxW),size/2,360);
+  }
+  ctx.font='500 28px "Noto Sans KR", sans-serif';
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  ctx.fillText(_truncateShareText(ctx,vis.sub,maxW),size/2,520);
+  ctx.font='700 24px "Noto Sans KR", sans-serif';
+  ctx.fillStyle='rgba(255,255,255,.75)';
+  ctx.fillText('이사탁 탁구',size/2,700);
+  return canvas;
+}
+function _roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+function _canvasToJpegBlob(canvas){
+  return new Promise(function(resolve,reject){
+    canvas.toBlob(function(b){b?resolve(b):reject(new Error('canvas blob'));},'image/jpeg',0.88);
+  });
+}
+async function _resolveShareImageUrl(c){
+  if(!c||!c.id)return _shareOgImageUrl(c);
+  var fp=_shareCardFingerprint(c);
+  if(_shareImgCache[fp])return _shareImgCache[fp];
+  if(!storage)throw new Error('storage unavailable');
+  await _ensureShareFonts();
+  var canvas=_drawShareCardCanvas(c);
+  var blob=await _canvasToJpegBlob(canvas);
+  var path='share-cards/'+c.id+'-'+_shareFilterFor(c)+'.jpg';
+  var storageRef=ref(storage,path);
+  await uploadBytes(storageRef,blob,{contentType:'image/jpeg',cacheControl:'public, max-age=3600'});
+  var url=await getDownloadURL(storageRef);
+  _shareImgCache[fp]=url;
+  return url;
+}
+function _sendKakaoFeed(c,meta,url,imageUrl){
+  Kakao.Share.sendDefault({
+    objectType:'feed',
+    content:{
+      title:meta.title,
+      description:meta.description,
+      imageUrl:imageUrl,
+      link:{mobileWebUrl:url,webUrl:url}
+    },
+    buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
+    installTalk:true
+  });
 }
 function _shareLinkUrl(c){
   var url=buildShareUrl(c);
@@ -2140,6 +2266,7 @@ window.openShareModal=function(c){
   if(nativeBtn)nativeBtn.style.display=navigator.share?'':'none';
   _setShareHint();
   openMo('mo-kakao');
+  if(c&&storage)_resolveShareImageUrl(c).catch(function(){});
 }
 
 // ── 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
@@ -2169,7 +2296,7 @@ function _initKakao(){
 // ── 실제 카카오톡 공유 처리 (2단계 Fallback)
 // 1단계: 카카오 SDK sendDefault → 채팅방 선택 피커 → 직접 전송
 // 2단계: SDK 미지원(구형 브라우저 등) → 클립보드 복사 후 안내
-window.doKakaoShare=function(){
+window.doKakaoShare=async function(){
   var c=window._shareChallenge;
   var txt=window._shareText||'';
   var url=_shareLinkUrl(c);
@@ -2179,17 +2306,14 @@ window.doKakaoShare=function(){
     try{
       if(c){
         var meta=_shareFeedMeta(c);
-        Kakao.Share.sendDefault({
-          objectType:'feed',
-          content:{
-            title:meta.title,
-            description:meta.description,
-            imageUrl:_shareOgImageUrl(c),
-            link:{mobileWebUrl:url,webUrl:url}
-          },
-          buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
-          installTalk:true
-        });
+        var imageUrl=_shareOgImageUrl(c);
+        try{
+          if(!_shareImgCache[_shareCardFingerprint(c)])toast('🖼 썸네일 생성 중...');
+          imageUrl=await _resolveShareImageUrl(c);
+        }catch(imgErr){
+          console.warn('share image fallback',imgErr);
+        }
+        _sendKakaoFeed(c,meta,url,imageUrl);
       }else{
         Kakao.Share.sendDefault({
           objectType:'text',
