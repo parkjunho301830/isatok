@@ -51,6 +51,9 @@ let _scA=0,_scB=0;
 let _resEditMode=false;
 // _rkMode: 랭킹 탭 ('individual' | 'double')
 let _rkMode='individual';
+// _deepLinkCh: 카카오 공유 링크로 진입 시 강조할 대결 ID
+let _deepLinkCh=null;
+let _pendingDeepLinkFilter=null;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -85,7 +88,25 @@ function _applyMembersSnapshotRender(){
 }
 function _applyChallengesSnapshotRender(){
   if(_isScrolling){_pendingRender.c=true;return;}
+  if(_pendingDeepLinkFilter){
+    _applyDeepLinkFilter(_pendingDeepLinkFilter);
+    _pendingDeepLinkFilter=null;
+  }
   if(_currentPage==='challenge'&&!_isBSFocused())renderC();
+  if(_deepLinkCh){
+    var targetId=_deepLinkCh;
+    requestAnimationFrame(function(){
+      _scrollToChallenge(targetId);
+      _deepLinkCh=null;
+    });
+  }
+}
+function _scrollToChallenge(id){
+  var el=document.querySelector('[data-cid="'+id+'"]');
+  if(!el)return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.classList.add('ch-highlight');
+  setTimeout(function(){el.classList.remove('ch-highlight');},2800);
 }
 function _onMainScroll(){
   _isScrolling=true;
@@ -232,12 +253,20 @@ function finish(){
     var validPages = ['challenge','ranking','members'];
     if(validPages.indexOf(pageId) > -1){
       nav(pageId);
-      // 대결 탭이고 filter 파라미터가 있으면 필터 칩도 자동 선택
-      if(pageId === 'challenge' && params['filter']){
-        window.setF(params['filter']);
+      if(pageId === 'challenge'){
+        if(params['ch']) _deepLinkCh=params['ch'];
+        if(params['filter']){
+          window.setF(params['filter']);
+        } else if(params['ch']){
+          _pendingDeepLinkFilter=params['ch'];
+        }
       }
     }
   }
+}
+function _applyDeepLinkFilter(chId){
+  var c=CHAL.find(function(x){return x.id===chId;});
+  if(c) window.setF(_shareFilterFor(c));
 }
 function setDb(ok){
   const h=ok?'<span style="color:var(--a)">● Firebase 연결됨</span>':'<span style="color:var(--amber)">● 연결 실패</span>';
@@ -1922,29 +1951,133 @@ window.delBd=async function(id){
 
 // ════ 카카오톡 공유 ════
 
-// ── 공유 메시지 텍스트 생성 함수
-function buildShareText(c){
+function _siteBase(){
+  var path=window.location.pathname||'/';
+  var dir=path.replace(/\/[^/]*$/, '/');
+  if(!dir.endsWith('/'))dir+='/';
+  return window.location.origin+dir;
+}
+function _shareOgImageUrl(){
+  return _siteBase()+'assets/share-og.svg';
+}
+function _shareFilterFor(c){
+  if(!c)return 'pending';
+  if(c.status==='completed')return 'completed';
+  if(c.status==='accepted')return 'accepted';
+  if(c.isOpen&&c.status==='pending')return 'open';
+  return 'pending';
+}
+function buildShareUrl(c){
+  if(!c||!c.id)return _siteBase()+'#challenge?filter=pending';
+  return _siteBase()+'#challenge?ch='+encodeURIComponent(c.id)+'&filter='+_shareFilterFor(c);
+}
+function _shareBetLabel(c){
+  return c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
+}
+function _shareVsLine(c){
   var tm=TM[c.type]||TM.ms;
-  var myT=(c.myTeam||[]).join(' · ');
-  var opT=(c.oppTeam||[]).join(' · ');
-  var dtStr=c.date?$ko(c.date+'T00:00'):'날짜 미정';
-  var baseUrl = window.location.href.split('#')[0];
-  var appUrl = baseUrl + '#challenge?filter=pending';
-  var betLabel=c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
-  var lines=[
-    '🏓 이사탁 탁구 대결 신청',
-    '─────────────────',
-    '🏅 유형: '+tm.lb,
-    '⚔️ '+myT+' VS '+opT,
-    '',
-  ];
-  if(c.date||c.time) lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
-  if(betLabel)        lines.push('🎰 내기: '+betLabel);
-  lines.push('─────────────────');
-  lines.push('아래 링크에서 수락/거절해주세요! 🙏');
-  lines.push(appUrl);
+  var myT=(c.myTeam||[]).join(' · ')||'미정';
+  var isOpen=!!c.isOpen&&c.status==='pending';
+  var opT=isOpen?'🔥 누구나 수락 가능':((c.oppTeam||[]).join(' · ')||'미정');
+  return {tm:tm,myT:myT,opT:opT,isOpen:isOpen,vs:myT+' VS '+opT};
+}
+function _shareFeedMeta(c){
+  var v=_shareVsLine(c);
+  var dtStr=c.date?$ko(c.date+'T00:00'):'';
+  var betLabel=_shareBetLabel(c);
+  var title='🏓 '+v.vs+' · '+v.tm.lb;
+  var descParts=[];
+  if(c.status==='completed'&&c.winner){
+    var wn=c.winner==='a'?v.myT:v.opT;
+    title='🏆 '+wn+' 승리 · '+v.tm.lb;
+    if(c.score)descParts.push('스코어 '+c.score);
+  } else if(c.status==='accepted'){
+    title='📅 경기 확정 · '+v.vs;
+    descParts.push('결과 입력을 기다려요');
+  } else if(v.isOpen){
+    title='🔥 오픈 챌린지 · '+v.myT;
+    descParts.push('누구나 수락 가능');
+  } else if(c.status==='pending'){
+    descParts.push('수락/거절 부탁드려요');
+  }
+  if(dtStr||c.time)descParts.push('📅 '+(dtStr||'날짜 미정')+(c.time?' '+c.time:''));
+  if(betLabel)descParts.push(betLabel);
+  if(c.message)descParts.push('💬 '+c.message);
+  return {title:title,description:descParts.join(' · ')||'이사탁 탁구 대결'};
+}
+function buildShareText(c,template){
+  template=template||window._shareTemplate||'detail';
+  var v=_shareVsLine(c);
+  var url=buildShareUrl(c);
+  var betLabel=_shareBetLabel(c);
+  var dtStr=c.date?$ko(c.date+'T00:00'):'';
+  var isOpen=v.isOpen;
+  if(template==='short'){
+    var head='🏓 ['+v.tm.lb+'] '+v.vs;
+    var sub=[];
+    if(c.status==='completed'&&c.winner){
+      var wn=c.winner==='a'?v.myT:v.opT;
+      head='🏆 '+wn+' 승 · '+v.tm.lb;
+      if(c.score)sub.push(c.score);
+    } else if(c.status==='accepted'){ head='📅 '+v.vs; }
+    else if(isOpen){ head='🔥 오픈 · '+v.myT; }
+    if(dtStr||c.time)sub.push((dtStr||'날짜 미정')+(c.time?' '+c.time:''));
+    if(betLabel)sub.push(betLabel);
+    var cta=c.status==='completed'?'결과 확인':c.status==='accepted'?'경기 예정':isOpen?'수락 환영!':'수락 부탁 🙏';
+    return head+'\n'+(sub.length?sub.join(' · ')+'\n':'')+cta+'\n'+url;
+  }
+  if(template==='open'&&isOpen){
+    var openLines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ 도전: '+v.myT,'👋 누구나 수락 가능!',''];
+    if(dtStr||c.time)openLines.push('📅 '+dtStr+(c.time?' '+c.time:''));
+    if(betLabel)openLines.push('🎰 '+betLabel);
+    if(c.message)openLines.push('💬 '+c.message);
+    openLines.push('─────────────────','단톡에서 수락해 주세요! 🙏',url);
+    return openLines.join('\n');
+  }
+  var lines=[];
+  if(c.status==='completed'&&c.winner){
+    lines=['🏆 이사탁 경기 결과','─────────────────','🏅 '+v.tm.lb,'👑 '+(c.winner==='a'?v.myT:v.opT)+' 팀 승리',''];
+    if(c.score)lines.push('📊 '+c.score);
+  } else if(c.status==='accepted'){
+    lines=['📅 이사탁 경기 안내','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,''];
+  } else if(isOpen){
+    lines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.myT,'👋 누구나 수락 가능!',''];
+  } else {
+    lines=['🏓 이사탁 탁구 대결 신청','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,''];
+  }
+  if(dtStr||c.time)lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
+  if(betLabel)lines.push('🎰 내기: '+betLabel);
+  if(c.message)lines.push('💬 '+c.message);
+  if(c.status==='completed')lines.push('─────────────────','결과 확인은 아래 링크! 🙏');
+  else if(c.status==='accepted')lines.push('─────────────────','경기 후 결과 입력 예정! 🏓');
+  else lines.push('─────────────────','아래 링크에서 수락/거절해주세요! 🙏');
+  lines.push(url);
   return lines.join('\n');
 }
+function _updateSharePreview(){
+  var c=window._shareChallenge;
+  if(!c)return;
+  var txt=buildShareText(c,window._shareTemplate);
+  g('kakao-preview').textContent=txt;
+  window._shareText=txt;
+  window._shareUrl=buildShareUrl(c);
+}
+function _setShareModalHeader(c){
+  var t=g('share-box-t'),p=g('share-box-p'),openBtn=g('st-open');
+  var isOpen=!!c.isOpen&&c.status==='pending';
+  if(c.status==='completed'){ if(t)t.textContent='🏆 경기 결과 공유'; if(p)p.textContent='결과를 카카오톡으로 알려보세요!'; }
+  else if(c.status==='accepted'){ if(t)t.textContent='📅 경기 안내 공유'; if(p)p.textContent='일정·장소를 단톡방에 공유하세요!'; }
+  else if(isOpen){ if(t)t.textContent='🔥 오픈 챌린지 공유'; if(p)p.textContent='누구나 수락할 수 있어요. 단톡에 올려보세요!'; }
+  else { if(t)t.textContent='📣 도전장이 등록됐어요!'; if(p)p.textContent='카카오톡으로 상대방에게 바로 전달하세요!'; }
+  if(openBtn)openBtn.style.display=isOpen?'':'none';
+}
+window.setShareTemplate=function(mode){
+  window._shareTemplate=mode;
+  ['st-detail','st-short','st-open'].forEach(function(id){
+    var el=g(id);if(el)el.classList.toggle('on',id==='st-'+mode);
+  });
+  _updateSharePreview();
+};
 
 // ── 현재 환경이 모바일인지 판별 (User-Agent 기반)
 function _isMobile(){
@@ -1974,11 +2107,17 @@ function _setShareHint(){
 
 // ── 대결 신청 완료 직후 공유 모달 열기 (submitCh 에서 호출)
 window.openShareModal=function(c){
-  var txt=buildShareText(c);
-  g('kakao-preview').textContent=txt;
-  // _shareText에 텍스트 저장해 두고, doKakaoShare / copyShareMsg 에서 사용
-  window._shareText=txt;
-  // 환경별 힌트 표시
+  window._shareChallenge=c;
+  window._shareTemplate=(c.isOpen&&c.status==='pending')?'open':'detail';
+  _setShareModalHeader(c);
+  ['st-detail','st-short','st-open'].forEach(function(id){
+    var el=g(id);
+    if(!el)return;
+    el.classList.toggle('on',id.slice(3)===window._shareTemplate);
+  });
+  _updateSharePreview();
+  var nativeBtn=g('btn-native-share');
+  if(nativeBtn)nativeBtn.style.display=navigator.share?'':'none';
   _setShareHint();
   openMo('mo-kakao');
 }
@@ -2011,31 +2150,64 @@ function _initKakao(){
 // 1단계: 카카오 SDK sendDefault → 채팅방 선택 피커 → 직접 전송
 // 2단계: SDK 미지원(구형 브라우저 등) → 클립보드 복사 후 안내
 window.doKakaoShare=function(){
+  var c=window._shareChallenge;
   var txt=window._shareText||'';
+  var url=window._shareUrl||buildShareUrl(c);
   if(!txt)return;
 
-  // ── 카카오 SDK 초기화 시도
   if(_initKakao()){
-    // sendDefault: 텍스트 메시지 템플릿으로 카카오톡 채팅방 선택 피커 오픈
-    // 사용자가 채팅방(또는 친구)을 선택하면 해당 대화방으로 메시지가 직접 전송됨
-    // 링크 클릭 시 대결 신청 탭 + 수락 대기중 필터가 자동 선택되도록 해시 파라미터 포함
-    var baseUrl = window.location.href.split('#')[0];
-    var shareUrl = baseUrl + '#challenge?filter=pending';
-    Kakao.Share.sendDefault({
-      objectType: 'text',
-      text: txt,
-      link: {
-        mobileWebUrl: shareUrl,
-        webUrl: shareUrl
+    try{
+      if(c){
+        var meta=_shareFeedMeta(c);
+        Kakao.Share.sendDefault({
+          objectType:'feed',
+          content:{
+            title:meta.title,
+            description:meta.description,
+            imageUrl:_shareOgImageUrl(),
+            link:{mobileWebUrl:url,webUrl:url}
+          },
+          buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}]
+        });
+      }else{
+        Kakao.Share.sendDefault({
+          objectType:'text',
+          text:txt,
+          link:{mobileWebUrl:url,webUrl:url}
+        });
       }
-    });
-    return;
+      return;
+    }catch(e){
+      try{
+        Kakao.Share.sendDefault({
+          objectType:'text',
+          text:txt,
+          link:{mobileWebUrl:url,webUrl:url}
+        });
+        return;
+      }catch(e2){}
+    }
   }
 
-  // ── SDK 로드 실패 시 fallback: 클립보드 복사
   _copyToClipboard(txt);
   toast('📋 복사됐습니다! 카카오톡에 붙여넣기 하세요');
 }
+
+window.doNativeShare=async function(){
+  var c=window._shareChallenge;
+  var txt=window._shareText||'';
+  var url=window._shareUrl||buildShareUrl(c);
+  if(!navigator.share)return;
+  try{
+    await navigator.share({
+      title:c?_shareFeedMeta(c).title:'이사탁 탁구 대결',
+      text:txt,
+      url:url
+    });
+  }catch(e){
+    if(e&&e.name!=='AbortError')toast('❌ 공유를 취소했거나 지원하지 않습니다');
+  }
+};
 
 // ── 클립보드 복사 버튼
 window.copyShareMsg=function(){

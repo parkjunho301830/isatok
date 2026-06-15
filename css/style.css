@@ -308,6 +308,7 @@ tr:last-child td{border-bottom:none;}
 .cc.completed{opacity:.85;}
 @keyframes openPulse{0%,100%{box-shadow:var(--shadow-sm);}60%{box-shadow:0 0 0 4px rgba(255,149,0,.15),var(--shadow-md);}}
 .cc.open{animation:openPulse 2.4s ease-in-out infinite;}
+.cc.ch-highlight{box-shadow:0 0 0 3px var(--a),var(--shadow-md);transition:box-shadow .3s var(--ios-ease);}
 
 .cc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
 .cc-badges{display:flex;gap:6px;flex-wrap:wrap;}

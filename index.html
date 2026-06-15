@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#f2f2f7">
+<meta property="og:title" content="이사탁 탁구 대결">
+<meta property="og:description" content="이사탁 동호회 탁구 대결 신청, 수락, 결과, 랭킹">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/share-og.svg">
 <title>이사탁 탁구 대결</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <!-- 카카오 JavaScript SDK (채팅방 선택 후 직접 전송 기능) -->
@@ -379,8 +383,13 @@
     </div>
     <div class="mb">
       <div class="share-box">
-        <div class="share-box-t">📣 도전장이 등록됐어요!</div>
-        <div class="share-box-p">아래 버튼을 눌러 카카오톡으로 상대방에게 바로 전달하세요!</div>
+        <div class="share-box-t" id="share-box-t">📣 도전장이 등록됐어요!</div>
+        <div class="share-box-p" id="share-box-p">아래 버튼을 눌러 카카오톡으로 상대방에게 바로 전달하세요!</div>
+        <div class="fscroll" style="margin-bottom:12px" id="share-templates">
+          <button class="fc on" id="st-detail" type="button" onclick="setShareTemplate('detail')">상세</button>
+          <button class="fc" id="st-short" type="button" onclick="setShareTemplate('short')">짧게</button>
+          <button class="fc" id="st-open" type="button" onclick="setShareTemplate('open')" style="display:none">오픈용</button>
+        </div>
         <!-- 공유 메시지 미리보기 -->
         <div class="share-preview" id="kakao-preview"></div>
         <!-- 버튼 영역: 카카오톡 직접 열기 + 복사 -->
@@ -390,6 +399,9 @@
           </button>
           <button class="btn btn-g" style="min-height:44px;padding:10px 16px;font-size:14px" onclick="copyShareMsg()" title="클립보드에 복사">
             📋 복사
+          </button>
+          <button class="btn btn-g" id="btn-native-share" style="display:none;min-height:44px;padding:10px 16px;font-size:14px" onclick="doNativeShare()" title="다른 앱으로 공유">
+            📤 더 공유
           </button>
         </div>
       </div>
