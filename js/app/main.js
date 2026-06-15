@@ -49,6 +49,8 @@ let _betPickId=null,_betPickSide=null,_betPickMember=null;
 let _scA=0,_scB=0;
 // _resEditMode: 완료된 경기 결과 수정 여부
 let _resEditMode=false;
+// _rkMode: 랭킹 탭 ('individual' | 'double')
+let _rkMode='individual';
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -66,6 +68,7 @@ function _isBSFocused(){
 }
 function _flushPendingRenders(){
   if(_pendingRender.m&&_currentPage==='members')renderM();
+  if(_pendingRender.m&&_currentPage==='ranking')renderR();
   if(_pendingRender.grids&&_isBSOpen()&&!_isBSFocused())renderGridsBS();
   if(_pendingRender.c&&_currentPage==='challenge'&&!_isBSFocused())renderC();
   _pendingRender.c=false;_pendingRender.m=false;_pendingRender.grids=false;
@@ -77,6 +80,7 @@ function _applyMembersSnapshotRender(){
     return;
   }
   if(_currentPage==='members')renderM();
+  if(_currentPage==='ranking')renderR();
   if(_isBSOpen()&&!_isBSFocused())renderGridsBS();
 }
 function _applyChallengesSnapshotRender(){
@@ -103,6 +107,13 @@ window.selectBet = function(btn){
   _bet = btn.dataset.bet || '';
 }
 const ELO={초급:1400,중급:1550,고급:1700};
+const DEF_PT=1000;
+const PT={individual:{win:10,loss:-5},double:{win:5,loss:-2}};
+const DOUBLES_TYPES=['md','fd','mx','doubles'];
+
+function _isDoublesType(t){return DOUBLES_TYPES.indexOf(t)>=0;}
+function _memberPt(m,isDouble){return isDouble?(m.doublePoint??DEF_PT):(m.individualPoint??DEF_PT);}
+function _findMemberByName(name){return MEMBERS.find(function(m){return m.name===name;});}
 const AVC=['avG','avB','avA','avR','avP'];
 const g=id=>document.getElementById(id);
 function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5];}
@@ -203,7 +214,7 @@ function finish(){
       });
     }
     // 유효한 페이지 ID인 경우 해당 탭으로 이동
-    var validPages = ['challenge','members'];
+    var validPages = ['challenge','ranking','members'];
     if(validPages.indexOf(pageId) > -1){
       nav(pageId);
       // 대결 탭이고 filter 파라미터가 있으면 필터 칩도 자동 선택
@@ -623,6 +634,7 @@ window.nav=function(id){
   _navFab.forEach(f=>f.style.display=fabDisplay);
   // 탭 전환 시 스냅샷 중 스킵된 렌더 1회 보정
   if(id==='members')renderM();
+  else if(id==='ranking')renderR();
   else if(id==='challenge')renderC();
 }
 
@@ -1533,8 +1545,44 @@ function renderSets(){
     summary.style.display='none';
   }
 }
+
+// ── 경기 결과에 따른 회원 포인트 반영 (sign: 1=적용, -1=취소)
+async function _updateMatchPoints(challenge,winnerSide,sign){
+  if(!challenge||!winnerSide||!sign)return;
+  var isDbl=_isDoublesType(challenge.type);
+  var pts=isDbl?PT.double:PT.individual;
+  var field=isDbl?'doublePoint':'individualPoint';
+  var winTeam=winnerSide==='a'?(challenge.myTeam||[]):(challenge.oppTeam||[]);
+  var loseTeam=winnerSide==='a'?(challenge.oppTeam||[]):(challenge.myTeam||[]);
+  var deltas=[];
+  winTeam.forEach(function(nm){
+    var m=_findMemberByName(nm);
+    if(m)deltas.push({id:m.id,field:field,delta:pts.win*sign});
+  });
+  loseTeam.forEach(function(nm){
+    var m=_findMemberByName(nm);
+    if(m)deltas.push({id:m.id,field:field,delta:pts.loss*sign});
+  });
+  for(var i=0;i<deltas.length;i++){
+    var d=deltas[i];
+    var m=MEMBERS.find(function(x){return x.id===d.id;});
+    if(!m)continue;
+    var cur=_memberPt(m,isDbl);
+    var nv=cur+d.delta;
+    if(db){
+      var upd={};upd[d.field]=nv;
+      await updateDoc(doc(db,'members',d.id),upd);
+    }else{
+      var idx=MEMBERS.findIndex(function(x){return x.id===d.id;});
+      if(idx>-1){MEMBERS[idx][d.field]=nv;}
+    }
+  }
+}
+
 window.submitResult=async function(){
   if(!_rw){toast('⚠️ 승리 팀 선택');return;}
+  var c=CHAL.find(function(x){return x.id===_rid;});
+  if(!c)return;
 
   // ── 스코어 문자열 조합 ──
   // 세트 미입력 시 null, 입력 시 "21:18, 15:21, 21:19" 형식으로 저장
@@ -1545,18 +1593,23 @@ window.submitResult=async function(){
   }
 
   try{
+    // 결과 수정 시 기존 포인트 되돌리기
+    if(_resEditMode&&c.status==='completed'&&c.winner){
+      await _updateMatchPoints(c,c.winner,-1);
+    }
     if(db){
       await updateDoc(doc(db,'challenges',_rid),{status:'completed',winner:_rw,score:sc||null});
     } else {
-      const c=CHAL.find(c=>c.id===_rid);
-      if(c){c.status='completed';c.winner=_rw;c.score=sc||null;}
+      c.status='completed';c.winner=_rw;c.score=sc||null;
       renderC();
     }
+    await _updateMatchPoints(c,_rw,1);
     closeMo('mo-result');
     var wasEdit=_resEditMode;
     _resEditMode=false;
     var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
     if(mtEm)mtEm.textContent='입력';
+    if(_currentPage==='ranking')renderR();
     // 세트 수 포함해서 토스트 메시지 표시
     var msg=wasEdit
       ?(_sets.length>0?'✏️ 결과 수정 완료! ('+_sets.length+'세트)':'✏️ 결과 수정 완료!')
@@ -1567,6 +1620,76 @@ window.submitResult=async function(){
 }
 
 // ════ 회원 ════
+
+// ════ 랭킹 ════
+window.setRk=function(mode){
+  _rkMode=mode;
+  var ind=g('rk-ind'),dbl=g('rk-dbl');
+  if(ind)ind.classList.toggle('on',mode==='individual');
+  if(dbl)dbl.classList.toggle('on',mode==='double');
+  renderR();
+}
+function _rankRowHash(m,rank,pt){
+  return m.id+'|'+rank+'|'+(m.name||'')+'|'+(m.grade||'')+'|'+pt;
+}
+function _buildRankRowCells(m,rank,pt){
+  var top3=rank<=3;
+  return '<td data-label="순위" style="font-weight:700;color:'+(top3?'var(--a)':'var(--t2)')+'">'+rank+'</td>'
+    +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px">'+ini(m.name)+'</div><div style="font-weight:600">'+m.name+'</div></div></td>'
+    +'<td data-label="등급"><span class="badge '+(m.grade==='고급'?'bg':m.grade==='중급'?'ba':'bz')+'">'+(m.grade||'초급')+'</span></td>'
+    +'<td data-label="포인트" style="font-weight:700;color:var(--t1)">'+pt+'</td>';
+}
+function renderR(){
+  var tb=g('rtb');
+  if(!tb)return;
+  var isDbl=_rkMode==='double';
+  var list=MEMBERS.filter(function(m){return m.status!=='비활성';})
+    .map(function(m){return {m:m,pt:_memberPt(m,isDbl)};})
+    .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
+  if(!list.length){
+    Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){tb.removeChild(el);});
+    if(!tb.querySelector('tr[data-empty]')){
+      var emptyTr=document.createElement('tr');
+      emptyTr.dataset.empty='1';
+      emptyTr.innerHTML='<td colspan="4" style="text-align:center;padding:24px;color:var(--t3)">랭킹 데이터가 없습니다</td>';
+      tb.appendChild(emptyTr);
+    }
+    return;
+  }
+  var emptyRow=tb.querySelector('tr[data-empty]');
+  if(emptyRow)tb.removeChild(emptyRow);
+  var needed=list.map(function(x){return x.m.id;});
+  var existingMap={};
+  Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){
+    existingMap[el.dataset.rid]=el;
+  });
+  Object.keys(existingMap).forEach(function(id){
+    if(needed.indexOf(id)<0)tb.removeChild(existingMap[id]);
+  });
+  var childList=Array.from(tb.children);
+  list.forEach(function(item,idx){
+    var rank=idx+1;
+    var newHash=_rankRowHash(item.m,rank,item.pt);
+    var existing=existingMap[item.m.id];
+    if(existing){
+      if(existing.dataset.rhash!==newHash){
+        existing.innerHTML=_buildRankRowCells(item.m,rank,item.pt);
+        existing.dataset.rhash=newHash;
+      }
+      if(childList[idx]!==existing){
+        tb.insertBefore(existing,childList[idx]||null);
+        childList=Array.from(tb.children);
+      }
+    }else{
+      var tr=document.createElement('tr');
+      tr.dataset.rid=item.m.id;
+      tr.dataset.rhash=newHash;
+      tr.innerHTML=_buildRankRowCells(item.m,rank,item.pt);
+      tb.insertBefore(tr,childList[idx]||null);
+      childList=Array.from(tb.children);
+    }
+  });
+}
 
 function _memberRowHash(m){
   return m.id+'|'+(m.name||'')+'|'+(m.phone||'')+'|'+(m.grade||'')+'|'+(m.gender||'')+'|'+(m.status||'');
@@ -1647,7 +1770,7 @@ window.submitM=async function(){
   if(!grade){g('e-rgr').classList.add('on');ok=false;}else g('e-rgr').classList.remove('on');
   if(!ok)return;
   const now=new Date();
-  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,grade,elo:ELO[grade]||1400,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
+  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,grade,elo:ELO[grade]||1400,individualPoint:DEF_PT,doublePoint:DEF_PT,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
   g('af').style.display='none';g('asn').textContent=`${name} 회원님 환영합니다! 🏓`;g('as').style.display='';
   try{if(db)await addDoc(collection(db,'members'),m);else{MEMBERS.push({id:'l'+Date.now(),...m});renderM();}toast('✅ '+name+' 등록 완료');}
   catch(e){toast('❌ '+e.message);}

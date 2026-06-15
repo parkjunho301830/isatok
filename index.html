@@ -28,6 +28,7 @@
     <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div><div style="font-size:11px;color:var(--t3);font-weight:500;margin-top:4px;letter-spacing:0.02em">v2025.06.12</div></div>
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 현황</div>
+    <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>회원 랭킹</div>
     <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 목록</div>
     <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
   </nav>
@@ -74,6 +75,23 @@
       <div id="ch-list"></div>
     </div>
 
+    <!-- ══ 회원 랭킹 ══ -->
+    <div class="page" id="page-ranking">
+      <div class="ph">
+        <div class="ph-t">회원 <em>랭킹</em></div>
+      </div>
+      <div class="fscroll">
+        <button class="fc on" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
+        <button class="fc"    id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
+      </div>
+      <div class="card card-p">
+        <table class="tm">
+          <thead><tr><th>순위</th><th>이름</th><th>등급</th><th>포인트</th></tr></thead>
+          <tbody id="rtb"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ══ 회원 관리 ══ -->
     <div class="page" id="page-members">
       <div class="ph">
@@ -101,6 +119,7 @@
 <!-- 하단 탭바 -->
 <nav class="bnav">
   <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
+  <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
   <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">👥</span><span>회원</span></div>
 </nav>
 
