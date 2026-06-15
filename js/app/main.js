@@ -1969,8 +1969,11 @@ function _siteBase(){
   var dir=idx>=0?path.slice(0,idx+1):'/';
   return window.location.origin+dir;
 }
-function _shareOgImageUrl(){
-  return _siteBase()+'assets/share-og.png';
+var _SHARE_IMG_VER='3';
+function _shareOgImageUrl(c){
+  var img=_siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
+  if(c&&c.id)img+='&ch='+encodeURIComponent(c.id);
+  return img;
 }
 function _shareLinkUrl(c){
   var url=buildShareUrl(c);
@@ -2181,7 +2184,7 @@ window.doKakaoShare=function(){
           content:{
             title:meta.title,
             description:meta.description,
-            imageUrl:_shareOgImageUrl(),
+            imageUrl:_shareOgImageUrl(c),
             link:{mobileWebUrl:url,webUrl:url}
           },
           buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
