@@ -1975,6 +1975,16 @@ function _siteBase(){
 var _SHARE_IMG_VER='4';
 var _shareFontsReady=false;
 var _shareImgCache={};
+var _shareImgPending={};
+var _shareStorageOk=null;
+function _promiseTimeout(promise,ms){
+  return Promise.race([
+    promise,
+    new Promise(function(_,reject){
+      setTimeout(function(){reject(new Error('timeout'));},ms);
+    })
+  ]);
+}
 function _shareOgImageUrl(c){
   return _siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
 }
@@ -2002,9 +2012,13 @@ function _shareCardVisual(c){
 }
 async function _ensureShareFonts(){
   if(_shareFontsReady)return;
-  await document.fonts.load('700 36px "Noto Sans KR"');
-  await document.fonts.load('500 26px "Noto Sans KR"');
-  await document.fonts.load('900 48px "Noto Sans KR"');
+  try{
+    await _promiseTimeout(Promise.all([
+      document.fonts.load('700 36px "Noto Sans KR"'),
+      document.fonts.load('500 26px "Noto Sans KR"'),
+      document.fonts.load('900 48px "Noto Sans KR"')
+    ]),2500);
+  }catch(e){}
   _shareFontsReady=true;
 }
 function _truncateShareText(ctx,text,maxW){
@@ -2077,16 +2091,44 @@ async function _resolveShareImageUrl(c){
   if(!c||!c.id)return _shareOgImageUrl(c);
   var fp=_shareCardFingerprint(c);
   if(_shareImgCache[fp])return _shareImgCache[fp];
-  if(!storage)throw new Error('storage unavailable');
-  await _ensureShareFonts();
-  var canvas=_drawShareCardCanvas(c);
-  var blob=await _canvasToJpegBlob(canvas);
-  var path='share-cards/'+c.id+'-'+_shareFilterFor(c)+'.jpg';
-  var storageRef=ref(storage,path);
-  await uploadBytes(storageRef,blob,{contentType:'image/jpeg',cacheControl:'public, max-age=3600'});
-  var url=await getDownloadURL(storageRef);
-  _shareImgCache[fp]=url;
-  return url;
+  if(_shareImgPending[fp])return _shareImgPending[fp];
+  if(_shareStorageOk===false)return _shareOgImageUrl(c);
+  if(!storage){_shareStorageOk=false;return _shareOgImageUrl(c);}
+
+  var job=_promiseTimeout((async function(){
+    await _ensureShareFonts();
+    var canvas=_drawShareCardCanvas(c);
+    var blob=await _canvasToJpegBlob(canvas);
+    var path='share-cards/'+c.id+'-'+_shareFilterFor(c)+'.jpg';
+    var storageRef=ref(storage,path);
+    await uploadBytes(storageRef,blob,{contentType:'image/jpeg',cacheControl:'public, max-age=3600'});
+    var url=await getDownloadURL(storageRef);
+    _shareImgCache[fp]=url;
+    _shareStorageOk=true;
+    return url;
+  })(),6000);
+
+  _shareImgPending[fp]=job;
+  try{
+    return await job;
+  }catch(e){
+    console.warn('share image upload failed',e);
+    _shareStorageOk=false;
+    return _shareOgImageUrl(c);
+  }finally{
+    delete _shareImgPending[fp];
+  }
+}
+function _pickShareImageUrl(c){
+  if(!c||!c.id)return _shareOgImageUrl(c);
+  var fp=_shareCardFingerprint(c);
+  return _shareImgCache[fp]||_shareOgImageUrl(c);
+}
+function _prefetchShareImage(c){
+  if(!c||!c.id||!storage||_shareStorageOk===false)return;
+  var fp=_shareCardFingerprint(c);
+  if(_shareImgCache[fp]||_shareImgPending[fp])return;
+  _resolveShareImageUrl(c).catch(function(){});
 }
 function _sendKakaoFeed(c,meta,url,imageUrl){
   Kakao.Share.sendDefault({
@@ -2266,7 +2308,7 @@ window.openShareModal=function(c){
   if(nativeBtn)nativeBtn.style.display=navigator.share?'':'none';
   _setShareHint();
   openMo('mo-kakao');
-  if(c&&storage)_resolveShareImageUrl(c).catch(function(){});
+  _prefetchShareImage(c);
 }
 
 // ── 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
@@ -2296,7 +2338,7 @@ function _initKakao(){
 // ── 실제 카카오톡 공유 처리 (2단계 Fallback)
 // 1단계: 카카오 SDK sendDefault → 채팅방 선택 피커 → 직접 전송
 // 2단계: SDK 미지원(구형 브라우저 등) → 클립보드 복사 후 안내
-window.doKakaoShare=async function(){
+window.doKakaoShare=function(){
   var c=window._shareChallenge;
   var txt=window._shareText||'';
   var url=_shareLinkUrl(c);
@@ -2306,12 +2348,14 @@ window.doKakaoShare=async function(){
     try{
       if(c){
         var meta=_shareFeedMeta(c);
-        var imageUrl=_shareOgImageUrl(c);
-        try{
-          if(!_shareImgCache[_shareCardFingerprint(c)])toast('🖼 썸네일 생성 중...');
-          imageUrl=await _resolveShareImageUrl(c);
-        }catch(imgErr){
-          console.warn('share image fallback',imgErr);
+        var fp=_shareCardFingerprint(c);
+        var imageUrl=_pickShareImageUrl(c);
+        if(!_shareImgCache[fp]&&_shareImgPending[fp]){
+          _promiseTimeout(_shareImgPending[fp],700).then(function(dynamicUrl){
+            if(dynamicUrl&&dynamicUrl!==_shareOgImageUrl(c))_shareImgCache[fp]=dynamicUrl;
+          }).catch(function(){});
+        }else if(!_shareImgCache[fp]){
+          _prefetchShareImage(c);
         }
         _sendKakaoFeed(c,meta,url,imageUrl);
       }else{
