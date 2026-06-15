@@ -102,7 +102,7 @@
         <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
           <input type="search" placeholder="🔍 이름 검색" style="max-width:220px;min-height:44px" oninput="filterM(this.value)" id="ms">
           <select style="max-width:150px;min-height:44px" onchange="filterG(this.value)">
-            <option value="">전체 등급</option><option>고급</option><option>중급</option><option>초급</option>
+            <option value="">전체 등급</option><option>마스터</option><option>고수</option><option>상급</option><option>중급</option><option>초급</option><option>입문</option>
           </select>
         </div>
         <table class="tm">
@@ -447,9 +447,8 @@
         </div>
         <div class="fr" style="margin-bottom:18px">
           <div class="fg" style="margin:0"><label>성별</label><select id="rg"><option value="">선택</option><option value="남성">남성</option><option value="여성">여성</option></select></div>
-          <div class="fg" style="margin:0"><label>등급 <span class="req">*</span></label><select id="rgr" onchange="updElo()"><option value="">선택</option><option value="초급">초급</option><option value="중급">중급</option><option value="고급">고급</option></select><div class="emsg" id="e-rgr">필수 선택</div></div>
+          <div class="fg" style="margin:0"><label>등급</label><div class="elo">🌱 개인 포인트에 따라 자동 부여 (신규 1000pt → 입문)</div></div>
         </div>
-        <div class="fg"><label>초기 Elo 점수</label><div class="elo" id="eloprev">⬆ 등급 선택 시 자동 배정</div></div>
         <div class="fg" style="margin-bottom:0"><label>메모</label><textarea id="rmemo" placeholder="특이사항, 라켓 종류 등..."></textarea></div>
       </div>
       <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-add')">취소</button><button class="btn btn-p" onclick="submitM()">등록 완료</button></div>
@@ -475,10 +474,10 @@
       </div>
       <div class="fr" style="margin-bottom:18px">
         <div class="fg" style="margin:0"><label>성별</label><select id="eg"><option value="">선택</option><option value="남성">남성</option><option value="여성">여성</option></select></div>
-        <div class="fg" style="margin:0"><label>등급</label><select id="egr"><option value="초급">초급</option><option value="중급">중급</option><option value="고급">고급</option></select></div>
+        <div class="fg" style="margin:0"><label>등급</label><div class="elo" id="egr-disp">—</div></div>
       </div>
       <div class="fr" style="margin-bottom:18px">
-        <div class="fg" style="margin:0"><label>Elo 점수</label><input type="number" id="eelo"></div>
+        <div class="fg" style="margin:0"><label>개인 포인트</label><div class="elo" id="ept-disp">—</div></div>
         <div class="fg" style="margin:0"><label>상태</label><select id="est"><option value="활성">활성</option><option value="비활성">비활성</option></select></div>
       </div>
       <div class="fg" style="margin-bottom:0"><label>메모</label><textarea id="ememo"></textarea></div>

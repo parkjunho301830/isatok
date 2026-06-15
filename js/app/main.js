@@ -106,13 +106,28 @@ window.selectBet = function(btn){
   btn.classList.add('on');
   _bet = btn.dataset.bet || '';
 }
-const ELO={초급:1400,중급:1550,고급:1700};
 const DEF_PT=1000;
 const PT={individual:{win:10,loss:-5},double:{win:5,loss:-2}};
 const DOUBLES_TYPES=['md','fd','mx','doubles'];
+const GRADE_TIERS=[
+  {min:1500,icon:'👑',label:'마스터',badge:'bp'},
+  {min:1400,icon:'💎',label:'고수',badge:'bg'},
+  {min:1300,icon:'🥇',label:'상급',badge:'bb'},
+  {min:1200,icon:'🥈',label:'중급',badge:'ba'},
+  {min:1100,icon:'🥉',label:'초급',badge:'bz'},
+  {min:0,icon:'🌱',label:'입문',badge:'bz'}
+];
 
 function _isDoublesType(t){return DOUBLES_TYPES.indexOf(t)>=0;}
 function _memberPt(m,isDouble){return isDouble?(m.doublePoint??DEF_PT):(m.individualPoint??DEF_PT);}
+function _calcGrade(pt){
+  var p=pt??DEF_PT;
+  for(var i=0;i<GRADE_TIERS.length;i++){
+    if(p>=GRADE_TIERS[i].min)return GRADE_TIERS[i];
+  }
+  return GRADE_TIERS[GRADE_TIERS.length-1];
+}
+function _memberGrade(m){return _calcGrade(_memberPt(m,false));}
 function _findMemberByName(name){return MEMBERS.find(function(m){return m.name===name;});}
 const AVC=['avG','avB','avA','avR','avP'];
 const g=id=>document.getElementById(id);
@@ -958,7 +973,7 @@ function renderGrid(gid,sel,other,isMy){
       name:x.name,
       cls:'mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':''),
       onclick:x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')',
-      subtext:(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')
+      subtext:_memberGrade(x).label+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')
     };
   });
   patchMc2Grid(gr,items,'해당 회원 없음');
@@ -1034,15 +1049,16 @@ function renderAcceptGrid(c){
       if(!isSelected&&(gf&&x.gender&&x.gender!==gf||_acceptTeam.length>=max))isDim=true;
     }
     var isChallengerMember=challengerTeam.indexOf(x.name)>-1;
-    return{name:x.name,grade:x.grade,gender:x.gender,isSelected:isSelected,isDim:isDim,isChallengerMember:isChallengerMember};
+    return{name:x.name,gender:x.gender,isSelected:isSelected,isDim:isDim,isChallengerMember:isChallengerMember};
   });
 
   var items=memStates.map(function(x){
+    var mb=_findMemberByName(x.name)||{};
     return{
       name:x.name,
       cls:'mc2'+(x.isSelected?' selp':'')+(x.isDim?' dim':''),
       onclick:x.isDim?'':'tglAccept(\''+x.name+'\')',
-      subtext:(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+(x.isChallengerMember?' 🏓':'')
+      subtext:_memberGrade(mb).label+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')+(x.isChallengerMember?' 🏓':'')
     };
   });
   patchMc2Grid(gr,items,'해당 회원 없음');
@@ -1610,6 +1626,7 @@ window.submitResult=async function(){
     var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
     if(mtEm)mtEm.textContent='입력';
     if(_currentPage==='ranking')renderR();
+    if(_currentPage==='members')renderM();
     // 세트 수 포함해서 토스트 메시지 표시
     var msg=wasEdit
       ?(_sets.length>0?'✏️ 결과 수정 완료! ('+_sets.length+'세트)':'✏️ 결과 수정 완료!')
@@ -1629,15 +1646,16 @@ window.setRk=function(mode){
   if(dbl)dbl.classList.toggle('on',mode==='double');
   renderR();
 }
-function _rankRowHash(m,rank,pt){
-  return m.id+'|'+rank+'|'+(m.name||'')+'|'+(m.grade||'')+'|'+pt;
+function _rankRowHash(m,rank,pt,gr){
+  return m.id+'|'+rank+'|'+(m.name||'')+'|'+gr.label+'|'+pt;
 }
 function _buildRankRowCells(m,rank,pt){
   var top3=rank<=3;
+  var gr=_memberGrade(m);
   return '<td data-label="순위" style="font-weight:700;color:'+(top3?'var(--a)':'var(--t2)')+'">'+rank+'</td>'
-    +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px">'+ini(m.name)+'</div><div style="font-weight:600">'+m.name+'</div></div></td>'
-    +'<td data-label="등급"><span class="badge '+(m.grade==='고급'?'bg':m.grade==='중급'?'ba':'bz')+'">'+(m.grade||'초급')+'</span></td>'
-    +'<td data-label="포인트" style="font-weight:700;color:var(--t1)">'+pt+'</td>';
+    +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px">'+ini(m.name)+'</div><div><div style="font-weight:600">'+gr.icon+' '+m.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div></div></div></td>'
+    +'<td data-label="등급"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span></td>'
+    +'<td data-label="포인트" style="font-weight:700;color:var(--t1)">'+pt+'점</td>';
 }
 function renderR(){
   var tb=g('rtb');
@@ -1669,7 +1687,8 @@ function renderR(){
   var childList=Array.from(tb.children);
   list.forEach(function(item,idx){
     var rank=idx+1;
-    var newHash=_rankRowHash(item.m,rank,item.pt);
+    var gr=_memberGrade(item.m);
+    var newHash=_rankRowHash(item.m,rank,item.pt,gr);
     var existing=existingMap[item.m.id];
     if(existing){
       if(existing.dataset.rhash!==newHash){
@@ -1692,11 +1711,13 @@ function renderR(){
 }
 
 function _memberRowHash(m){
-  return m.id+'|'+(m.name||'')+'|'+(m.phone||'')+'|'+(m.grade||'')+'|'+(m.gender||'')+'|'+(m.status||'');
+  var gr=_memberGrade(m);
+  return m.id+'|'+(m.name||'')+'|'+(m.phone||'')+'|'+gr.label+'|'+_memberPt(m,false)+'|'+(m.gender||'')+'|'+(m.status||'');
 }
 function _buildMemberRowCells(m){
+  var gr=_memberGrade(m);
   return `<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av ${avc(m.name)}" style="width:34px;height:34px;font-size:13px">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--t3)">${m.phone}</div>`:''}</div></div></td>
-    <td data-label="등급"><span class="badge ${m.grade==='고급'?'bg':m.grade==='중급'?'ba':'bz'}">${m.grade||'초급'}</span></td>
+    <td data-label="등급"><span class="badge ${gr.badge}">${gr.icon} ${gr.label}</span></td>
     <td data-label="성별">${m.gender||'-'}</td>
     <td data-label="상태"><span class="badge ${m.status==='활성'?'bg':'br'}">${m.status||'활성'}</span></td>
     <td class="ta"><div style="display:flex;gap:6px"><button class="btn btn-g btn-xs" onclick="openEdit('${m.id}')">✏️ 수정</button><button class="btn btn-d btn-xs" onclick="openDel('${m.id}')">🗑</button></div></td>`;
@@ -1704,7 +1725,7 @@ function _buildMemberRowCells(m){
 
 function renderM(){
   const q=g('ms')?.value||'',gr=_fg;
-  const f=MEMBERS.filter(m=>m.name?.includes(q)&&(!gr||m.grade===gr));
+  const f=MEMBERS.filter(m=>m.name?.includes(q)&&(!gr||_memberGrade(m).label===gr));
   const tb=g('mtb');
   if(!tb)return;
 
@@ -1754,38 +1775,37 @@ function renderM(){
 }
 window.filterM=function(){renderM();}
 window.filterG=function(gr){_fg=gr;renderM();}
-window.updElo=function(){const gr=g('rgr').value;g('eloprev').innerHTML=gr?`🏓 ${gr} → Elo <strong style="color:var(--a)">${ELO[gr]}</strong>점`:'⬆ 등급 선택 시 자동 배정';}
 window.openAddModal=function(){
   ['rn','rp','rmemo'].forEach(id=>g(id).value='');
-  ['rg','rgr'].forEach(id=>{g(id).selectedIndex=0;});
-  g('eloprev').innerHTML='⬆ 등급 선택 시 자동 배정';
-  ['e-rn','e-rgr'].forEach(id=>g(id).classList.remove('on'));
+  g('rg').selectedIndex=0;
+  ['e-rn'].forEach(id=>g(id).classList.remove('on'));
   g('af').style.display='';g('as').style.display='none';
   openMo('mo-add');setTimeout(()=>g('rn').focus(),200);
 }
 window.submitM=async function(){
-  const name=g('rn').value.trim(),grade=g('rgr').value;
-  let ok=true;
-  if(!name){g('e-rn').classList.add('on');ok=false;}else g('e-rn').classList.remove('on');
-  if(!grade){g('e-rgr').classList.add('on');ok=false;}else g('e-rgr').classList.remove('on');
-  if(!ok)return;
+  const name=g('rn').value.trim();
+  if(!name){g('e-rn').classList.add('on');return;}
+  g('e-rn').classList.remove('on');
   const now=new Date();
-  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,grade,elo:ELO[grade]||1400,individualPoint:DEF_PT,doublePoint:DEF_PT,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
+  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,individualPoint:DEF_PT,doublePoint:DEF_PT,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
   g('af').style.display='none';g('asn').textContent=`${name} 회원님 환영합니다! 🏓`;g('as').style.display='';
   try{if(db)await addDoc(collection(db,'members'),m);else{MEMBERS.push({id:'l'+Date.now(),...m});renderM();}toast('✅ '+name+' 등록 완료');}
   catch(e){toast('❌ '+e.message);}
 }
 window.openEdit=function(id){
   const m=MEMBERS.find(m=>m.id===id);if(!m)return;
+  var gr=_memberGrade(m);
   g('eid').value=id;g('en').value=m.name;g('ep').value=m.phone||'';
-  g('eg').value=m.gender||'';g('egr').value=m.grade||'초급';
-  g('eelo').value=m.elo||1400;g('est').value=m.status||'활성';g('ememo').value=m.memo||'';
+  g('eg').value=m.gender||'';
+  g('egr-disp').textContent=gr.icon+' '+gr.label;
+  g('ept-disp').textContent=_memberPt(m,false)+'점';
+  g('est').value=m.status||'활성';g('ememo').value=m.memo||'';
   g('e-en').classList.remove('on');openMo('mo-edit');
 }
 window.saveEdit=async function(){
   const id=g('eid').value,name=g('en').value.trim();
   if(!name){g('e-en').classList.add('on');return;}
-  const u={name,phone:g('ep').value.trim(),gender:g('eg').value,grade:g('egr').value,elo:parseInt(g('eelo').value)||1400,status:g('est').value,memo:g('ememo').value.trim()};
+  const u={name,phone:g('ep').value.trim(),gender:g('eg').value,status:g('est').value,memo:g('ememo').value.trim()};
   closeMo('mo-edit');
   try{if(db)await updateDoc(doc(db,'members',id),u);else{const i=MEMBERS.findIndex(m=>m.id===id);if(i>-1)MEMBERS[i]={...MEMBERS[i],...u};renderM();}toast('✅ '+name+' 수정 완료');}
   catch(e){toast('❌ '+e.message);}
@@ -2110,7 +2130,7 @@ function _renderBetMemberGrid(c){
       name:x.name,
       cls:'mc2'+(isSel?' sel':''),
       onclick:'tglBetMember(\''+x.name+'\')',
-      subtext:(x.grade||'초급')+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')
+      subtext:_memberGrade(x).label+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')
     };
   });
   patchMc2Grid(gr,items,'참여 가능한 회원이 없습니다');
