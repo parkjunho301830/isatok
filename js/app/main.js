@@ -228,41 +228,53 @@ async function init(){
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
+function _parseEntryFromLocation(){
+  var pageId=null,params={};
+  try{
+    var sp=new URLSearchParams(window.location.search);
+    if(sp.get('p')){
+      pageId=sp.get('p');
+      if(sp.get('ch'))params.ch=decodeURIComponent(sp.get('ch'));
+      if(sp.get('filter'))params.filter=sp.get('filter');
+      return {pageId:pageId,params:params};
+    }
+  }catch(e){}
+  var hash=window.location.hash;
+  if(hash&&hash.length>1){
+    var hashBody=hash.slice(1);
+    var qIdx=hashBody.indexOf('?');
+    pageId=qIdx>-1?hashBody.slice(0,qIdx):hashBody;
+    if(qIdx>-1){
+      hashBody.slice(qIdx+1).split('&').forEach(function(pair){
+        var kv=pair.split('=');
+        if(kv.length===2)params[kv[0]]=decodeURIComponent(kv[1]);
+      });
+    }
+  }
+  return {pageId:pageId,params:params};
+}
+function _applyEntryNavigation(){
+  var entry=_parseEntryFromLocation();
+  var validPages=['challenge','ranking','members'];
+  if(!entry.pageId||validPages.indexOf(entry.pageId)<0)return;
+  nav(entry.pageId);
+  if(entry.pageId==='challenge'){
+    if(entry.params.ch)_deepLinkCh=entry.params.ch;
+    if(entry.params.filter){
+      window.setF(entry.params.filter);
+    }else if(entry.params.ch){
+      _pendingDeepLinkFilter=entry.params.ch;
+    }
+  }
+}
 function finish(){
   g('ls').style.display='none';
   g('app').style.display='flex';        // app-wrap 표시
   const sb=g('sidebar');
   if(sb) sb.style.display='';           // 사이드바 표시 (CSS가 모바일에서 숨김)
 
-  // ── URL 해시 파라미터 파싱: 카카오톡 공유 링크 클릭 시 탭/필터 자동 이동 ──
-  // 예) #challenge?filter=pending → 대결 신청 탭 + 수락 대기중 필터 자동 선택
-  var hash = window.location.hash; // ex: "#challenge?filter=pending"
-  if(hash && hash.length > 1){
-    var hashBody = hash.slice(1);                         // "challenge?filter=pending"
-    var qIdx = hashBody.indexOf('?');
-    var pageId = qIdx > -1 ? hashBody.slice(0, qIdx) : hashBody; // "challenge"
-    var params = {};
-    if(qIdx > -1){
-      var qs = hashBody.slice(qIdx + 1);                  // "filter=pending"
-      qs.split('&').forEach(function(pair){
-        var kv = pair.split('=');
-        if(kv.length === 2) params[kv[0]] = kv[1];
-      });
-    }
-    // 유효한 페이지 ID인 경우 해당 탭으로 이동
-    var validPages = ['challenge','ranking','members'];
-    if(validPages.indexOf(pageId) > -1){
-      nav(pageId);
-      if(pageId === 'challenge'){
-        if(params['ch']) _deepLinkCh=params['ch'];
-        if(params['filter']){
-          window.setF(params['filter']);
-        } else if(params['ch']){
-          _pendingDeepLinkFilter=params['ch'];
-        }
-      }
-    }
-  }
+  // 카카오 공유 링크: ?p=challenge&ch=ID (카톡 Feed) 또는 #challenge?… (구버전)
+  _applyEntryNavigation();
 }
 function _applyDeepLinkFilter(chId){
   var c=CHAL.find(function(x){return x.id===chId;});
@@ -1953,12 +1965,16 @@ window.delBd=async function(id){
 
 function _siteBase(){
   var path=window.location.pathname||'/';
-  var dir=path.replace(/\/[^/]*$/, '/');
-  if(!dir.endsWith('/'))dir+='/';
+  var idx=path.lastIndexOf('/');
+  var dir=idx>=0?path.slice(0,idx+1):'/';
   return window.location.origin+dir;
 }
 function _shareOgImageUrl(){
-  return _siteBase()+'assets/share-og.svg';
+  return _siteBase()+'assets/share-og.png';
+}
+function _shareLinkUrl(c){
+  var url=buildShareUrl(c);
+  return url.split('#')[0];
 }
 function _shareFilterFor(c){
   if(!c)return 'pending';
@@ -1968,8 +1984,9 @@ function _shareFilterFor(c){
   return 'pending';
 }
 function buildShareUrl(c){
-  if(!c||!c.id)return _siteBase()+'#challenge?filter=pending';
-  return _siteBase()+'#challenge?ch='+encodeURIComponent(c.id)+'&filter='+_shareFilterFor(c);
+  // 카카오 Feed는 # 해시 URL을 링크로 인식하지 못함 → 쿼리 파라미터 사용
+  if(!c||!c.id)return _siteBase()+'?p=challenge&filter=pending';
+  return _siteBase()+'?p=challenge&ch='+encodeURIComponent(c.id)+'&filter='+_shareFilterFor(c);
 }
 function _shareBetLabel(c){
   return c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
@@ -2152,7 +2169,7 @@ function _initKakao(){
 window.doKakaoShare=function(){
   var c=window._shareChallenge;
   var txt=window._shareText||'';
-  var url=window._shareUrl||buildShareUrl(c);
+  var url=_shareLinkUrl(c);
   if(!txt)return;
 
   if(_initKakao()){
@@ -2167,13 +2184,15 @@ window.doKakaoShare=function(){
             imageUrl:_shareOgImageUrl(),
             link:{mobileWebUrl:url,webUrl:url}
           },
-          buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}]
+          buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
+          installTalk:true
         });
       }else{
         Kakao.Share.sendDefault({
           objectType:'text',
           text:txt,
-          link:{mobileWebUrl:url,webUrl:url}
+          link:{mobileWebUrl:url,webUrl:url},
+          installTalk:true
         });
       }
       return;
@@ -2182,7 +2201,8 @@ window.doKakaoShare=function(){
         Kakao.Share.sendDefault({
           objectType:'text',
           text:txt,
-          link:{mobileWebUrl:url,webUrl:url}
+          link:{mobileWebUrl:url,webUrl:url},
+          installTalk:true
         });
         return;
       }catch(e2){}
