@@ -1970,7 +1970,7 @@ function _siteBase(){
   var dir=idx>=0?path.slice(0,idx+1):'/';
   return window.location.origin+dir;
 }
-var _SHARE_IMG_VER='4';
+var _SHARE_IMG_VER='5';
 function _shareOgImageUrl(){
   return _siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
 }
