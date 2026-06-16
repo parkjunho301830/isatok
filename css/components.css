@@ -22,10 +22,10 @@
   opacity:1;
   visibility:visible;
   pointer-events:auto;
-  will-change:opacity;
 }
 .bs-overlay.bs-dragging{
   transition:none;
+  will-change:opacity;
 }
 
 .bs-ch{
@@ -49,10 +49,11 @@
 }
 .bs-ch.on{
   transform:translateY(0);
-  will-change:transform;
+  backface-visibility:hidden;
 }
 .bs-ch.bs-dragging{
   transition:none;
+  will-change:transform;
 }
 
 .bs-drag-zone{
@@ -96,7 +97,7 @@
   flex:1;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
-  transform:translateZ(0);
+  overscroll-behavior:contain;
   touch-action:pan-y;
   contain:layout;
 }
@@ -151,11 +152,13 @@
 #ch-list{
   contain:layout style;
 }
-.mo.on{
-  will-change:opacity;
-}
 .mo.on .mw{
-  will-change:transform;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  backface-visibility:hidden;
+}
+.mo .mb{
+  overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
 
@@ -181,8 +184,10 @@
 .drum-scroll{
   position:absolute;
   top:0; left:0; right:0;
-  will-change:transform;
   transition:transform .18s var(--ios-ease, cubic-bezier(.4,0,.2,1));
+}
+.drum-picker:active .drum-scroll{
+  will-change:transform;
 }
 
 .drum-item{

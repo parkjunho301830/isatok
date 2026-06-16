@@ -82,8 +82,41 @@ let _detailChId=null;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
-let _isScrolling=false,_scrollTimer=null;
+let _isScrolling=false,_scrollTimer=null,_scrollRaf=null;
 let _pendingRender={c:false,m:false,grids:false,sn:false,h:false};
+let _bodyScrollLock=0,_scrollLockY=0;
+
+function _lockBodyScroll(){
+  if(_bodyScrollLock++>0)return;
+  _scrollLockY=window.scrollY||document.documentElement.scrollTop||0;
+  document.body.style.position='fixed';
+  document.body.style.top=(-_scrollLockY)+'px';
+  document.body.style.left='0';
+  document.body.style.right='0';
+  document.body.style.width='100%';
+  document.body.style.overflow='hidden';
+}
+function _unlockBodyScroll(){
+  if(_bodyScrollLock<=0)return;
+  if(--_bodyScrollLock>0)return;
+  var y=_scrollLockY;
+  document.body.style.position='';
+  document.body.style.top='';
+  document.body.style.left='';
+  document.body.style.right='';
+  document.body.style.width='';
+  document.body.style.overflow='';
+  window.scrollTo(0,y);
+}
+function _bindScrollPerf(){
+  if(window._scrollPerfBound)return;
+  window._scrollPerfBound=true;
+  var handler=_onMainScroll;
+  window.addEventListener('scroll',handler,{passive:true,capture:true});
+  document.addEventListener('scroll',handler,{passive:true,capture:true});
+  var mainEl=document.querySelector('.main');
+  if(mainEl)mainEl.addEventListener('scroll',handler,{passive:true});
+}
 
 function _isBSOpen(){
   var bs=g('bs-ch');
@@ -142,15 +175,20 @@ function _scrollToChallenge(id){
   setTimeout(function(){el.classList.remove('ch-highlight');},2800);
 }
 function _onMainScroll(){
-  _isScrolling=true;
-  document.documentElement.classList.add('is-scrolling');
+  if(!_scrollRaf){
+    _scrollRaf=requestAnimationFrame(function(){
+      _scrollRaf=null;
+      _isScrolling=true;
+      document.documentElement.classList.add('is-scrolling');
+    });
+  }
   if(_scrollTimer)clearTimeout(_scrollTimer);
   _scrollTimer=setTimeout(function(){
     _isScrolling=false;
     _scrollTimer=null;
     document.documentElement.classList.remove('is-scrolling');
     requestAnimationFrame(_flushPendingRenders);
-  },100);
+  },120);
 }
 
 // ── selectBet: 내기 제목 칩 버튼 선택 처리
@@ -314,11 +352,8 @@ async function init(){
   try{
     _fbApp=initializeApp(FB);
     db=getFirestore(_fbApp);
-    // ★ 스크롤 중 DOM 갱신 디바운스: pending 큐에 누적 → 스크롤 종료 후 RAF 1회 flush
-    const _mainEl=document.querySelector('.main');
-    if(_mainEl){
-      _mainEl.addEventListener('scroll',_onMainScroll,{passive:true});
-    }
+    // ★ 모바일은 window/document 스크롤 → window+main 모두 passive 리스너
+    _bindScrollPerf();
 
     // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더
     let _rafC=null,_rafM=null,_rafN=null,_rafB=null;
@@ -447,10 +482,10 @@ function _isBSInteractive(target){
   return!!target.closest('.mc-btn,.msg-chip,.tb,.mc2,.oc-toggle-wrap,.gm-card,.ch-create-mode,.sw,.btn');
 }
 
-function _applyBSDragOffset(sheet,overlay,y){
+function _applyBSDragOffset(sheet,overlay,y,sheetH){
   sheet.style.transform='translateY('+y+'px)';
   if(!overlay)return;
-  var h=sheet.offsetHeight||400;
+  var h=sheetH||sheet._bsDragH||400;
   var p=Math.min(1,y/(h*0.45));
   overlay.style.opacity=String(Math.max(0,1-p));
 }
@@ -476,7 +511,7 @@ function _initBSSwipe(){
 
   var drag={
     active:false,mode:null,startY:0,curY:0,
-    lastY:0,lastT:0,vel:0
+    lastY:0,lastT:0,vel:0,sheetH:400
   };
 
   function canSheetDrag(target){
@@ -510,6 +545,8 @@ function _initBSSwipe(){
       if(Math.abs(totalDy)<8)return;
       if(totalDy>0&&canSheetDrag(e&&e.target)){
         drag.mode='sheet';
+        drag.sheetH=sheet.offsetHeight||400;
+        sheet._bsDragH=drag.sheetH;
         sheet.classList.add('bs-dragging');
         overlay.classList.add('bs-dragging');
         sheet.style.transition='none';
@@ -523,7 +560,7 @@ function _initBSSwipe(){
     if(drag.mode!=='sheet')return;
 
     drag.curY=Math.max(0,totalDy);
-    _applyBSDragOffset(sheet,overlay,drag.curY);
+    _applyBSDragOffset(sheet,overlay,drag.curY,drag.sheetH);
     if(e&&e.cancelable)e.preventDefault();
   }
 
@@ -541,7 +578,7 @@ function _initBSSwipe(){
 
     if(!wasSheet)return;
 
-    var threshold=Math.min(120,(sheet.offsetHeight||400)*0.22);
+    var threshold=Math.min(120,drag.sheetH*0.22);
     if(y>=threshold||vel>BS_DISMISS_VEL){
       _resetBSDragStyles(sheet,overlay);
       closeBS();
@@ -549,18 +586,26 @@ function _initBSSwipe(){
     }
     sheet.style.transition='transform .28s cubic-bezier(.32,.72,0,1)';
     overlay.style.transition='opacity .28s ease';
-    _applyBSDragOffset(sheet,overlay,0);
+    _applyBSDragOffset(sheet,overlay,0,drag.sheetH);
     setTimeout(function(){_resetBSDragStyles(sheet,overlay);},280);
+  }
+
+  function _bindBSDismissMove(el){
+    if(!el)return;
+    el.addEventListener('touchmove',function(e){
+      onMove(e.touches[0].clientY,e);
+    },{passive:false});
   }
 
   sheet.addEventListener('touchstart',function(e){
     onStart(e.touches[0].clientY,e.target);
   },{passive:true});
-  sheet.addEventListener('touchmove',function(e){
-    onMove(e.touches[0].clientY,e);
-  },{passive:false});
   sheet.addEventListener('touchend',function(){onEnd();});
   sheet.addEventListener('touchcancel',function(){onEnd();});
+  _bindBSDismissMove(g('bs-drag-zone'));
+  _bindBSDismissMove(sheet.querySelector('.bs-steps'));
+  _bindBSDismissMove(sheet.querySelector('.bs-foot'));
+  for(var si=1;si<=4;si++)_bindBSDismissMove(g('bs-step'+si));
 
   sheet.addEventListener('mousedown',function(e){
     if(e.button!==0||_isBSInteractive(e.target))return;
@@ -585,7 +630,7 @@ function _showBS(){
   sheet.classList.remove('on');
   void sheet.offsetHeight;
   requestAnimationFrame(function(){sheet.classList.add('on');});
-  requestAnimationFrame(function(){document.body.style.overflow='hidden';});
+  requestAnimationFrame(_lockBodyScroll);
 }
 
 function _hideBS(done){
@@ -875,6 +920,7 @@ window.openEditCh = function(id){
 
 // ── 바텀시트 닫기
 window.closeBS = function(){
+  var wasOpen=_isBSOpen();
   _hideBS(function(){
     _editChId = null;
     var submitBtn = g('ch-submit-btn');
@@ -882,9 +928,7 @@ window.closeBS = function(){
     var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
     if(bsTitleEm) bsTitleEm.textContent = '신청';
     _resetBsCreateUI();
-    requestAnimationFrame(function(){
-      document.body.style.overflow = '';
-    });
+    if(wasOpen)requestAnimationFrame(_unlockBodyScroll);
     setTimeout(function(){ renderGridsBS(); }, 50);
   });
 }
@@ -1085,29 +1129,23 @@ function openMo(id){
       if(first) first.focus();
     }, 320);
   }
-  requestAnimationFrame(function(){
-    document.body.style.overflow = 'hidden';
-  });
+  requestAnimationFrame(_lockBodyScroll);
 }
 window.closeMo=function(id){
   var el=g(id);
-  if(!el)return;
+  if(!el||!el.classList.contains('on'))return;
   el.classList.remove('on');
   if(id==='mo-admin-pin'){
     _adminPinCallback=null;
     var pinEl=g('admin-pin');
     if(pinEl)pinEl.value='';
   }
-  requestAnimationFrame(function(){
-    document.body.style.overflow = '';
-  });
+  requestAnimationFrame(_unlockBodyScroll);
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
-  if(e.target===m){
+  if(e.target===m&&m.classList.contains('on')){
     m.classList.remove('on');
-    requestAnimationFrame(function(){
-      document.body.style.overflow='';
-    });
+    requestAnimationFrame(_unlockBodyScroll);
   }
 }));
 
@@ -1198,8 +1236,8 @@ function updateOpenBadge(){
 
 function renderC(){
   const list=g('ch-list'),empty=g('ch-empty');
-  // ── 오픈 챌린지 뱃지 갱신 (renderC 호출될 때마다 최신 반영)
-  updateOpenBadge();
+  // ── 스크롤 중 뱃지 DOM 조작 스킵 (Forced Reflow 방지)
+  if(!_isScrolling)updateOpenBadge();
   let data=[...CHAL];
   // ── 필터 적용 ──
   if(_cf==='pending')        data=data.filter(c=>c.status==='pending'); // 오픈 챌린지 포함하여 대기중 전체 표시
