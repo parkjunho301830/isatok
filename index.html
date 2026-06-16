@@ -273,70 +273,15 @@
         <label>입력 방식</label>
         <div class="fscroll" id="res-mode-chips">
           <button class="fc on" id="rm-detail" type="button" onclick="setResMode('detail')">세트 점수</button>
-          <button class="fc" id="rm-text" type="button" onclick="setResMode('text')">직접 입력</button>
           <button class="fc" id="rm-sets" type="button" onclick="setResMode('sets')">세트 승패</button>
           <button class="fc" id="rm-winner" type="button" onclick="setResMode('winner')">승자만</button>
         </div>
       </div>
 
-      <!-- ── 세트별 스코어: 드럼롤 피커 (기존 방식) ── -->
+      <!-- ── 세트별 스코어: 숫자 직접 입력 ── -->
       <div class="fg res-mode-panel" id="res-panel-detail" style="margin-bottom:0">
-        <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 추가 버튼으로 기록)</span></label>
-
-        <!-- 점수 입력 카드: 가로 스크롤 없는 모바일 최적화 레이아웃 -->
-        <div style="background:var(--c2);border-radius:16px;padding:14px 12px;margin-bottom:10px">
-          <!-- 팀명 표시 행 -->
-          <div style="display:flex;align-items:center;margin-bottom:10px;gap:8px">
-            <div id="sc-lbl-a" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">A팀</div>
-            <div style="width:24px;flex-shrink:0;text-align:center;font-size:14px;color:var(--t3);font-weight:700">:</div>
-            <div id="sc-lbl-b" style="flex:1;text-align:center;font-size:12px;font-weight:800;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">B팀</div>
-            <div style="width:48px;flex-shrink:0"></div>
-          </div>
-
-          <!-- 드럼롤 + 추가 버튼 행 -->
-          <div style="display:flex;align-items:center;gap:8px">
-            <!-- A팀 드럼롤 피커 -->
-            <div style="flex:1;display:flex;justify-content:center">
-              <div class="drum-picker" id="drum-a" data-team="a">
-                <div class="drum-mask drum-mask-top"></div>
-                <div class="drum-highlight"></div>
-                <div class="drum-scroll" id="drum-scroll-a"></div>
-                <div class="drum-mask drum-mask-bot"></div>
-              </div>
-            </div>
-
-            <!-- 구분자 -->
-            <div style="width:24px;text-align:center;font-size:24px;font-weight:900;color:var(--t3);flex-shrink:0">:</div>
-
-            <!-- B팀 드럼롤 피커 -->
-            <div style="flex:1;display:flex;justify-content:center">
-              <div class="drum-picker" id="drum-b" data-team="b">
-                <div class="drum-mask drum-mask-top"></div>
-                <div class="drum-highlight drum-highlight-b"></div>
-                <div class="drum-scroll" id="drum-scroll-b"></div>
-                <div class="drum-mask drum-mask-bot"></div>
-              </div>
-            </div>
-
-            <!-- 세트 추가 버튼 -->
-            <button class="btn btn-p" onclick="addSet()"
-              style="flex-shrink:0;width:48px;min-height:80px;padding:0;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:14px;-webkit-tap-highlight-color:transparent">
-              <span style="font-size:20px;line-height:1">＋</span>
-              <span style="font-size:10px;line-height:1.2">추가</span>
-            </button>
-          </div>
-
-          <!-- 숨겨진 값 저장용 -->
-          <div id="sc-a-disp" style="display:none">0</div>
-          <div id="sc-b-disp" style="display:none">0</div>
-        </div>
-      </div>
-
-      <!-- ── 텍스트 직접 입력 ── -->
-      <div class="fg res-mode-panel" id="res-panel-text" style="display:none;margin-bottom:0">
-        <label>세트별 점수 직접 입력 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>
-        <textarea id="res-text-input" class="res-text-input" rows="3" placeholder="예) 11:8, 9:11, 11:7" oninput="parseResTextInput()"></textarea>
-        <div style="font-size:12px;color:var(--t3);margin-top:6px">쉼표·공백·줄바꿈으로 구분 · 11:8 형식</div>
+        <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 · 각 세트 점수 입력)</span></label>
+        <div id="sc-input-rows"></div>
       </div>
 
       <!-- ── 세트 승패만 입력 ── -->
@@ -376,9 +321,8 @@
         <div class="res-winner-hint">세트 점수 없이 <strong>승리 팀만</strong> 선택 후 저장하면 됩니다.</div>
       </div>
 
-      <!-- 공통: 입력된 세트 미리보기 -->
+      <!-- 공통: 세트 승패 요약 -->
       <div class="fg" id="res-preview-wrap" style="margin-bottom:0">
-        <div id="sc-list" style="display:flex;flex-direction:column;gap:6px"></div>
         <div id="sc-summary" style="display:none;margin-top:10px;padding:10px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:13px;font-weight:600;color:var(--t2)"></div>
         <div id="sc-setwins-preview" style="display:none;margin-top:10px;padding:12px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:15px;font-weight:700;color:var(--t2)"></div>
       </div>

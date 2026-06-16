@@ -49,9 +49,11 @@ let _betPickId=null,_betPickSide=null,_betPickMember=null;
 let _scA=0,_scB=0;
 // _resEditMode: 완료된 경기 결과 수정 여부
 let _resEditMode=false;
-// _resInputMode: 결과 입력 방식 ('detail'|'text'|'sets'|'winner')
+// _resInputMode: 결과 입력 방식 ('detail'|'sets'|'winner')
 let _resInputMode='detail';
 let _setWinsA=0,_setWinsB=0;
+let _setRowCount=3;
+let _scLblA='A팀',_scLblB='B팀';
 // _rkMode: 랭킹 탭 ('individual' | 'double')
 let _rkMode='individual';
 // _deepLinkCh: 카카오 공유 링크로 진입 시 강조할 대결 ID
@@ -1206,18 +1208,129 @@ function _isSetWinsScore(score){
   if(a===b)return false;
   return a<=4&&b<=4&&(a+b)>=2;
 }
-function _parseScoreText(text){
-  if(!text)return[];
-  var tokens=text.split(/[\s,\n]+/).filter(Boolean);
+function _maxSetRows(){
+  return _gameMode==='bo5'?5:_gameMode==='bo7'?7:3;
+}
+function _readSetRowsFromDom(){
+  var rows=document.querySelectorAll('#sc-input-rows .res-set-row');
   var out=[];
-  for(var i=0;i<tokens.length;i++){
-    var p=tokens[i].trim();
-    if(!/^\d+:\d+$/.test(p))continue;
-    var ab=p.split(':');
-    out.push({a:parseInt(ab[0],10),b:parseInt(ab[1],10)});
+  for(var i=0;i<rows.length;i++){
+    var inpA=rows[i].querySelector('.res-in-a');
+    var inpB=rows[i].querySelector('.res-in-b');
+    if(!inpA||!inpB)continue;
+    if(inpA.value===''||inpB.value==='')continue;
+    var a=parseInt(inpA.value,10),b=parseInt(inpB.value,10);
+    if(isNaN(a)||isNaN(b)||a<0||b<0)continue;
+    out.push({a:a,b:b});
   }
   return out;
 }
+function syncSetsFromInputs(){
+  _sets=_readSetRowsFromDom();
+}
+function _renderSetSummary(){
+  var summary=g('sc-summary');
+  if(!summary)return;
+  if(_resInputMode!=='detail'||!_sets.length){
+    summary.style.display='none';
+    _updateResPreviewVisibility();
+    return;
+  }
+  var winsA=_sets.filter(function(x){return x.a>x.b;}).length;
+  var winsB=_sets.filter(function(x){return x.b>x.a;}).length;
+  var totalA=_sets.reduce(function(s,x){return s+x.a;},0);
+  var totalB=_sets.reduce(function(s,x){return s+x.b;},0);
+  summary.innerHTML=
+    '<span style="color:var(--a);font-weight:800">'+winsA+'세트</span>'
+    +' <span style="color:var(--t3)">vs</span> '
+    +'<span style="color:var(--blue);font-weight:800">'+winsB+'세트</span>'
+    +(_sets.length>=2?('<span style="color:var(--t3);margin:0 8px">|</span>'
+      +'총점 <span style="color:var(--a)">'+totalA+'</span>'
+      +' : <span style="color:var(--blue)">'+totalB+'</span>'):'');
+  summary.style.display='block';
+  _updateResPreviewVisibility();
+}
+function _autoWinnerFromSetScores(){
+  if(_resInputMode!=='detail')return;
+  syncSetsFromInputs();
+  if(!_sets.length)return;
+  var wA=_sets.filter(function(x){return x.a>x.b;}).length;
+  var wB=_sets.filter(function(x){return x.b>x.a;}).length;
+  if(_gameMode){
+    var winsNeeded=_gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
+    if(wA>=winsNeeded){setW('a');return;}
+    if(wB>=winsNeeded){setW('b');return;}
+  }
+  if(wA>wB)setW('a');
+  else if(wB>wA)setW('b');
+}
+window.onSetScoreInput=function(){
+  syncSetsFromInputs();
+  _autoWinnerFromSetScores();
+  _renderSetSummary();
+};
+function renderSetInputRows(preserved){
+  var box=g('sc-input-rows');
+  if(!box)return;
+  var maxR=_maxSetRows();
+  if(!preserved){
+    if(_sets.length>_setRowCount)_setRowCount=_sets.length;
+  }else{
+    _setRowCount=preserved.length;
+  }
+  if(_setRowCount<1)_setRowCount=1;
+  if(_setRowCount>maxR)_setRowCount=maxR;
+  var head='<div class="res-set-input-head">'
+    +'<span class="res-set-num-h"></span>'
+    +'<span class="res-set-team-h" style="color:var(--a)">'+_scLblA+'</span>'
+    +'<span class="res-set-colon-h"></span>'
+    +'<span class="res-set-team-h" style="color:var(--blue)">'+_scLblB+'</span>'
+    +'<span class="res-set-del-h"></span></div>';
+  var rows='';
+  for(var i=0;i<_setRowCount;i++){
+    var va='',vb='';
+    if(preserved&&preserved[i]){va=preserved[i].a;vb=preserved[i].b;}
+    else if(_sets[i]){va=String(_sets[i].a);vb=String(_sets[i].b);}
+    rows+='<div class="res-set-row">'
+      +'<span class="res-set-num">'+(i+1)+'세트</span>'
+      +'<input type="number" inputmode="numeric" pattern="[0-9]*" class="res-set-in res-in-a" min="0" max="99" placeholder="0" value="'+va+'" oninput="onSetScoreInput()">'
+      +'<span class="res-set-colon">:</span>'
+      +'<input type="number" inputmode="numeric" pattern="[0-9]*" class="res-set-in res-in-b" min="0" max="99" placeholder="0" value="'+vb+'" oninput="onSetScoreInput()">'
+      +(i>0?'<button type="button" class="res-set-del" onclick="removeSetRow('+i+')" aria-label="세트 삭제">✕</button>':'<span class="res-set-del"></span>')
+      +'</div>';
+  }
+  var addBtn=_setRowCount<maxR
+    ?'<button type="button" class="btn btn-g res-set-add" onclick="addSetRow()">＋ 세트 추가</button>'
+    :'<div style="font-size:12px;color:var(--t3);text-align:center;margin-top:8px">최대 '+maxR+'세트까지 입력 가능</div>';
+  box.innerHTML=head+rows+addBtn;
+}
+function _readAllSetRowValues(){
+  var rows=document.querySelectorAll('#sc-input-rows .res-set-row');
+  var vals=[];
+  for(var i=0;i<rows.length;i++){
+    var inpA=rows[i].querySelector('.res-in-a');
+    var inpB=rows[i].querySelector('.res-in-b');
+    vals.push({a:inpA?inpA.value:'',b:inpB?inpB.value:''});
+  }
+  return vals;
+}
+window.addSetRow=function(){
+  if(_setRowCount>=_maxSetRows()){
+    toast('⚠️ 최대 '+_maxSetRows()+'세트까지 입력 가능합니다');
+    return;
+  }
+  var vals=_readAllSetRowValues();
+  vals.push({a:'',b:''});
+  _setRowCount=vals.length;
+  renderSetInputRows(vals);
+};
+window.removeSetRow=function(idx){
+  var vals=_readAllSetRowValues();
+  vals.splice(idx,1);
+  _setRowCount=Math.max(1,vals.length);
+  renderSetInputRows(vals);
+  onSetScoreInput();
+};
 function _updateResPreviewVisibility(){
   var wrap=g('res-preview-wrap');
   var swPrev=g('sc-setwins-preview');
@@ -1231,7 +1344,6 @@ function _updateResPreviewVisibility(){
         swPrev.style.display='block';
       }else swPrev.style.display='none';
     }
-    g('sc-list').innerHTML='';
     g('sc-summary').style.display='none';
     wrap.style.display=(_setWinsA>0||_setWinsB>0)?'':'none';
     return;
@@ -1241,37 +1353,22 @@ function _updateResPreviewVisibility(){
     wrap.style.display='none';
     return;
   }
+  if(_resInputMode==='detail'){
+    wrap.style.display=_sets.length?'':'none';
+    return;
+  }
   wrap.style.display=_sets.length?'':'none';
 }
 window.setResMode=function(mode){
-  if(_resInputMode==='detail'&&mode==='text'&&_sets.length){
-    var ti=g('res-text-input');
-    if(ti)ti.value=_sets.map(function(s){return s.a+':'+s.b;}).join(', ');
-  }
-  if(_resInputMode==='text'&&mode==='detail'){
-    parseResTextInput();
-  }
   _resInputMode=mode;
-  ['detail','text','sets','winner'].forEach(function(m){
+  ['detail','sets','winner'].forEach(function(m){
     var btn=g('rm-'+m);
     if(btn)btn.classList.toggle('on',m===mode);
     var panel=g('res-panel-'+m);
     if(panel)panel.style.display=m===mode?'':'none';
   });
   _updateResPreviewVisibility();
-};
-window.parseResTextInput=function(){
-  var ti=g('res-text-input');
-  if(!ti)return;
-  _sets=_parseScoreText(ti.value);
-  renderSets();
-  if(_sets.length&&_gameMode){
-    var winsNeeded=_gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
-    var wA=_sets.filter(function(x){return x.a>x.b;}).length;
-    var wB=_sets.filter(function(x){return x.b>x.a;}).length;
-    if(wA>=winsNeeded)setW('a');
-    else if(wB>=winsNeeded)setW('b');
-  }
+  if(mode==='detail')_renderSetSummary();
 };
 function _renderSetWinsUI(){
   var va=g('sw-val-a'),vb=g('sw-val-b');
@@ -1300,12 +1397,7 @@ function _buildResultScore(){
     if(_setWinsA===0&&_setWinsB===0)return null;
     return _setWinsA+':'+_setWinsB;
   }
-  if(_resInputMode==='text'){
-    var ti=g('res-text-input');
-    var parsed=ti?_parseScoreText(ti.value):[];
-    if(!parsed.length)return null;
-    return parsed.map(function(s){return s.a+':'+s.b;}).join(', ');
-  }
+  syncSetsFromInputs();
   if(_sets.length>0)return _sets.map(function(s){return s.a+':'+s.b;}).join(', ');
   return null;
 }
@@ -1317,6 +1409,7 @@ window.openRes=function(id){
   _rw=null;
   _resInputMode='detail';
   _setWinsA=0;_setWinsB=0;
+  _setRowCount=3;
   // ── 세트 배열 초기화 ──
   _sets=[];
   // ── 경기 방식 초기화 (미선택 상태로 리셋) ──
@@ -1341,21 +1434,13 @@ window.openRes=function(id){
   // ── 세트 입력: 팀 약칭 라벨 (이름이 길면 첫 이름만 사용) ──
   var lblA=(c.myTeam||[])[0]||'A팀';
   var lblB=(c.oppTeam||[])[0]||'B팀';
-  g('sc-lbl-a').textContent=lblA;
-  g('sc-lbl-b').textContent=lblB;
+  _scLblA=lblA;
+  _scLblB=lblB;
   var swA=g('sw-lbl-a'),swB=g('sw-lbl-b');
   if(swA)swA.textContent=lblA;
   if(swB)swB.textContent=lblB;
-  var ti=g('res-text-input');
-  if(ti)ti.value='';
   _renderSetWinsUI();
 
-  // ── 스텝퍼/드럼롤 초기화: 전역 변수와 화면 표시 모두 0으로 리셋 ──
-  _scA=0;_scB=0;
-  var dA=g('sc-a-disp'),dB=g('sc-b-disp');
-  if(dA)dA.textContent='0';
-  if(dB)dB.textContent='0';
-  g('sc-list').innerHTML='';
   g('sc-summary').style.display='none';
 
   // ── 결과 수정: 기존 승자·세트 점수 복원 ──
@@ -1370,15 +1455,17 @@ window.openRes=function(id){
       var parsed=_parseScoreToSets(c.score);
       if(parsed.length){
         _sets=parsed;
-        if(ti)ti.value=_sets.map(function(s){return s.a+':'+s.b;}).join(', ');
+        _setRowCount=Math.max(3,parsed.length);
         setResMode('detail');
-        renderSets();
+        renderSetInputRows();
+        onSetScoreInput();
       }else if(!c.score){
         setResMode('winner');
       }
     }
   }else{
     setResMode('detail');
+    renderSetInputRows();
   }
 
   // 모달 제목: 입력 / 수정
@@ -1386,18 +1473,6 @@ window.openRes=function(id){
   if(mtEm)mtEm.textContent=_resEditMode?'수정':'입력';
 
   openMo('mo-result');
-
-  // ── 드럼롤 피커 초기화 (모달이 DOM에 표시된 후 실행해야 레이아웃 정상) ──
-  // 최초 1회만 이벤트 바인딩, 이후에는 값만 리셋
-  requestAnimationFrame(function(){
-    if(!_drumsInited){
-      initDrums();
-      _drumsInited=true;
-    }
-    // 값 0으로 초기화 (애니메이션 없이 즉시)
-    _drumSetValue('a',0,false);
-    _drumSetValue('b',0,false);
-  });
 }
 window.setW=function(t){
   _rw=t;
@@ -1565,71 +1640,14 @@ window.stepScore=function(team,delta){
   }
 }
 
-// ── addSet: 스텝퍼 변수(_scA, _scB)에서 점수를 읽어 _sets 배열에 추가
-// ★ 기존 input text 필드 방식 제거 → iOS 키보드 미표시, 텍스트 안 보임 이슈 근본 해결
-window.addSet=function(){
-  // 드럼롤 피커 방식: 전역 변수에서 직접 읽기
-  // 11점 상한 제한 없음 — 듀스(deuce) 상황 자유 입력 가능
-  var va=_scA;
-  var vb=_scB;
-  if(isNaN(va)||isNaN(vb)||va<0||vb<0){return;}
-
-  // ── 경기 방식에 따른 최대 세트 수 계산 ──
-  var maxSets = _gameMode==='bo3'?3 : _gameMode==='bo5'?5 : 7;
-  if(_sets.length>=maxSets){
-    var modeLabel=_gameMode==='bo3'?'3판2선':_gameMode==='bo5'?'5판3선':'7판4선';
-    toast('⚠️ '+(modeLabel||'최대')+' 경기에서 최대 '+maxSets+'세트까지 입력 가능합니다');
-    return;
-  }
-
-  // ── 이미 선승 조건 충족 여부 체크 ──
-  if(_gameMode){
-    var winsNeeded=_gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
-    var wA=_sets.filter(function(x){return x.a>x.b;}).length;
-    var wB=_sets.filter(function(x){return x.b>x.a;}).length;
-    if(wA>=winsNeeded||wB>=winsNeeded){
-      toast('⚠️ 이미 선승 조건이 충족되어 더 이상 추가할 수 없습니다');
-      return;
-    }
-  }
-
-  _sets.push({a:va,b:vb});
-  // 드럼롤 및 전역 변수 초기화: 0으로 리셋
-  _scA=0;_scB=0;
-  var dA=g('sc-a-disp'),dB=g('sc-b-disp');
-  if(dA)dA.textContent='0';
-  if(dB)dB.textContent='0';
-  // 드럼롤 피커도 0으로 스냅
-  _drumSetValue('a',0,true);
-  _drumSetValue('b',0,true);
-  renderSets();
-
-  // ── 자동 승리 감지: 경기 방식이 선택된 경우에만 동작 ──
-  if(_gameMode){
-    var winsNeeded2=_gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
-    var wA2=_sets.filter(function(x){return x.a>x.b;}).length;
-    var wB2=_sets.filter(function(x){return x.b>x.a;}).length;
-    var c=CHAL.find(function(c){return c.id===_rid;});
-    var lblA=c?((c.myTeam||[])[0]||'A팀'):'A팀';
-    var lblB=c?((c.oppTeam||[])[0]||'B팀'):'B팀';
-
-    if(wA2>=winsNeeded2){
-      // A팀(내 팀) 승리 자동 지정
-      setW('a');
-      toast('🏆 '+lblA+' 팀 승리! ('+wA2+'승)');
-    } else if(wB2>=winsNeeded2){
-      // B팀(상대 팀) 승리 자동 지정
-      setW('b');
-      toast('🏆 '+lblB+' 팀 승리! ('+wB2+'승)');
-    }
-  }
+// ── renderSets: 세트 요약 갱신 (하위 호환)
+function renderSets(){
+  _renderSetSummary();
 }
 
-// ── removeSet: 특정 인덱스의 세트 삭제
-window.removeSet=function(idx){
-  _sets.splice(idx,1);
-  renderSets();
-}
+// ── addSet / removeSet: 하위 호환 (드럼롤 UI 제거 후 addSetRow/removeSetRow로 위임)
+window.addSet=function(){addSetRow();};
+window.removeSet=function(idx){removeSetRow(idx);};
 
 // ── setGameMode: 경기 방식(3판2선/5판3선/7판4선) 선택 처리
 // 선택된 버튼은 강조 표시, 이미 선택된 방식을 다시 누르면 해제(토글)
@@ -1672,7 +1690,10 @@ window.setGameMode=function(mode){
     hint.textContent=lb+' — '+winsNeeded+'승 달성 시 자동 승리 지정 (최대 '+maxS+'세트)';
   }
   // ── 세트가 이미 입력된 경우: 현재 방식으로 자동 승리 재계산 ──
-  if(_sets.length>0){
+  if(_resInputMode==='detail'){
+    renderSetInputRows();
+    onSetScoreInput();
+  }else if(_sets.length>0){
     var winsNeeded2=mode==='bo3'?2:mode==='bo5'?3:4;
     var wA=_sets.filter(function(x){return x.a>x.b;}).length;
     var wB=_sets.filter(function(x){return x.b>x.a;}).length;
@@ -1682,64 +1703,6 @@ window.setGameMode=function(mode){
     if(wA>=winsNeeded2){setW('a');toast('🏆 '+lblA+' 팀 승리 자동 감지! ('+wA+'승)');}
     else if(wB>=winsNeeded2){setW('b');toast('🏆 '+lblB+' 팀 승리 자동 감지! ('+wB+'승)');}
   }
-}
-
-// ── renderSets: 추가된 세트 목록 및 합산 요약을 DOM에 반영
-function renderSets(){
-  var list=g('sc-list');
-  var summary=g('sc-summary');
-
-  if(!_sets.length){
-    list.innerHTML='';
-    summary.style.display='none';
-    _updateResPreviewVisibility();
-    return;
-  }
-
-  // ── 세트별 행 렌더링 ──
-  // 각 행: 세트 번호 / A점수 굵게 / : / B점수 굵게 / 삭제 버튼
-  // 이긴 쪽 점수에 색상 강조 적용
-  list.innerHTML=_sets.map(function(s,i){
-    var aWin=s.a>s.b;
-    var bWin=s.b>s.a;
-    var setNum=i+1;
-    var aStyle=aWin?'color:var(--a);font-weight:800':'color:var(--t2);font-weight:700';
-    var bStyle=bWin?'color:var(--blue);font-weight:800':'color:var(--t2);font-weight:700';
-    return '<div style="display:flex;align-items:center;gap:8px;'
-      +'background:var(--c2);border-radius:10px;padding:8px 12px;">'
-      // 세트 번호
-      +'<span style="font-size:11px;color:var(--t3);font-weight:600;width:36px;flex-shrink:0">게임'+setNum+'</span>'
-      // A팀 점수
-      +'<span style="flex:1;text-align:right;font-size:18px;'+aStyle+'">'+s.a+'</span>'
-      // 구분자
-      +'<span style="font-size:16px;color:var(--t3);font-weight:600;flex-shrink:0">:</span>'
-      // B팀 점수
-      +'<span style="flex:1;text-align:left;font-size:18px;'+bStyle+'">'+s.b+'</span>'
-      // 삭제 버튼
-      +'<button class="btn btn-d btn-xs" onclick="removeSet('+i+')" '
-      +'style="flex-shrink:0;opacity:.6">✕</button>'
-      +'</div>';
-  }).join('');
-
-  // ── 2세트 이상일 때 합산 요약 표시 ──
-  if(_sets.length>=2){
-    var totalA=_sets.reduce(function(s,x){return s+x.a;},0);
-    var totalB=_sets.reduce(function(s,x){return s+x.b;},0);
-    // 각 팀이 이긴 세트 수
-    var winsA=_sets.filter(function(x){return x.a>x.b;}).length;
-    var winsB=_sets.filter(function(x){return x.b>x.a;}).length;
-    summary.innerHTML=
-      '<span style="color:var(--a);font-weight:800">'+winsA+'세트</span>'
-      +' <span style="color:var(--t3)">vs</span> '
-      +'<span style="color:var(--blue);font-weight:800">'+winsB+'세트</span>'
-      +'<span style="color:var(--t3);margin:0 8px">|</span>'
-      +'총점 <span style="color:var(--a)">'+totalA+'</span>'
-      +' : <span style="color:var(--blue)">'+totalB+'</span>';
-    summary.style.display='block';
-  } else {
-    summary.style.display='none';
-  }
-  _updateResPreviewVisibility();
 }
 
 // ── 경기 결과에 따른 회원 포인트 반영 (sign: 1=적용, -1=취소)
