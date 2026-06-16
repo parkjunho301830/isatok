@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// 이사탁(isatok) — Firebase Auth 미사용, 클럽 내부 운영용
+// 배포: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /members/{memberId} {
+      allow read, write: if true;
+    }
+
+    match /challenges/{challengeId} {
+      allow read, write: if true;
+    }
+
+    // 시즌제 랭킹 (신규)
+    match /seasons/{seasonId} {
+      allow read: if true;
+      allow create: if isValidSeasonWrite();
+      allow update: if isValidSeasonWrite();
+      allow delete: if false;
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read, write: if true;
+    }
+
+    match /notices/{noticeId} {
+      allow read, write: if true;
+    }
+
+    match /boards/{boardId} {
+      allow read, write: if true;
+    }
+
+    function isValidSeasonWrite() {
+      let d = request.resource.data;
+      return d.name is string
+        && d.name.size() > 0
+        && d.name.size() <= 80
+        && d.startDate is string
+        && d.startDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && d.status in ['active', 'ended']
+        && (!('endDate' in d) || d.endDate == null || d.endDate.matches('^\\d{4}-\\d{2}-\\d{2}$'))
+        && (!('isCurrent' in d) || d.isCurrent is bool)
+        && (!('champion' in d) || d.champion == null || (
+          d.champion.name is string
+          && d.champion.name.size() > 0
+        ));
+    }
+  }
+}

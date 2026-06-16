@@ -57,6 +57,10 @@ let _setWinPick=[]; // 세트 승패 모드: 각 세트 승자 ('a'|'b'|null)
 let _scLblA='A팀',_scLblB='B팀';
 // _rkMode: 랭킹 탭 ('individual' | 'double')
 let _rkMode='individual';
+// _rkScope: 랭킹 범위 ('all' | 'season')
+let _rkScope='all';
+let SEASONS=[];
+let TOURNAMENTS=[];
 // _profileMemberId: 회원 상세 모달 대상
 let _profileMemberId=null;
 // _deepLinkCh: 카카오 공유 링크로 진입 시 강조할 대결 ID
@@ -69,7 +73,7 @@ let _instantCreate=false;
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
 let _isScrolling=false,_scrollTimer=null;
-let _pendingRender={c:false,m:false,grids:false};
+let _pendingRender={c:false,m:false,grids:false,sn:false,h:false};
 
 function _isBSOpen(){
   var bs=g('bs-ch');
@@ -85,7 +89,10 @@ function _flushPendingRenders(){
   if(_pendingRender.m&&_currentPage==='ranking')renderR();
   if(_pendingRender.grids&&_isBSOpen()&&!_isBSFocused())renderGridsBS();
   if(_pendingRender.c&&_currentPage==='challenge'&&!_isBSFocused())renderC();
+  if(_pendingRender.sn)_applySeasonsSnapshotRender();
+  if(_pendingRender.h&&_currentPage==='hall')renderHall();
   _pendingRender.c=false;_pendingRender.m=false;_pendingRender.grids=false;
+  _pendingRender.sn=false;_pendingRender.h=false;
 }
 function _applyMembersSnapshotRender(){
   if(_isScrolling){
@@ -95,6 +102,7 @@ function _applyMembersSnapshotRender(){
   }
   if(_currentPage==='members')renderM();
   if(_currentPage==='ranking')renderR();
+  if(_currentPage==='hall')renderHall();
   if(_isBSOpen()&&!_isBSFocused())renderGridsBS();
 }
 function _applyChallengesSnapshotRender(){
@@ -105,6 +113,7 @@ function _applyChallengesSnapshotRender(){
   }
   if(_currentPage==='challenge'&&!_isBSFocused())renderC();
   if(_currentPage==='ranking')renderR();
+  if(_currentPage==='hall')renderHall();
   var profMo=g('mo-profile');
   if(profMo&&profMo.classList.contains('on')&&_profileMemberId)_renderProfileModal();
   if(_deepLinkCh){
@@ -239,6 +248,23 @@ async function init(){
         _rafC=null;
       });
     });
+    let _rafSn=null;
+    onSnapshot(query(collection(db,'seasons'),orderBy('startDate','desc')),s=>{
+      SEASONS=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(_rafSn)cancelAnimationFrame(_rafSn);
+      _rafSn=requestAnimationFrame(()=>{
+        _applySeasonsSnapshotRender();
+        _rafSn=null;
+      });
+    });
+    try{
+      onSnapshot(collection(db,'tournaments'),s=>{
+        TOURNAMENTS=s.docs.map(d=>({id:d.id,...d.data()}));
+        if(_currentPage==='hall')renderHall();
+        var profMo=g('mo-profile');
+        if(profMo&&profMo.classList.contains('on')&&_profileMemberId)_renderProfileModal();
+      });
+    }catch(e){}
     // 공지사항·자유게시판은 UI 제거로 구독 불필요 (Firebase 데이터는 보존)
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
@@ -270,7 +296,7 @@ function _parseEntryFromLocation(){
 }
 function _applyEntryNavigation(){
   var entry=_parseEntryFromLocation();
-  var validPages=['challenge','ranking','members'];
+  var validPages=['challenge','ranking','members','hall'];
   if(!entry.pageId||validPages.indexOf(entry.pageId)<0)return;
   nav(entry.pageId);
   if(entry.pageId==='challenge'){
@@ -838,6 +864,7 @@ window.nav=function(id){
   // 탭 전환 시 스냅샷 중 스킵된 렌더 1회 보정
   if(id==='members')renderM();
   else if(id==='ranking')renderR();
+  else if(id==='hall')renderHall();
   else if(id==='challenge')renderC();
 }
 
@@ -2089,6 +2116,305 @@ function _computeHeadToHead(nameA,nameB){
   });
   return {winsA:winsA,winsB:winsB,rateA:rateA,rateB:rateB,total:total,recent:recent};
 }
+
+// ── 시즌 / 배지 / 명예의 전당 (CHAL·seasons 기반 실시간 계산) ──
+function _chMatchDate(c){
+  var d=c.date||'';
+  if(!d&&c.createdAt)d=c.createdAt.slice(0,10);
+  return d;
+}
+function _chInSeason(c,season){
+  if(!season||!season.startDate)return false;
+  var d=_chMatchDate(c);
+  if(!d)return false;
+  if(d<season.startDate)return false;
+  if(season.endDate&&d>season.endDate)return false;
+  return true;
+}
+function _getCurrentSeason(){
+  return SEASONS.find(function(s){return s.isCurrent&&s.status!=='ended';})||null;
+}
+function _playerSideInAnyMatch(c,name){
+  var my=c.myTeam||[],opp=c.oppTeam||[];
+  if(my.indexOf(name)>=0)return'a';
+  if(opp.indexOf(name)>=0)return'b';
+  return null;
+}
+function _playerWonAnyMatch(c,name){
+  var side=_playerSideInAnyMatch(c,name);
+  return side&&c.winner===side;
+}
+function _isMatchForRkMode(c,isDbl){
+  if(c.status!=='completed')return false;
+  return isDbl?_isDoublesType(c.type):_isSinglesType(c.type);
+}
+function _computeSeasonPoints(member,season,isDbl){
+  var pt=DEF_PT,name=member.name;
+  CHAL.forEach(function(c){
+    if(!_chInSeason(c,season)||!_isMatchForRkMode(c,isDbl))return;
+    if(!_playerSideInAnyMatch(c,name))return;
+    var pts=isDbl?PT.double:PT.individual;
+    if(_playerWonAnyMatch(c,name))pt+=pts.win;
+    else pt+=pts.loss;
+  });
+  return pt;
+}
+function _seasonFilterFn(season){
+  return function(c){return _chInSeason(c,season);};
+}
+function _computeStreakFromMatches(matches,playerName){
+  var current=0,max=0,run=0;
+  for(var i=0;i<matches.length;i++){
+    if(_playerWonMatch(matches[i],playerName))current++;
+    else break;
+  }
+  var asc=matches.slice().reverse();
+  for(var j=0;j<asc.length;j++){
+    if(_playerWonMatch(asc[j],playerName)){run++;if(run>max)max=run;}
+    else run=0;
+  }
+  return {currentStreak:current,maxStreak:max};
+}
+function _computeSinglesRecord(name,filterFn){
+  var matches=_getSinglesMatchesFor(name);
+  if(filterFn)matches=matches.filter(filterFn);
+  var wins=0,losses=0;
+  matches.forEach(function(c){
+    if(_playerWonMatch(c,name))wins++;
+    else losses++;
+  });
+  var streak=_computeStreakFromMatches(matches,name);
+  var total=wins+losses;
+  var winRate=total?Math.round(wins/total*100):0;
+  return {wins:wins,losses:losses,total:total,winRate:winRate,currentStreak:streak.currentStreak,maxStreak:streak.maxStreak};
+}
+function _countSeasonChampionships(name){
+  return SEASONS.filter(function(s){
+    return s.status==='ended'&&s.champion&&s.champion.name===name;
+  }).length;
+}
+function _countTournamentWins(name){
+  var n=0;
+  TOURNAMENTS.forEach(function(t){
+    if(t.winner===name||t.champion===name)n++;
+  });
+  CHAL.forEach(function(c){
+    if(c.status!=='completed'||(!c.tournamentId&&!c.isTournament))return;
+    if(_playerWonAnyMatch(c,name))n++;
+  });
+  return n;
+}
+const BADGE_DEFS=[
+  {id:'first_win',icon:'🏅',label:'첫 승',desc:'첫 승리 달성',check:function(s,ctx){return s.wins>=1;}},
+  {id:'streak5',icon:'🔥',label:'5연승',desc:'5연승 달성',check:function(s){return s.maxStreak>=5;}},
+  {id:'streak10',icon:'🔥',label:'10연승',desc:'10연승 달성',check:function(s){return s.maxStreak>=10;}},
+  {id:'games50',icon:'⚔️',label:'50경기',desc:'50경기 달성',check:function(s){return s.total>=50;}},
+  {id:'games100',icon:'💯',label:'100경기',desc:'100경기 달성',check:function(s){return s.total>=100;}},
+  {id:'tournament',icon:'🏆',label:'토너먼트 우승',desc:'토너먼트 우승',check:function(s,ctx){return ctx.tournamentWins>0;}},
+  {id:'season_champion',icon:'👑',label:'시즌 챔피언',desc:'시즌 우승',check:function(s,ctx){return ctx.seasonChampions>0;}}
+];
+function _computeMemberBadges(name){
+  var rec=_computeSinglesRecord(name);
+  var ctx={tournamentWins:_countTournamentWins(name),seasonChampions:_countSeasonChampionships(name)};
+  return BADGE_DEFS.filter(function(b){return b.check(rec,ctx);});
+}
+function _renderMemberBadges(name){
+  var el=g('prof-badges');
+  if(!el)return;
+  var badges=_computeMemberBadges(name);
+  if(!badges.length){
+    el.innerHTML='<div class="stat-box" style="text-align:center;color:var(--t3);font-size:13px">아직 획득한 배지가 없습니다</div>';
+    return;
+  }
+  el.innerHTML='<div class="stat-box"><div class="stat-box-t">🏅 보유 배지 '+badges.length+'개</div>'
+    +'<div class="badge-grid">'+badges.map(function(b){
+      return '<div class="member-badge" title="'+b.desc+'"><span class="member-badge-icon">'+b.icon+'</span><span class="member-badge-lbl">'+b.label+'</span></div>';
+    }).join('')+'</div></div>';
+}
+function _applySeasonsSnapshotRender(){
+  if(_isScrolling){_pendingRender.sn=true;return;}
+  if(_currentPage==='ranking')renderR();
+  if(_currentPage==='hall')renderHall();
+  var snMo=g('mo-season');
+  if(snMo&&snMo.classList.contains('on'))_renderSeasonList();
+  var profMo=g('mo-profile');
+  if(profMo&&profMo.classList.contains('on')&&_profileMemberId)_renderProfileModal();
+}
+function _updateRkSeasonBar(isSeason,season){
+  var bar=g('rk-season-info');
+  if(!bar)return;
+  if(!isSeason){bar.style.display='none';return;}
+  bar.style.display='';
+  if(!season){
+    bar.innerHTML='<span style="color:var(--amber);font-weight:700">⚠️ 현재 시즌이 없습니다. 📅 시즌 버튼에서 생성해 주세요.</span>';
+    return;
+  }
+  var range=season.startDate+(season.endDate?' ~ '+season.endDate:' ~ 진행중');
+  bar.innerHTML='<span style="font-weight:800;color:var(--t1)">📅 '+season.name+'</span>'
+    +'<span style="color:var(--t3);font-size:13px;margin-left:8px">'+range+'</span>'
+    +(season.status==='ended'&&season.champion?('<span style="margin-left:auto;font-weight:700;color:var(--amber)">👑 '+season.champion.name+'</span>'):'');
+}
+function _renderSeasonList(){
+  var box=g('sn-list');
+  if(!box)return;
+  if(!SEASONS.length){
+    box.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3);font-size:13px">등록된 시즌이 없습니다</div>';
+    return;
+  }
+  box.innerHTML=SEASONS.map(function(s){
+    var statusLbl=s.status==='ended'?'종료':'진행중';
+    var curTag=s.isCurrent?' <span class="badge bg" style="font-size:11px">현재</span>':'';
+    var champ=s.champion&&s.champion.name?(' · 👑 '+s.champion.name):'';
+    var acts='';
+    if(s.status!=='ended'){
+      if(!s.isCurrent)acts+='<button class="btn btn-g btn-xs" onclick="setCurrentSeason(\''+s.id+'\')">현재 지정</button> ';
+      acts+='<button class="btn btn-d btn-xs" onclick="endSeason(\''+s.id+'\')">시즌 종료</button>';
+    }
+    return '<div class="season-list-item"><div><div style="font-weight:700;color:var(--t1)">'+s.name+curTag+'</div>'
+      +'<div style="font-size:12px;color:var(--t3);margin-top:4px">'+s.startDate+(s.endDate?' ~ '+s.endDate:'')+' · '+statusLbl+champ+'</div></div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+acts+'</div></div>';
+  }).join('');
+}
+window.openSeasonMo=function(){
+  var nm=g('sn-name'),st=g('sn-start');
+  if(nm&&!nm.value){
+    nm.value=new Date().getFullYear()+' 시즌';
+  }
+  if(st&&!st.value){
+    st.value=new Date().toISOString().slice(0,10);
+  }
+  _renderSeasonList();
+  openMo('mo-season');
+};
+async function _unsetOtherCurrentSeasons(exceptId){
+  for(var i=0;i<SEASONS.length;i++){
+    var s=SEASONS[i];
+    if(s.id!==exceptId&&s.isCurrent){
+      if(db)await updateDoc(doc(db,'seasons',s.id),{isCurrent:false});
+      else s.isCurrent=false;
+    }
+  }
+}
+window.createSeason=async function(){
+  var name=(g('sn-name')&&g('sn-name').value||'').trim();
+  var startDate=(g('sn-start')&&g('sn-start').value||'').trim();
+  if(!name||!startDate){toast('⚠️ 시즌 이름과 시작일을 입력해주세요');return;}
+  try{
+    var data={name:name,startDate:startDate,status:'active',isCurrent:true,createdAt:new Date().toISOString()};
+    if(db){
+      await _unsetOtherCurrentSeasons(null);
+      await addDoc(collection(db,'seasons'),data);
+    }else{
+      await _unsetOtherCurrentSeasons(null);
+      SEASONS.unshift({id:'local_'+Date.now(),...data});
+      _applySeasonsSnapshotRender();
+    }
+    toast('✅ '+name+' 시즌 생성!');
+    closeMo('mo-season');
+  }catch(e){toast('❌ '+e.message);}
+};
+window.setCurrentSeason=async function(id){
+  try{
+    if(db){
+      await _unsetOtherCurrentSeasons(id);
+      await updateDoc(doc(db,'seasons',id),{isCurrent:true,status:'active'});
+    }else{
+      await _unsetOtherCurrentSeasons(id);
+      var s=SEASONS.find(function(x){return x.id===id;});
+      if(s){s.isCurrent=true;s.status='active';}
+      _applySeasonsSnapshotRender();
+    }
+    toast('✅ 현재 시즌으로 지정했습니다');
+  }catch(e){toast('❌ '+e.message);}
+};
+window.endSeason=async function(id){
+  var season=SEASONS.find(function(s){return s.id===id;});
+  if(!season||season.status==='ended'){toast('⚠️ 이미 종료된 시즌입니다');return;}
+  if(!confirm(season.name+' 시즌을 종료하시겠습니까?\n시즌 1위에게 👑 시즌 챔피언 배지가 지급됩니다.'))return;
+  var endDate=new Date().toISOString().slice(0,10);
+  var list=MEMBERS.filter(function(m){return m.status!=='비활성';})
+    .map(function(m){return {m:m,pt:_computeSeasonPoints(m,season,false)};})
+    .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
+  var top=list[0];
+  var champion=top?{name:top.m.name,memberId:top.m.id,points:top.pt}:null;
+  try{
+    var upd={status:'ended',isCurrent:false,endDate:endDate,endedAt:new Date().toISOString(),champion:champion};
+    if(db){
+      await updateDoc(doc(db,'seasons',id),upd);
+    }else{
+      Object.assign(season,upd);
+      _applySeasonsSnapshotRender();
+    }
+    toast(champion?'🏆 '+season.name+' 종료! 👑 '+champion.name:'✅ '+season.name+' 시즌 종료');
+  }catch(e){toast('❌ '+e.message);}
+};
+window.setRkScope=function(scope){
+  _rkScope=scope;
+  var all=g('rk-scope-all'),sn=g('rk-scope-season');
+  if(all)all.classList.toggle('on',scope==='all');
+  if(sn)sn.classList.toggle('on',scope==='season');
+  var ptH=g('rk-pt-h');
+  if(ptH)ptH.textContent=scope==='season'?'시즌 포인트':'포인트';
+  renderR();
+};
+function _hallTop10(rows,valueFn){
+  if(!rows.length){
+    return '<div style="text-align:center;padding:12px;color:var(--t3);font-size:13px">기록 없음</div>';
+  }
+  return rows.slice(0,10).map(function(x,i){
+    return '<div class="hall-row"><span class="hall-rank">'+(i+1)+'위</span><span class="hall-name">'+x.name+'</span><span class="hall-streak">'+valueFn(x)+'</span></div>';
+  }).join('');
+}
+function _buildHallMemberRows(mapFn){
+  return MEMBERS.filter(function(m){return m.status!=='비활성'&&m.name;})
+    .map(function(m){return mapFn(m);})
+    .filter(function(x){return x&&x.value>0;})
+    .sort(function(a,b){return b.value-a.value||a.name.localeCompare(b.name);});
+}
+function renderHall(){
+  var box=g('hall-content');
+  if(!box)return;
+  var winsRows=_buildHallMemberRows(function(m){
+    var r=_computeSinglesRecord(m.name);
+    return {name:m.name,value:r.wins};
+  });
+  var rateRows=_buildHallMemberRows(function(m){
+    var r=_computeSinglesRecord(m.name);
+    if(r.total<10)return null;
+    return {name:m.name,value:r.winRate,extra:r.total+'경기'};
+  });
+  var streakRows=_buildHallMemberRows(function(m){
+    var r=_computeSinglesRecord(m.name);
+    return {name:m.name,value:r.maxStreak};
+  });
+  var gamesRows=_buildHallMemberRows(function(m){
+    var r=_computeSinglesRecord(m.name);
+    return {name:m.name,value:r.total};
+  });
+  var tourRows=_buildHallMemberRows(function(m){
+    var n=_countTournamentWins(m.name);
+    return {name:m.name,value:n};
+  });
+  var seasonRows={};
+  SEASONS.filter(function(s){return s.status==='ended'&&s.champion&&s.champion.name;}).forEach(function(s){
+    var nm=s.champion.name;
+    seasonRows[nm]=(seasonRows[nm]||0)+1;
+  });
+  var seasonList=Object.keys(seasonRows).map(function(nm){return {name:nm,value:seasonRows[nm]};})
+    .sort(function(a,b){return b.value-a.value||a.name.localeCompare(b.name);});
+  var cats=[
+    {title:'🏆 최다승 TOP10',rows:winsRows,fn:function(x){return x.value+'승';}},
+    {title:'🏆 최고승률 TOP10',rows:rateRows,fn:function(x){return x.value+'%'+(x.extra?' · '+x.extra:'');}},
+    {title:'🏆 최다연승 TOP10',rows:streakRows,fn:function(x){return x.value+'연승';}},
+    {title:'🏆 최다경기 TOP10',rows:gamesRows,fn:function(x){return x.value+'경기';}},
+    {title:'🏆 토너먼트 우승 TOP10',rows:tourRows,fn:function(x){return x.value+'회';}},
+    {title:'👑 시즌 우승 TOP10',rows:seasonList,fn:function(x){return x.value+'회';}}
+  ];
+  box.innerHTML=cats.map(function(cat){
+    return '<div class="card card-p hall-cat"><div class="hall-cat-t">'+cat.title+'</div>'
+      +_hallTop10(cat.rows,cat.fn)+'</div>';
+  }).join('');
+}
 function _renderHallOfFame(){
   var wrap=g('rk-hall-wrap'),box=g('rk-hall');
   if(!wrap||!box)return;
@@ -2099,7 +2425,7 @@ function _renderHallOfFame(){
     return {name:m.name,max:s.maxStreak,cur:s.currentStreak};
   }).filter(function(x){return x.max>0;})
     .sort(function(a,b){return b.max-a.max||b.cur-a.cur||a.name.localeCompare(b.name);})
-    .slice(0,10);
+    .slice(0,3);
   if(!rows.length){
     box.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3)">연승 기록이 없습니다</div>';
     return;
@@ -2144,6 +2470,7 @@ function _renderProfileModal(){
   }
   var h2hBox=g('prof-h2h');
   if(h2hBox)h2hBox.innerHTML='';
+  _renderMemberBadges(m.name);
 }
 window.openMemberProfile=function(id){
   _profileMemberId=id;
@@ -2182,19 +2509,24 @@ window.setRk=function(mode){
   if(dbl)dbl.classList.toggle('on',mode==='double');
   renderR();
 }
-function _rankRowHash(m,rank,pt,gr){
-  var streak=0;
-  if(_rkMode==='individual'){
-    streak=_computeStreakStats(m.name).currentStreak;
-  }
-  return m.id+'|'+rank+'|'+(m.name||'')+'|'+gr.label+'|'+pt+'|'+streak;
+function _rankRowHash(m,rank,pt,gr,streak){
+  return m.id+'|'+rank+'|'+(m.name||'')+'|'+gr.label+'|'+pt+'|'+streak+'|'+_rkScope;
 }
-function _buildRankRowCells(m,rank,pt){
+function _streakForRankRow(m){
+  if(_rkMode!=='individual')return 0;
+  if(_rkScope==='season'){
+    var season=_getCurrentSeason();
+    if(!season)return 0;
+    return _computeSinglesRecord(m.name,_seasonFilterFn(season)).currentStreak;
+  }
+  return _computeStreakStats(m.name).currentStreak;
+}
+function _buildRankRowCells(m,rank,pt,grOpt){
   var top3=rank<=3;
-  var gr=_memberGrade(m);
+  var gr=grOpt||_memberGrade(m);
   var streakHtml='';
   if(_rkMode==='individual'){
-    var cur=_computeStreakStats(m.name).currentStreak;
+    var cur=_streakForRankRow(m);
     if(cur>0){
       streakHtml='<div style="font-size:12px;color:var(--amber);font-weight:700;margin-top:2px">🔥 '+cur+'연승</div>';
     }
@@ -2208,8 +2540,26 @@ function renderR(){
   var tb=g('rtb');
   if(!tb)return;
   var isDbl=_rkMode==='double';
+  var isSeason=_rkScope==='season';
+  var season=_getCurrentSeason();
+  _updateRkSeasonBar(isSeason,season);
+  if(isSeason&&!season){
+    Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){tb.removeChild(el);});
+    if(!tb.querySelector('tr[data-empty]')){
+      var emptyTr=document.createElement('tr');
+      emptyTr.dataset.empty='1';
+      emptyTr.innerHTML='<td colspan="4" style="text-align:center;padding:24px;color:var(--t3)">현재 시즌이 없습니다. 📅 시즌에서 생성해 주세요.</td>';
+      tb.appendChild(emptyTr);
+    }
+    _renderHallOfFame();
+    return;
+  }
   var list=MEMBERS.filter(function(m){return m.status!=='비활성';})
-    .map(function(m){return {m:m,pt:_memberPt(m,isDbl)};})
+    .map(function(m){
+      var pt=isSeason&&season?_computeSeasonPoints(m,season,isDbl):_memberPt(m,isDbl);
+      var gr=isSeason&&season?_calcGrade(pt):_memberGrade(m);
+      return {m:m,pt:pt,gr:gr};
+    })
     .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
   if(!list.length){
     Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){tb.removeChild(el);});
@@ -2235,12 +2585,13 @@ function renderR(){
   var childList=Array.from(tb.children);
   list.forEach(function(item,idx){
     var rank=idx+1;
-    var gr=_memberGrade(item.m);
-    var newHash=_rankRowHash(item.m,rank,item.pt,gr);
+    var gr=item.gr||_memberGrade(item.m);
+    var streak=_streakForRankRow(item.m);
+    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak);
     var existing=existingMap[item.m.id];
     if(existing){
       if(existing.dataset.rhash!==newHash){
-        existing.innerHTML=_buildRankRowCells(item.m,rank,item.pt);
+        existing.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);
         existing.dataset.rhash=newHash;
       }
       if(childList[idx]!==existing){
@@ -2251,7 +2602,7 @@ function renderR(){
       var tr=document.createElement('tr');
       tr.dataset.rid=item.m.id;
       tr.dataset.rhash=newHash;
-      tr.innerHTML=_buildRankRowCells(item.m,rank,item.pt);
+      tr.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);
       tb.insertBefore(tr,childList[idx]||null);
       childList=Array.from(tb.children);
     }

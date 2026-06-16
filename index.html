@@ -33,6 +33,7 @@
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 현황</div>
     <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>회원 랭킹</div>
+    <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">🏛</span>명예의 전당</div>
     <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 목록</div>
     <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
   </nav>
@@ -83,21 +84,42 @@
     <div class="page" id="page-ranking">
       <div class="ph">
         <div class="ph-t">회원 <em>랭킹</em></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-g btn-sm" onclick="openSeasonMo()">📅 시즌</button>
+          <button class="btn btn-g btn-sm" onclick="nav('hall')">🏛 명예의 전당</button>
+        </div>
       </div>
+      <div class="fscroll">
+        <button class="fc on" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
+        <button class="fc" id="rk-scope-season" type="button" onclick="setRkScope('season')">시즌 랭킹</button>
+      </div>
+      <div id="rk-season-info" class="season-info-bar" style="display:none"></div>
       <div class="fscroll">
         <button class="fc on" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
         <button class="fc"    id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
       </div>
       <div class="card card-p">
         <table class="tm">
-          <thead><tr><th>순위</th><th>이름</th><th>등급</th><th>포인트</th></tr></thead>
+          <thead><tr><th>순위</th><th>이름</th><th>등급</th><th id="rk-pt-h">포인트</th></tr></thead>
           <tbody id="rtb"></tbody>
         </table>
       </div>
       <div class="card card-p" id="rk-hall-wrap" style="margin-top:16px;display:none">
-        <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:14px">🏆 최다 연승 TOP 10</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:18px;font-weight:800;color:var(--t1)">🔥 연승 하이라이트</div>
+          <button class="btn btn-g btn-sm" onclick="nav('hall')">명예의 전당 →</button>
+        </div>
         <div id="rk-hall"></div>
       </div>
+    </div>
+
+    <!-- ══ 명예의 전당 ══ -->
+    <div class="page" id="page-hall">
+      <div class="ph">
+        <div class="ph-t">명예의 <em>전당</em></div>
+        <button class="btn btn-g btn-sm" onclick="nav('ranking')">← 랭킹</button>
+      </div>
+      <div id="hall-content"></div>
     </div>
 
     <!-- ══ 회원 관리 ══ -->
@@ -128,6 +150,7 @@
 <nav class="bnav">
   <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
   <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
+  <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">🏛</span><span>명예</span></div>
   <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">👥</span><span>회원</span></div>
 </nav>
 
@@ -482,6 +505,7 @@
       <div id="prof-header"></div>
       <div id="prof-streak"></div>
       <div id="prof-recent"></div>
+      <div id="prof-badges"></div>
       <div class="fg" style="margin-top:18px;margin-bottom:0">
         <label>상대 전적 조회 <span style="color:var(--t3);font-size:12px;font-weight:400">(개인전 · 단식)</span></label>
         <select id="prof-opp" onchange="renderProfileH2H()" style="min-height:44px;width:100%"></select>
@@ -489,6 +513,29 @@
       <div id="prof-h2h" style="margin-top:12px"></div>
     </div>
     <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-profile')">닫기</button></div>
+  </div>
+</div>
+
+<!-- ══ 시즌 관리 모달 ══ -->
+<div class="mo write-mo" id="mo-season">
+  <div class="mw">
+    <div class="mh"><div class="mt">📅 시즌 <em>관리</em></div><button class="mc-btn" onclick="closeMo('mo-season')">✕</button></div>
+    <div class="mb">
+      <div class="fg">
+        <label>새 시즌 만들기</label>
+        <input type="text" id="sn-name" placeholder="2026 시즌">
+      </div>
+      <div class="fg">
+        <label>시작일</label>
+        <input type="date" id="sn-start">
+      </div>
+      <button class="btn btn-p" style="width:100%;min-height:44px;margin-bottom:18px" onclick="createSeason()">＋ 시즌 생성 및 현재 시즌으로 지정</button>
+      <div class="fg" style="margin-bottom:0">
+        <label>시즌 목록</label>
+        <div id="sn-list"></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-season')">닫기</button></div>
   </div>
 </div>
 
