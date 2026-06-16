@@ -208,6 +208,27 @@
   <!-- ══ STEP 2: 날짜/시간 + 메모 + 신청 ══ -->
   <!-- ★ bs-foot을 bs-body 밖으로 분리 -->
   <div class="bs-body" id="bs-step2" style="display:none">
+    <!-- 즉시 대결 생성 (신규 신청만) -->
+    <div id="inst-create-section">
+      <label class="inst-toggle-wrap" id="inst-toggle-wrap" onclick="toggleInstant()">
+        <div class="inst-toggle-label">
+          <span class="inst-icon">⚡</span>
+          <div>
+            <div class="inst-text">즉시 대결 생성</div>
+            <div class="inst-desc">상대방 수락 없이 바로 생성 · 결과 입력 가능</div>
+          </div>
+        </div>
+        <div class="sw">
+          <input type="checkbox" id="inst-chk" onchange="toggleInstant()">
+          <span class="sw-track"></span>
+        </div>
+      </label>
+      <label class="inst-res-opt" id="inst-res-wrap" style="display:none">
+        <input type="checkbox" id="ch-instant-res" onchange="updateChSubmitBtn()">
+        <span>생성 후 결과 입력 화면 바로 열기</span>
+      </label>
+    </div>
+
     <!-- 날짜·시간 -->
     <div class="fr" style="margin-bottom:14px">
       <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>

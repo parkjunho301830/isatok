@@ -62,6 +62,8 @@ let _profileMemberId=null;
 // _deepLinkCh: 카카오 공유 링크로 진입 시 강조할 대결 ID
 let _deepLinkCh=null;
 let _pendingDeepLinkFilter=null;
+// 즉시 대결 생성 허용 (권한 체계 없음 → 전체 허용)
+const INSTANT_CREATE_ALLOWED=true;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -508,6 +510,7 @@ window.openBS = function(){
   var noneChip = document.querySelector('#bet-chips .none-chip');
   if(noneChip) noneChip.classList.add('on');
   ['e-my','e-opp'].forEach(function(id){ g(id).classList.remove('on'); });
+  _resetInstantCreateUI();
   setType('ms');
   // STEP1부터 시작
   bsStep(1);
@@ -549,6 +552,9 @@ window.openEditCh = function(id){
   var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
   if(bsTitleEm) bsTitleEm.textContent = '수정';
 
+  var instSec=g('inst-create-section');
+  if(instSec) instSec.style.display='none';
+
   renderGridsBS();
   bsStep(1);
   _showBS();
@@ -562,6 +568,7 @@ window.closeBS = function(){
     if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
     var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
     if(bsTitleEm) bsTitleEm.textContent = '신청';
+    _resetInstantCreateUI();
     requestAnimationFrame(function(){
       document.body.style.overflow = '';
     });
@@ -601,12 +608,83 @@ window.bsStep = function(n){
   g('bs-foot2').style.display = n===2 ? '' : 'none';
   g('bsd1').classList.toggle('on', n===1);
   g('bsd2').classList.toggle('on', n===2);
+  if(n===2){
+    var instSec=g('inst-create-section');
+    if(instSec) instSec.style.display=_editChId?'none':(INSTANT_CREATE_ALLOWED?'':'none');
+    _updateChSubmitBtn();
+  }
+}
+
+function _isInstantCreateMode(){
+  return INSTANT_CREATE_ALLOWED&&g('inst-chk')&&g('inst-chk').checked;
+}
+function _resetInstantCreateUI(){
+  var instChk=g('inst-chk'),instWrap=g('inst-toggle-wrap');
+  var instResWrap=g('inst-res-wrap'),instResChk=g('ch-instant-res');
+  var instSec=g('inst-create-section');
+  if(instChk)instChk.checked=false;
+  if(instWrap)instWrap.classList.remove('on');
+  if(instResWrap)instResWrap.style.display='none';
+  if(instResChk)instResChk.checked=false;
+  if(instSec)instSec.style.display=INSTANT_CREATE_ALLOWED?'':'none';
+  _updateChSubmitBtn();
+}
+function _updateChSubmitBtn(){
+  var submitBtn=g('ch-submit-btn');
+  if(!submitBtn)return;
+  if(_editChId){
+    var isOpenEdit=g('oc-chk')&&g('oc-chk').checked;
+    submitBtn.textContent=isOpenEdit?'💾 오픈 챌린지 수정':'💾 수정 저장';
+    return;
+  }
+  if(_isInstantCreateMode()){
+    var autoRes=g('ch-instant-res')&&g('ch-instant-res').checked;
+    submitBtn.textContent=autoRes?'🏓 즉시 생성 · 결과 입력':'🏓 즉시 대결 생성';
+    return;
+  }
+  var isOpen=g('oc-chk')&&g('oc-chk').checked;
+  if(isOpen)submitBtn.textContent='🔥 오픈 챌린지 올리기';
+  else submitBtn.textContent='🏓 도전장 보내기';
+}
+window.updateChSubmitBtn=_updateChSubmitBtn;
+window.toggleInstant=function(){
+  if(!INSTANT_CREATE_ALLOWED)return;
+  var chk=g('inst-chk'),wrap=g('inst-toggle-wrap');
+  var resWrap=g('inst-res-wrap');
+  if(!chk||!wrap)return;
+  var isOn=chk.checked;
+  wrap.classList.toggle('on',isOn);
+  if(isOn){
+    var ocChk=g('oc-chk'),ocWrap=g('oc-toggle-wrap'),oppSec=g('opp-section');
+    if(ocChk&&ocChk.checked){
+      ocChk.checked=false;
+      if(ocWrap)ocWrap.classList.remove('on');
+      if(oppSec)oppSec.style.display='';
+    }
+    if(resWrap)resWrap.style.display='';
+  }else{
+    if(resWrap)resWrap.style.display='none';
+    var resChk=g('ch-instant-res');
+    if(resChk)resChk.checked=false;
+  }
+  _updateChSubmitBtn();
+  renderGridsBS();
 }
 
 // ── 바텀시트 전용 신청 저장 (기존 submitCh 로직 재사용, ID 참조만 동일하게 유지)
 window.submitChBS = async function(){
   var isOpenMode = g('oc-chk') && g('oc-chk').checked;
   var editId = _editChId;
+  var instantMode = !editId && _isInstantCreateMode() && !isOpenMode;
+  if(instantMode){
+    var tm=_type||'ms';
+    var m=TM[tm]||TM.ms;
+    if(_opp.length<m.maxO){
+      toast('⚠️ 즉시 생성은 상대 팀 선택이 필요합니다');
+      return;
+    }
+  }
+  var autoOpenRes=instantMode&&g('ch-instant-res')&&g('ch-instant-res').checked;
   var fields = {
     type: _type,
     myTeam: [..._my],
@@ -630,20 +708,32 @@ window.submitChBS = async function(){
       toast(isOpenMode ? '✏️ 오픈 챌린지가 수정됐습니다!' : '✏️ 대결 신청이 수정됐습니다!');
       return;
     }
-  // ── Firestore 저장 데이터 구성 (기존 Firebase 데이터 구조 그대로 유지) ──
   const data = {
     ...fields,
-    betPicks: {},                           // 내기 참여자 예측: {이름: 'a'|'b'}
-    status: 'pending',
+    betPicks: {},
+    status: instantMode ? 'accepted' : 'pending',
     createdAt: new Date().toISOString(),
     winner: null,
     score: null
   };
+  if(instantMode){
+    data.acceptedAt=new Date().toISOString();
+    data.instantCreate=true;
+  }
     let newId = 'l' + Date.now();
     if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
-    toast(isOpenMode ? '🔥 오픈 챌린지가 등록됐습니다!' : '🏓 도전장을 보냈습니다!');
-    setTimeout(function(){ openShareModal({id: newId, ...data}); }, 700);
+    if(instantMode){
+      toast(autoOpenRes?'✅ 대결 생성! 결과를 입력해 주세요.':'✅ 대결이 즉시 생성됐습니다!');
+      if(autoOpenRes){
+        setTimeout(function(){ openRes(newId); }, 450);
+      }else{
+        setTimeout(function(){ openShareModal({id: newId, ...data}); }, 700);
+      }
+    }else{
+      toast(isOpenMode ? '🔥 오픈 챌린지가 등록됐습니다!' : '🏓 도전장을 보냈습니다!');
+      setTimeout(function(){ openShareModal({id: newId, ...data}); }, 700);
+    }
   } catch(e){ toast('❌ ' + e.message); }
 }
 
@@ -951,18 +1041,22 @@ window.toggleOC=function(){
   var chk=g('oc-chk');
   var wrap=g('oc-toggle-wrap');
   var oppSec=g('opp-section');
-  var submitBtn=g('ch-submit-btn');
   var isOn=chk.checked;
   wrap.classList.toggle('on',isOn);
   if(isOn){
+    var instChk=g('inst-chk'),instWrap=g('inst-toggle-wrap'),instResWrap=g('inst-res-wrap');
+    if(instChk){instChk.checked=false;}
+    if(instWrap)instWrap.classList.remove('on');
+    if(instResWrap)instResWrap.style.display='none';
+    var instResChk=g('ch-instant-res');
+    if(instResChk)instResChk.checked=false;
     oppSec.style.display='none';
     _opp=[];
     g('e-opp').classList.remove('on');
-    if(submitBtn) submitBtn.textContent='🔥 오픈 챌린지 올리기';
   } else {
     oppSec.style.display='';
-    if(submitBtn) submitBtn.textContent='🏓 도전장 보내기';
   }
+  _updateChSubmitBtn();
   renderGridsBS();
 }
 
