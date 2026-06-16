@@ -444,6 +444,12 @@
 .hall-cat{margin-bottom:16px;}
 .hall-cat-t{font-size:17px;font-weight:800;color:var(--t1);margin-bottom:12px;}
 
+/* ══ 관리자 PIN / admin-only UI ══ */
+html:not(.is-admin) .admin-only{display:none!important;}
+.admin-bar{padding:0 16px 12px;}
+.admin-mhdr-btn{min-width:36px;min-height:36px;padding:0 8px;margin-right:6px;font-size:16px;line-height:1;}
+html.is-admin .admin-mhdr-btn{background:var(--adim);color:var(--a);border-color:rgba(0,122,255,.35);}
+
 /* ══ 즉시 대결 생성 토글 ══ */
 .inst-toggle-wrap{
   display:flex;align-items:center;justify-content:space-between;gap:12px;

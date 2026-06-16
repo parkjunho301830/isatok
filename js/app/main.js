@@ -152,6 +152,83 @@ window.selectBet = function(btn){
 }
 const DEF_PT=1000;
 const PT={individual:{win:10,loss:-5},double:{win:5,loss:-2}};
+// 관리자 PIN (운영 시 변경 권장)
+const ADMIN_PIN='2580';
+const ADMIN_STORAGE_KEY='isatok_admin';
+let _adminPinCallback=null;
+
+function _isAdmin(){
+  try{return localStorage.getItem(ADMIN_STORAGE_KEY)==='1';}catch(e){return false;}
+}
+function _setAdmin(on){
+  try{
+    if(on)localStorage.setItem(ADMIN_STORAGE_KEY,'1');
+    else localStorage.removeItem(ADMIN_STORAGE_KEY);
+  }catch(e){}
+  document.documentElement.classList.toggle('is-admin',on);
+  _updateAdminBtn();
+  if(_currentPage==='challenge')renderC();
+  if(_currentPage==='members')renderM();
+  if(_currentPage==='ranking')renderR();
+  var snMo=g('mo-season');
+  if(snMo&&snMo.classList.contains('on'))_renderSeasonList();
+}
+function _updateAdminBtn(){
+  var lbl=_isAdmin()?'🔓 관리자 종료':'🔐 관리자';
+  var btn=g('btn-admin'),btnM=g('btn-admin-m');
+  if(btn){
+    btn.textContent=lbl;
+    btn.classList.toggle('btn-p',_isAdmin());
+    btn.classList.toggle('btn-g',!_isAdmin());
+  }
+  if(btnM){
+    btnM.textContent=_isAdmin()?'🔓':'🔐';
+    btnM.title=_isAdmin()?'관리자 종료':'관리자';
+  }
+}
+function _applyAdminUI(){
+  document.documentElement.classList.toggle('is-admin',_isAdmin());
+  _updateAdminBtn();
+}
+function _openAdminPinMo(){
+  var inp=g('admin-pin');
+  if(inp)inp.value='';
+  openMo('mo-admin-pin');
+  setTimeout(function(){if(inp)inp.focus();},200);
+}
+function _requireAdmin(fn){
+  if(_isAdmin()){
+    if(fn)fn();
+    return;
+  }
+  _adminPinCallback=fn||null;
+  _openAdminPinMo();
+}
+window.toggleAdmin=function(){
+  if(_isAdmin()){
+    _setAdmin(false);
+    toast('관리자 모드 종료');
+    return;
+  }
+  _adminPinCallback=null;
+  _openAdminPinMo();
+};
+window.submitAdminPin=function(){
+  var inp=g('admin-pin');
+  var pin=(inp&&inp.value||'').trim();
+  if(!/^\d{4}$/.test(pin)){toast('⚠️ 4자리 PIN을 입력해주세요');return;}
+  if(pin!==ADMIN_PIN){toast('❌ PIN이 올바르지 않습니다');return;}
+  _setAdmin(true);
+  closeMo('mo-admin-pin');
+  if(inp)inp.value='';
+  toast('🔓 관리자 모드 활성화');
+  var cb=_adminPinCallback;
+  _adminPinCallback=null;
+  if(cb)cb();
+};
+window.requireAdminAction=function(fn){
+  _requireAdmin(fn);
+};
 const DOUBLES_TYPES=['md','fd','mx','doubles'];
 const GRADE_TIERS=[
   {min:1500,icon:'👑',label:'마스터',badge:'bp'},
@@ -316,6 +393,7 @@ function finish(){
 
   // 카카오 공유 링크: ?p=challenge&ch=ID (카톡 Feed) 또는 #challenge?… (구버전)
   _applyEntryNavigation();
+  _applyAdminUI();
 }
 function _applyDeepLinkFilter(chId){
   var c=CHAL.find(function(x){return x.id===chId;});
@@ -827,6 +905,11 @@ window.closeMo=function(id){
   var el=g(id);
   if(!el)return;
   el.classList.remove('on');
+  if(id==='mo-admin-pin'){
+    _adminPinCallback=null;
+    var pinEl=g('admin-pin');
+    if(pinEl)pinEl.value='';
+  }
   requestAnimationFrame(function(){
     document.body.style.overflow = '';
   });
@@ -967,7 +1050,7 @@ function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[]);
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(_isAdmin()?'1':'0');
   });
 
   // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
@@ -1102,10 +1185,15 @@ function buildCCard(c){
       var betBtn=hasBet?`<button class="btn btn-sm" onclick="openBetPick('${c.id}')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기 참여</button>`:'';
       acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button>`+betBtn+`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     } else if(c.status==='completed'){
-      acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">✏️ 결과 수정</button>`
-          +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
+      acts='';
+      if(_isAdmin()){
+        acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">✏️ 결과 수정</button>`;
+      }
+      acts+=`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
     }
-    acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
+    if(_isAdmin()){
+      acts+=`<button class="btn btn-g btn-xs" onclick="delC('${c.id}')" style="margin-left:auto;opacity:.45">🗑</button>`;
+    }
 
     // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
@@ -1373,6 +1461,7 @@ window.rejectC=async function(id){
   catch(e){toast('❌ '+e.message);}
 }
 window.delC=async function(id){
+  if(!_isAdmin()){_requireAdmin(function(){delC(id);});return;}
   if(!confirm('삭제하시겠습니까?'))return;
   try{if(db)await deleteDoc(doc(db,'challenges',id));else{CHAL=CHAL.filter(c=>c.id!==id);renderC();}toast('🗑 삭제됐습니다');}
   catch(e){toast('❌ '+e.message);}
@@ -1695,6 +1784,10 @@ function _buildResultScore(){
 window.openRes=function(id){
   try{
   const c=CHAL.find(c=>c.id===id);if(!c)return;
+  if(c.status==='completed'&&!_isAdmin()){
+    _requireAdmin(function(){openRes(id);});
+    return;
+  }
   _rid=id;
   _resEditMode=c.status==='completed';
   _rw=null;
@@ -2008,6 +2101,7 @@ window.submitResult=async function(){
   if(!_rw){toast('⚠️ 승리 팀 선택');return;}
   var c=CHAL.find(function(x){return x.id===_rid;});
   if(!c)return;
+  if(_resEditMode&&!_isAdmin()){toast('⚠️ 관리자만 결과를 수정할 수 있습니다');return;}
 
   // ── 스코어 문자열 조합 (입력 방식별) ──
   var sc=_buildResultScore();
@@ -2266,7 +2360,7 @@ function _renderSeasonList(){
     var curTag=s.isCurrent?' <span class="badge bg" style="font-size:11px">현재</span>':'';
     var champ=s.champion&&s.champion.name?(' · 👑 '+s.champion.name):'';
     var acts='';
-    if(s.status!=='ended'){
+    if(_isAdmin()&&s.status!=='ended'){
       if(!s.isCurrent)acts+='<button class="btn btn-g btn-xs" onclick="setCurrentSeason(\''+s.id+'\')">현재 지정</button> ';
       acts+='<button class="btn btn-d btn-xs" onclick="endSeason(\''+s.id+'\')">시즌 종료</button>';
     }
@@ -2276,15 +2370,17 @@ function _renderSeasonList(){
   }).join('');
 }
 window.openSeasonMo=function(){
-  var nm=g('sn-name'),st=g('sn-start');
-  if(nm&&!nm.value){
-    nm.value=new Date().getFullYear()+' 시즌';
-  }
-  if(st&&!st.value){
-    st.value=new Date().toISOString().slice(0,10);
-  }
-  _renderSeasonList();
-  openMo('mo-season');
+  _requireAdmin(function(){
+    var nm=g('sn-name'),st=g('sn-start');
+    if(nm&&!nm.value){
+      nm.value=new Date().getFullYear()+' 시즌';
+    }
+    if(st&&!st.value){
+      st.value=new Date().toISOString().slice(0,10);
+    }
+    _renderSeasonList();
+    openMo('mo-season');
+  });
 };
 async function _unsetOtherCurrentSeasons(exceptId){
   for(var i=0;i<SEASONS.length;i++){
@@ -2296,6 +2392,7 @@ async function _unsetOtherCurrentSeasons(exceptId){
   }
 }
 window.createSeason=async function(){
+  if(!_isAdmin()){toast('⚠️ 관리자만 시즌을 생성할 수 있습니다');return;}
   var name=(g('sn-name')&&g('sn-name').value||'').trim();
   var startDate=(g('sn-start')&&g('sn-start').value||'').trim();
   if(!name||!startDate){toast('⚠️ 시즌 이름과 시작일을 입력해주세요');return;}
@@ -2314,6 +2411,7 @@ window.createSeason=async function(){
   }catch(e){toast('❌ '+e.message);}
 };
 window.setCurrentSeason=async function(id){
+  if(!_isAdmin()){toast('⚠️ 관리자만 시즌을 지정할 수 있습니다');return;}
   try{
     if(db){
       await _unsetOtherCurrentSeasons(id);
@@ -2328,6 +2426,7 @@ window.setCurrentSeason=async function(id){
   }catch(e){toast('❌ '+e.message);}
 };
 window.endSeason=async function(id){
+  if(!_isAdmin()){toast('⚠️ 관리자만 시즌을 종료할 수 있습니다');return;}
   var season=SEASONS.find(function(s){return s.id===id;});
   if(!season||season.status==='ended'){toast('⚠️ 이미 종료된 시즌입니다');return;}
   if(!confirm(season.name+' 시즌을 종료하시겠습니까?\n시즌 1위에게 👑 시즌 챔피언 배지가 지급됩니다.'))return;
@@ -2612,15 +2711,18 @@ function renderR(){
 
 function _memberRowHash(m){
   var gr=_memberGrade(m);
-  return m.id+'|'+(m.name||'')+'|'+(m.phone||'')+'|'+gr.label+'|'+_memberPt(m,false)+'|'+(m.gender||'')+'|'+(m.status||'');
+  return m.id+'|'+(m.name||'')+'|'+(m.phone||'')+'|'+gr.label+'|'+_memberPt(m,false)+'|'+(m.gender||'')+'|'+(m.status||'')+'|'+(_isAdmin()?'1':'0');
 }
 function _buildMemberRowCells(m){
   var gr=_memberGrade(m);
+  var adminActs=_isAdmin()
+    ? `<button class="btn btn-g btn-xs" onclick="openEdit('${m.id}')">✏️ 수정</button><button class="btn btn-d btn-xs" onclick="openDel('${m.id}')">🗑</button>`
+    : '';
   return `<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av ${avc(m.name)}" style="width:34px;height:34px;font-size:13px">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div>${m.phone?`<div style="font-size:11px;color:var(--t3)">${m.phone}</div>`:''}</div></div></td>
     <td data-label="등급"><span class="badge ${gr.badge}">${gr.icon} ${gr.label}</span></td>
     <td data-label="성별">${m.gender||'-'}</td>
     <td data-label="상태"><span class="badge ${m.status==='활성'?'bg':'br'}">${m.status||'활성'}</span></td>
-    <td class="ta"><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-g btn-xs" onclick="openMemberProfile('${m.id}')">📊 상세</button><button class="btn btn-g btn-xs" onclick="openEdit('${m.id}')">✏️ 수정</button><button class="btn btn-d btn-xs" onclick="openDel('${m.id}')">🗑</button></div></td>`;
+    <td class="ta"><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-g btn-xs" onclick="openMemberProfile('${m.id}')">📊 상세</button>${adminActs}</div></td>`;
 }
 
 function renderM(){
@@ -2676,13 +2778,16 @@ function renderM(){
 window.filterM=function(){renderM();}
 window.filterG=function(gr){_fg=gr;renderM();}
 window.openAddModal=function(){
-  ['rn','rp','rmemo'].forEach(id=>g(id).value='');
-  g('rg').selectedIndex=0;
-  ['e-rn'].forEach(id=>g(id).classList.remove('on'));
-  g('af').style.display='';g('as').style.display='none';
-  openMo('mo-add');setTimeout(()=>g('rn').focus(),200);
+  _requireAdmin(function(){
+    ['rn','rp','rmemo'].forEach(id=>g(id).value='');
+    g('rg').selectedIndex=0;
+    ['e-rn'].forEach(id=>g(id).classList.remove('on'));
+    g('af').style.display='';g('as').style.display='none';
+    openMo('mo-add');setTimeout(()=>g('rn').focus(),200);
+  });
 }
 window.submitM=async function(){
+  if(!_isAdmin()){toast('⚠️ 관리자만 회원을 등록할 수 있습니다');return;}
   const name=g('rn').value.trim();
   if(!name){g('e-rn').classList.add('on');return;}
   g('e-rn').classList.remove('on');
@@ -2693,6 +2798,7 @@ window.submitM=async function(){
   catch(e){toast('❌ '+e.message);}
 }
 window.openEdit=function(id){
+  if(!_isAdmin()){_requireAdmin(function(){openEdit(id);});return;}
   const m=MEMBERS.find(m=>m.id===id);if(!m)return;
   var gr=_memberGrade(m);
   g('eid').value=id;g('en').value=m.name;g('ep').value=m.phone||'';
@@ -2703,6 +2809,7 @@ window.openEdit=function(id){
   g('e-en').classList.remove('on');openMo('mo-edit');
 }
 window.saveEdit=async function(){
+  if(!_isAdmin()){toast('⚠️ 관리자만 회원을 수정할 수 있습니다');return;}
   const id=g('eid').value,name=g('en').value.trim();
   if(!name){g('e-en').classList.add('on');return;}
   const u={name,phone:g('ep').value.trim(),gender:g('eg').value,status:g('est').value,memo:g('ememo').value.trim()};
@@ -2710,8 +2817,12 @@ window.saveEdit=async function(){
   try{if(db)await updateDoc(doc(db,'members',id),u);else{const i=MEMBERS.findIndex(m=>m.id===id);if(i>-1)MEMBERS[i]={...MEMBERS[i],...u};renderM();}toast('✅ '+name+' 수정 완료');}
   catch(e){toast('❌ '+e.message);}
 }
-window.openDel=function(id){_delId=id;const m=MEMBERS.find(m=>m.id===id);g('dm').textContent=`"${m?.name}" 회원을 삭제할까요?`;openMo('mo-del');}
+window.openDel=function(id){
+  if(!_isAdmin()){_requireAdmin(function(){openDel(id);});return;}
+  _delId=id;const m=MEMBERS.find(m=>m.id===id);g('dm').textContent=`"${m?.name}" 회원을 삭제할까요?`;openMo('mo-del');
+}
 window.confirmDel=async function(){
+  if(!_isAdmin()){toast('⚠️ 관리자만 회원을 삭제할 수 있습니다');return;}
   const m=MEMBERS.find(m=>m.id===_delId);closeMo('mo-del');
   try{if(db)await deleteDoc(doc(db,'members',_delId));else{MEMBERS=MEMBERS.filter(m=>m.id!==_delId);renderM();}toast('🗑 '+m?.name+' 삭제 완료');}
   catch(e){toast('❌ '+e.message);}

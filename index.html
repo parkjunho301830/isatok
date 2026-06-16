@@ -35,6 +35,9 @@
     <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>회원 랭킹</div>
     <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">🏛</span>명예의 전당</div>
     <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 목록</div>
+    <div class="admin-bar" id="admin-bar">
+      <button class="btn btn-g btn-sm" id="btn-admin" type="button" onclick="toggleAdmin()" style="width:100%;min-height:40px">🔐 관리자</button>
+    </div>
     <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
   </nav>
 
@@ -45,6 +48,7 @@
   <div class="mhdr">
     <div class="mhdr-logo">🏓 이사탁 <span style="font-size:10px;font-weight:600;color:var(--t3);letter-spacing:0;vertical-align:middle;margin-left:2px">v2025.06.12</span></div>
     <div class="mhdr-r">
+      <button class="btn btn-g btn-xs admin-mhdr-btn" id="btn-admin-m" type="button" onclick="toggleAdmin()" title="관리자">🔐</button>
       <span id="dbm" title="연결 상태">🟢</span>
     </div>
   </div>
@@ -85,7 +89,7 @@
       <div class="ph">
         <div class="ph-t">회원 <em>랭킹</em></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-g btn-sm" onclick="openSeasonMo()">📅 시즌</button>
+          <button class="btn btn-g btn-sm admin-only" onclick="openSeasonMo()">📅 시즌</button>
           <button class="btn btn-g btn-sm" onclick="nav('hall')">🏛 명예의 전당</button>
         </div>
       </div>
@@ -126,7 +130,7 @@
     <div class="page" id="page-members">
       <div class="ph">
         <div class="ph-t">회원 <em>관리</em></div>
-        <button class="btn btn-p btn-sm" onclick="openAddModal()">+ 신규 등록</button>
+        <button class="btn btn-p btn-sm admin-only" onclick="openAddModal()">+ 신규 등록</button>
       </div>
       <div class="card card-p">
         <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
@@ -516,20 +520,34 @@
   </div>
 </div>
 
+<!-- ══ 관리자 PIN 모달 ══ -->
+<div class="mo" id="mo-admin-pin">
+  <div class="mw" style="max-width:360px">
+    <div class="mh"><div class="mt">🔐 관리자 <em>인증</em></div><button class="mc-btn" onclick="closeMo('mo-admin-pin')">✕</button></div>
+    <div class="mb">
+      <div class="fg" style="margin-bottom:0">
+        <label>4자리 PIN</label>
+        <input type="password" id="admin-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" style="text-align:center;font-size:24px;letter-spacing:.35em;font-weight:800" onkeydown="if(event.key==='Enter')submitAdminPin()">
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-admin-pin')">취소</button><button class="btn btn-p" onclick="submitAdminPin()">확인</button></div>
+  </div>
+</div>
+
 <!-- ══ 시즌 관리 모달 ══ -->
 <div class="mo write-mo" id="mo-season">
   <div class="mw">
     <div class="mh"><div class="mt">📅 시즌 <em>관리</em></div><button class="mc-btn" onclick="closeMo('mo-season')">✕</button></div>
     <div class="mb">
-      <div class="fg">
+      <div class="fg admin-only">
         <label>새 시즌 만들기</label>
         <input type="text" id="sn-name" placeholder="2026 시즌">
       </div>
-      <div class="fg">
+      <div class="fg admin-only">
         <label>시작일</label>
         <input type="date" id="sn-start">
       </div>
-      <button class="btn btn-p" style="width:100%;min-height:44px;margin-bottom:18px" onclick="createSeason()">＋ 시즌 생성 및 현재 시즌으로 지정</button>
+      <button class="btn btn-p admin-only" style="width:100%;min-height:44px;margin-bottom:18px" onclick="createSeason()">＋ 시즌 생성 및 현재 시즌으로 지정</button>
       <div class="fg" style="margin-bottom:0">
         <label>시즌 목록</label>
         <div id="sn-list"></div>
