@@ -31,10 +31,11 @@
   <nav class="sidebar" id="sidebar" style="display:none">
     <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div><div style="font-size:11px;color:var(--t3);font-weight:500;margin-top:4px;letter-spacing:0.02em">v2025.06.12</div></div>
     <span class="nav-g">메뉴</span>
-    <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결 현황</div>
-    <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>회원 랭킹</div>
-    <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">🏛</span>명예의 전당</div>
-    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👥</span>회원 목록</div>
+    <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결</div>
+    <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>랭킹</div>
+    <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">📈</span>통계</div>
+    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👤</span>회원</div>
+    <div class="nav-i nav-admin-only admin-only" data-page="admin" onclick="nav('admin')"><span class="ni-icon">⚙️</span>관리자</div>
     <div class="admin-bar" id="admin-bar">
       <button class="btn btn-g btn-sm" id="btn-admin" type="button" onclick="toggleAdmin()" style="width:100%;min-height:40px">🔐 관리자</button>
     </div>
@@ -58,12 +59,35 @@
 
   <main class="main">
 
-    <!-- ══ 대결 신청 ══ -->
+    <!-- ══ 대결 (홈) ══ -->
     <div class="page on" id="page-challenge">
       <div class="ph">
-        <div class="ph-t">대결 <em>신청</em></div>
+        <div class="ph-t">이사탁 <em>홈</em></div>
         <button class="btn btn-p btn-sm pc-only" onclick="openBS()">+ 대결 신청</button>
       </div>
+      <div class="quick-actions">
+        <button class="qa-card" type="button" onclick="openBS()">
+          <span class="qa-icon">🏓</span>
+          <span class="qa-label">대결 신청</span>
+          <span class="qa-desc">일반 · 수락 필요</span>
+        </button>
+        <button class="qa-card qa-instant" type="button" onclick="openInstantBS()">
+          <span class="qa-icon">⚡</span>
+          <span class="qa-label">즉시 대결</span>
+          <span class="qa-desc">수락 없이 바로</span>
+        </button>
+        <button class="qa-card" type="button" onclick="openResultPicker()">
+          <span class="qa-icon">📝</span>
+          <span class="qa-label">결과 입력</span>
+          <span class="qa-desc">진행중 대결</span>
+        </button>
+        <button class="qa-card" type="button" onclick="nav('ranking')">
+          <span class="qa-icon">🏆</span>
+          <span class="qa-label">랭킹 보기</span>
+          <span class="qa-desc">순위 확인</span>
+        </button>
+      </div>
+      <div class="section-label">대결 목록</div>
       <div class="fscroll">
         <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
         <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈 챌린지</button>
@@ -88,10 +112,7 @@
     <div class="page" id="page-ranking">
       <div class="ph">
         <div class="ph-t">회원 <em>랭킹</em></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-g btn-sm admin-only" onclick="openSeasonMo()">📅 시즌</button>
-          <button class="btn btn-g btn-sm" onclick="nav('hall')">🏛 명예의 전당</button>
-        </div>
+        <button class="btn btn-g btn-sm" onclick="nav('hall')">📈 통계 보기</button>
       </div>
       <div class="fscroll">
         <button class="fc on" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
@@ -111,25 +132,26 @@
       <div class="card card-p" id="rk-hall-wrap" style="margin-top:16px;display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
           <div style="font-size:18px;font-weight:800;color:var(--t1)">🔥 연승 하이라이트</div>
-          <button class="btn btn-g btn-sm" onclick="nav('hall')">명예의 전당 →</button>
+          <button class="btn btn-g btn-sm" onclick="nav('hall')">통계 보기 →</button>
         </div>
         <div id="rk-hall"></div>
       </div>
     </div>
 
-    <!-- ══ 명예의 전당 ══ -->
+    <!-- ══ 통계 (명예의 전당) ══ -->
     <div class="page" id="page-hall">
       <div class="ph">
-        <div class="ph-t">명예의 <em>전당</em></div>
+        <div class="ph-t">📈 <em>통계</em></div>
         <button class="btn btn-g btn-sm" onclick="nav('ranking')">← 랭킹</button>
       </div>
+      <p class="page-sub">명예의 전당 · TOP10 기록</p>
       <div id="hall-content"></div>
     </div>
 
-    <!-- ══ 회원 관리 ══ -->
+    <!-- ══ 회원 ══ -->
     <div class="page" id="page-members">
       <div class="ph">
-        <div class="ph-t">회원 <em>관리</em></div>
+        <div class="ph-t">👤 <em>회원</em></div>
         <button class="btn btn-p btn-sm admin-only" onclick="openAddModal()">+ 신규 등록</button>
       </div>
       <div class="card card-p">
@@ -146,6 +168,16 @@
       </div>
     </div>
 
+    <!-- ══ 관리자 ══ -->
+    <div class="page admin-only" id="page-admin">
+      <div class="ph">
+        <div class="ph-t">⚙️ <em>관리자</em></div>
+        <button class="btn btn-g btn-sm" onclick="toggleAdmin()">🔓 종료</button>
+      </div>
+      <p class="page-sub">관리자 전용 기능</p>
+      <div class="admin-hub" id="admin-hub"></div>
+    </div>
+
   </main>
 </div><!-- /app-wrap -->
 </div><!-- /app-layout -->
@@ -154,8 +186,9 @@
 <nav class="bnav">
   <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
   <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
-  <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">🏛</span><span>명예</span></div>
-  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">👥</span><span>회원</span></div>
+  <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">📈</span><span>통계</span></div>
+  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">👤</span><span>회원</span></div>
+  <div class="bni nav-admin-only admin-only" onclick="nav('admin')" data-p="admin"><span class="bi">⚙️</span><span>관리</span></div>
 </nav>
 
 <!-- ══ 대결 신청 Bottom Sheet ══ -->
@@ -235,6 +268,16 @@
   <!-- ══ STEP 2: 날짜/시간 + 메모 + 신청 ══ -->
   <!-- ★ bs-foot을 bs-body 밖으로 분리 -->
   <div class="bs-body" id="bs-step2" style="display:none">
+    <div class="ch-mode-info">
+      <div class="ch-mode-card">
+        <div class="ch-mode-t">🏓 일반 대결</div>
+        <ul class="ch-mode-ul"><li>상대방 수락 필요</li><li>수락 후 결과 입력</li></ul>
+      </div>
+      <div class="ch-mode-card ch-mode-instant">
+        <div class="ch-mode-t">⚡ 즉시 대결</div>
+        <ul class="ch-mode-ul"><li>상대방 수락 없음</li><li>바로 결과 입력 가능</li></ul>
+      </div>
+    </div>
     <!-- 즉시 대결 생성 (신규 신청만) -->
     <div id="inst-create-section">
       <label class="inst-toggle-wrap" id="inst-toggle-wrap">
@@ -323,16 +366,25 @@
       <!-- ── 결과 입력 방식 ── -->
       <div class="fg">
         <label>입력 방식</label>
-        <div class="fscroll" id="res-mode-chips">
-          <button class="fc on" id="rm-winner" type="button" onclick="setResMode('winner')">승자만</button>
-          <button class="fc" id="rm-sets" type="button" onclick="setResMode('sets')">세트 승패</button>
-          <button class="fc" id="rm-detail" type="button" onclick="setResMode('detail')">세트 점수</button>
+        <div class="res-mode-tabs" id="res-mode-chips">
+          <button class="res-mode-tab on" id="rm-winner" type="button" onclick="setResMode('winner')">
+            <span class="res-mode-tab-t">승자만 입력</span>
+            <span class="res-mode-tab-d">승패만 기록</span>
+          </button>
+          <button class="res-mode-tab" id="rm-sets" type="button" onclick="setResMode('sets')">
+            <span class="res-mode-tab-t">세트 승패</span>
+            <span class="res-mode-tab-d">3:1, 3:2 형태 기록</span>
+          </button>
+          <button class="res-mode-tab" id="rm-detail" type="button" onclick="setResMode('detail')">
+            <span class="res-mode-tab-t">세트 점수</span>
+            <span class="res-mode-tab-d">11:8, 9:11 상세 기록</span>
+          </button>
         </div>
       </div>
 
       <!-- ── 승자만 입력 ── -->
       <div class="fg res-mode-panel" id="res-panel-winner" style="margin-bottom:0">
-        <div class="res-winner-hint">세트 점수 없이 <strong>승리 팀만</strong> 선택 후 저장하면 됩니다.</div>
+        <div class="res-winner-hint">위에서 <strong>승리 팀</strong>만 선택하고 저장하세요.</div>
       </div>
 
       <!-- ── 세트 승패 입력 (세트별 승자 선택) ── -->
@@ -517,6 +569,15 @@
       <div id="prof-h2h" style="margin-top:12px"></div>
     </div>
     <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-profile')">닫기</button></div>
+  </div>
+</div>
+
+<!-- ══ 대결 상세 모달 ══ -->
+<div class="mo" id="mo-ch-detail">
+  <div class="mw">
+    <div class="mh"><div class="mt">대결 <em>상세</em></div><button class="mc-btn" onclick="closeMo('mo-ch-detail')">✕</button></div>
+    <div class="mb" id="ch-detail-body"></div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-ch-detail')">닫기</button></div>
   </div>
 </div>
 
