@@ -64,6 +64,7 @@ let _deepLinkCh=null;
 let _pendingDeepLinkFilter=null;
 // 즉시 대결 생성 허용 (권한 체계 없음 → 전체 허용)
 const INSTANT_CREATE_ALLOWED=true;
+let _instantCreate=false;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -323,7 +324,7 @@ function _isBSInteractive(target){
   if(!target||!target.closest)return false;
   var tag=target.tagName;
   if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='BUTTON'||tag==='LABEL')return true;
-  return!!target.closest('.mc-btn,.msg-chip,.tb,.mc2,.oc-toggle-wrap,.sw,.btn');
+  return!!target.closest('.mc-btn,.msg-chip,.tb,.mc2,.oc-toggle-wrap,.inst-toggle-wrap,.inst-res-opt,.sw,.btn');
 }
 
 function _applyBSDragOffset(sheet,overlay,y){
@@ -616,9 +617,13 @@ window.bsStep = function(n){
 }
 
 function _isInstantCreateMode(){
-  return INSTANT_CREATE_ALLOWED&&g('inst-chk')&&g('inst-chk').checked;
+  if(!INSTANT_CREATE_ALLOWED)return false;
+  var chk=g('inst-chk');
+  if(chk)_instantCreate=!!chk.checked;
+  return _instantCreate;
 }
 function _resetInstantCreateUI(){
+  _instantCreate=false;
   var instChk=g('inst-chk'),instWrap=g('inst-toggle-wrap');
   var instResWrap=g('inst-res-wrap'),instResChk=g('ch-instant-res');
   var instSec=g('inst-create-section');
@@ -652,7 +657,8 @@ window.toggleInstant=function(){
   var chk=g('inst-chk'),wrap=g('inst-toggle-wrap');
   var resWrap=g('inst-res-wrap');
   if(!chk||!wrap)return;
-  var isOn=chk.checked;
+  _instantCreate=!!chk.checked;
+  var isOn=_instantCreate;
   wrap.classList.toggle('on',isOn);
   if(isOn){
     var ocChk=g('oc-chk'),ocWrap=g('oc-toggle-wrap'),oppSec=g('opp-section');
@@ -671,11 +677,40 @@ window.toggleInstant=function(){
   renderGridsBS();
 }
 
+function _debugChallengeCreate(info){
+  if(typeof console==='undefined'||!console.log)return;
+  console.log('[isatok] challenge create',info);
+}
+function _debugCardActions(c){
+  if(typeof console==='undefined'||!console.log||!c)return;
+  var isOpen=!!c.isOpen&&c.status==='pending';
+  var actions=[];
+  if(isOpen)actions.push('accept-open','edit','reject');
+  else if(_chPendingAccept(c))actions.push('accept','edit','reject');
+  else if(_chResultReady(c))actions.push('result-input');
+  else if(c.status==='completed')actions.push('result-edit');
+  console.log('[isatok] card actions',{
+    id:c.id,status:c.status,instantCreate:!!c.instantCreate,isOpen:isOpen,actions:actions
+  });
+}
+
 // ── 바텀시트 전용 신청 저장 (기존 submitCh 로직 재사용, ID 참조만 동일하게 유지)
 window.submitChBS = async function(){
   var isOpenMode = g('oc-chk') && g('oc-chk').checked;
   var editId = _editChId;
   var instantMode = !editId && _isInstantCreateMode() && !isOpenMode;
+  _debugChallengeCreate({
+    phase:'submit',
+    createMode:instantMode?'instant':(isOpenMode?'open':'normal'),
+    instantCreate:instantMode,
+    requiresAcceptance:!instantMode&&!isOpenMode,
+    isOpenMode:isOpenMode,
+    checkboxChecked:!!(g('inst-chk')&&g('inst-chk').checked),
+    stateFlag:_instantCreate,
+    type:_type,
+    myTeam:[..._my],
+    oppTeam:isOpenMode?[]:[..._opp]
+  });
   if(instantMode){
     var tm=_type||'ms';
     var m=TM[tm]||TM.ms;
@@ -723,6 +758,16 @@ window.submitChBS = async function(){
     let newId = 'l' + Date.now();
     if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
+    var saved={id:newId,...data};
+    _debugChallengeCreate({
+      phase:'saved',
+      createMode:instantMode?'instant':(isOpenMode?'open':'normal'),
+      status:saved.status,
+      instantCreate:!!saved.instantCreate,
+      requiresAcceptance:saved.status==='pending',
+      acceptedAt:saved.acceptedAt||null
+    });
+    _debugCardActions(saved);
     if(instantMode){
       toast(autoOpenRes?'✅ 대결 생성! 결과를 입력해 주세요.':'✅ 대결이 즉시 생성됐습니다!');
       if(autoOpenRes){
@@ -808,6 +853,22 @@ const TM={
 };
 const SL={pending:'⏳ 수락 대기',accepted:'✅ 수락됨',rejected:'❌ 거절됨',completed:'🏆 완료'};
 const SB={pending:'ba',accepted:'bg',rejected:'br',completed:'bz'};
+function _chPendingAccept(c){
+  return c.status==='pending'&&!c.isOpen&&!c.instantCreate;
+}
+function _chResultReady(c){
+  return c.status==='accepted'||(c.status==='pending'&&!!c.instantCreate);
+}
+function _chStatusLabel(c,isOpen){
+  if(isOpen)return '⏳ 수락 대기';
+  if(c.status==='pending'&&c.instantCreate)return '✅ 진행중';
+  return SL[c.status]||c.status;
+}
+function _chStatusBadge(c,isOpen){
+  if(isOpen)return 'ba';
+  if(c.status==='pending'&&c.instantCreate)return 'bg';
+  return SB[c.status]||'bz';
+}
 
 window.setF=function(f){
   _cf=f;
@@ -844,7 +905,7 @@ function renderC(){
   // ── 필터 적용 ──
   if(_cf==='pending')        data=data.filter(c=>c.status==='pending'); // 오픈 챌린지 포함하여 대기중 전체 표시
   else if(_cf==='open')      data=data.filter(c=>c.isOpen&&c.status==='pending'); // 오픈 챌린지 필터
-  else if(_cf==='accepted')  data=data.filter(c=>c.status==='accepted');
+  else if(_cf==='accepted')  data=data.filter(c=>_chResultReady(c));
   else if(_cf==='completed') data=data.filter(c=>c.status==='completed');
   else if(_cf==='ms') data=data.filter(c=>c.type==='ms'||c.type==='singles');
   else if(_cf==='md') data=data.filter(c=>c.type==='md'||c.type==='doubles');
@@ -879,7 +940,7 @@ function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[]);
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[]);
   });
 
   // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
@@ -967,7 +1028,7 @@ function buildCCard(c){
     // ── 내기 참여자 표시 (수락됨 이후 + 내기가 있는 경우) ──
     var betPicksHtml='';
     var hasBet=c.bet==='coffee'||c.bet==='jjajang';
-    if(hasBet&&(c.status==='accepted'||c.status==='completed')){
+    if(hasBet&&(_chResultReady(c)||c.status==='completed')){
       var picks=c.betPicks||{};
       var aPickNames=Object.keys(picks).filter(function(n){return picks[n]==='a';});
       var bPickNames=Object.keys(picks).filter(function(n){return picks[n]==='b';});
@@ -1006,10 +1067,10 @@ function buildCCard(c){
           +`<button class="btn btn-p btn-sm" onclick="openAcceptOpen('${c.id}')">🔥 수락하기</button>`
           +`<button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button>`
           +`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
-    } else if(c.status==='pending'){
+    } else if(_chPendingAccept(c)){
       acts=`<button class="btn btn-g btn-sm" onclick="openEditCh('${c.id}')">✏️ 수정</button>`
           +`<button class="btn btn-p btn-sm" onclick="acceptC('${c.id}')">✅ 수락</button><button class="btn btn-d btn-sm" onclick="rejectC('${c.id}')">❌ 거절</button><button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
-    } else if(c.status==='accepted'){
+    } else if(_chResultReady(c)){
       // 내기가 있으면 참여 버튼 추가
       var betBtn=hasBet?`<button class="btn btn-sm" onclick="openBetPick('${c.id}')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기 참여</button>`:'';
       acts=`<button class="btn btn-g btn-sm" onclick="openRes('${c.id}')">🏆 결과 입력</button>`+betBtn+`<button class="btn-kakao btn-sm" onclick="shareKakao('${c.id}')" title="카카오톡으로 공유"><span class="kt-icon">💬</span>카톡 공유</button>`;
@@ -1023,7 +1084,7 @@ function buildCCard(c){
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
     // data-cid: diff-patch용 고유 식별자 (data-chash는 renderC에서 외부 세팅)
     return `<div class="${cardClass}" data-cid="${c.id}">
-      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}${betBadge}<span class="badge ${isOpen?'ba':SB[c.status]||'bz'}">${isOpen?'⏳ 수락 대기':SL[c.status]||c.status}</span></div></div>
+      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}<span class="badge ${_chStatusBadge(c,isOpen)}">${_chStatusLabel(c,isOpen)}</span></div></div>
       <div class="vs-row">
         <div class="vs-team">${myH}</div>
         <div class="vs-mid"><span class="vs-txt">VS</span></div>
@@ -1046,6 +1107,7 @@ window.toggleOC=function(){
   if(isOn){
     var instChk=g('inst-chk'),instWrap=g('inst-toggle-wrap'),instResWrap=g('inst-res-wrap');
     if(instChk){instChk.checked=false;}
+    _instantCreate=false;
     if(instWrap)instWrap.classList.remove('on');
     if(instResWrap)instResWrap.style.display='none';
     var instResChk=g('ch-instant-res');
