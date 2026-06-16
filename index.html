@@ -205,15 +205,18 @@
     </div>
   </div>
 
-  <!-- ── STEP 인디케이터 ── -->
+  <!-- ── STEP 인디케이터 (4단계) ── -->
   <div class="bs-steps">
     <div class="bs-step-dot on" id="bsd1"></div>
     <div class="bs-step-line"></div>
     <div class="bs-step-dot" id="bsd2"></div>
+    <div class="bs-step-line"></div>
+    <div class="bs-step-dot" id="bsd3"></div>
+    <div class="bs-step-line"></div>
+    <div class="bs-step-dot" id="bsd4"></div>
   </div>
 
-  <!-- ══ STEP 1: 경기유형 + 팀 선택 ══ -->
-  <!-- ★ bs-foot을 bs-body 밖으로 분리: .bs-ch flex column 구조에서 버튼이 항상 하단 고정 -->
+  <!-- ══ STEP 1: 상대 선택 ══ -->
   <div class="bs-body" id="bs-step1">
     <!-- 오픈 챌린지 토글 -->
     <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
@@ -265,62 +268,76 @@
     <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
   </div>
 
-  <!-- ══ STEP 2: 날짜/시간 + 메모 + 신청 ══ -->
-  <!-- ★ bs-foot을 bs-body 밖으로 분리 -->
+  <!-- ══ STEP 2: 경기 방식 ══ -->
   <div class="bs-body" id="bs-step2" style="display:none">
-    <div class="ch-mode-info">
-      <div class="ch-mode-card">
-        <div class="ch-mode-t">🏓 일반 대결</div>
-        <ul class="ch-mode-ul"><li>상대방 수락 필요</li><li>수락 후 결과 입력</li></ul>
-      </div>
-      <div class="ch-mode-card ch-mode-instant">
-        <div class="ch-mode-t">⚡ 즉시 대결</div>
-        <ul class="ch-mode-ul"><li>상대방 수락 없음</li><li>바로 결과 입력 가능</li></ul>
-      </div>
+    <p class="bs-step-hint">경기 방식을 선택하세요. 결과 입력 시 세트 수가 자동으로 맞춰집니다.</p>
+    <div class="gm-grid" id="bs-gm-grid">
+      <button type="button" class="gm-card" id="bs-gm-bo1" onclick="setBsGameMode('bo1')">
+        <span class="gm-card-t">단판 승부</span>
+        <span class="gm-card-d">1판 1선승</span>
+      </button>
+      <button type="button" class="gm-card" id="bs-gm-bo3" onclick="setBsGameMode('bo3')">
+        <span class="gm-card-t">3판 2선승</span>
+        <span class="gm-card-d">최대 3세트</span>
+      </button>
+      <button type="button" class="gm-card on" id="bs-gm-bo5" onclick="setBsGameMode('bo5')">
+        <span class="gm-card-t">5판 3선승</span>
+        <span class="gm-card-d">최대 5세트 · 기본</span>
+      </button>
+      <button type="button" class="gm-card" id="bs-gm-bo7" onclick="setBsGameMode('bo7')">
+        <span class="gm-card-t">7판 4선승</span>
+        <span class="gm-card-d">최대 7세트</span>
+      </button>
     </div>
-    <!-- 즉시 대결 생성 (신규 신청만) -->
-    <div id="inst-create-section">
-      <label class="inst-toggle-wrap" id="inst-toggle-wrap">
-        <div class="inst-toggle-label">
-          <span class="inst-icon">⚡</span>
-          <div>
-            <div class="inst-text">즉시 대결 생성</div>
-            <div class="inst-desc">상대방 수락 없이 바로 생성 · 결과 입력 가능</div>
-          </div>
-        </div>
-        <div class="sw">
-          <input type="checkbox" id="inst-chk" onchange="toggleInstant()">
-          <span class="sw-track"></span>
-        </div>
-      </label>
-      <label class="inst-res-opt" id="inst-res-wrap" style="display:none">
-        <input type="checkbox" id="ch-instant-res" onchange="updateChSubmitBtn()">
-        <span>생성 후 결과 입력 화면 바로 열기</span>
-      </label>
-    </div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot2" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
+    <button class="btn btn-p" onclick="bsStepNextFrom2()">다음 →</button>
+  </div>
 
-    <!-- 날짜·시간 -->
+  <!-- ══ STEP 3: 일반 / 즉시 대결 ══ -->
+  <div class="bs-body" id="bs-step3" style="display:none">
+    <p class="bs-step-hint">대결 생성 방식을 선택하세요.</p>
+    <div class="ch-create-modes" id="ch-create-modes">
+      <button type="button" class="ch-create-mode on" id="ch-mode-normal" onclick="setChCreateMode('normal')">
+        <span class="ch-create-icon">🏓</span>
+        <span class="ch-create-t">일반 대결</span>
+        <ul class="ch-create-ul"><li>상대방 수락 필요</li><li>수락 후 경기 진행</li></ul>
+      </button>
+      <button type="button" class="ch-create-mode ch-create-instant" id="ch-mode-instant" onclick="setChCreateMode('instant')">
+        <span class="ch-create-icon">⚡</span>
+        <span class="ch-create-t">즉시 대결</span>
+        <ul class="ch-create-ul"><li>상대방 수락 없이 바로 생성</li><li>생성 후 즉시 결과 입력</li></ul>
+      </button>
+    </div>
+    <p class="bs-step-note" id="ch-mode-open-note" style="display:none">오픈 챌린지는 일반 대결만 가능합니다.</p>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot3" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(2)">← 이전</button>
+    <button class="btn btn-p" onclick="bsStep(4)">다음 →</button>
+  </div>
+
+  <!-- ══ STEP 4: 일정 · 내기 · 생성 ══ -->
+  <div class="bs-body" id="bs-step4" style="display:none">
+    <div class="bs-summary" id="bs-summary"></div>
     <div class="fr" style="margin-bottom:14px">
       <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
       <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
     </div>
-
-    <!-- 내기 제목: 없음 / 커피 내기 / 짜장면 내기 -->
     <div class="fg" style="margin-bottom:0">
-      <label>내기 제목 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>
+      <label>내기 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>
       <div class="msg-chips" id="bet-chips">
         <button class="msg-chip none-chip on" data-bet="" onclick="selectBet(this)">없음</button>
-        <button class="msg-chip" data-bet="coffee" onclick="selectBet(this)">☕ 커피 내기</button>
-        <button class="msg-chip" data-bet="jjajang" onclick="selectBet(this)">🍜 짜장면 내기</button>
+        <button class="msg-chip" data-bet="coffee" onclick="selectBet(this)">☕ 커피</button>
+        <button class="msg-chip" data-bet="jjajang" onclick="selectBet(this)">🍜 짜장면</button>
       </div>
     </div>
-
-    <!-- 스크롤 여백 -->
     <div style="height:8px"></div>
   </div>
-  <!-- ★ STEP2 하단 버튼: bs-body 바깥, bs-ch 직속 자식 → flex column 말단 고정 -->
-  <div class="bs-foot" id="bs-foot2" style="display:none">
-    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
+  <div class="bs-foot" id="bs-foot4" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(3)">← 이전</button>
     <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
   </div>
 </div>
@@ -347,20 +364,24 @@
         </div>
       </div>
 
-      <!-- ── 경기 방식 선택 ── -->
+      <!-- ── 경기 방식 (대결 신청 시 설정 · 변경 가능) ── -->
       <div class="fg">
-        <label>경기 방식 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택 시 선승 자동 감지)</span></label>
-        <div style="display:flex;gap:8px">
-          <button id="gm-bo3" class="btn btn-g" onclick="setGameMode('bo3')"
-            style="flex:1;min-height:44px;font-size:13px;font-weight:700">3판2선</button>
-          <button id="gm-bo5" class="btn btn-g" onclick="setGameMode('bo5')"
-            style="flex:1;min-height:44px;font-size:13px;font-weight:700">5판3선</button>
-          <button id="gm-bo7" class="btn btn-g" onclick="setGameMode('bo7')"
-            style="flex:1;min-height:44px;font-size:13px;font-weight:700">7판4선</button>
+        <label>경기 방식</label>
+        <div class="gm-grid gm-grid-res" id="res-gm-grid">
+          <button type="button" id="gm-bo1" class="gm-card gm-card-sm" onclick="setGameMode('bo1')">
+            <span class="gm-card-t">단판</span><span class="gm-card-d">1선승</span>
+          </button>
+          <button type="button" id="gm-bo3" class="gm-card gm-card-sm" onclick="setGameMode('bo3')">
+            <span class="gm-card-t">3판2선</span><span class="gm-card-d">최대 3세트</span>
+          </button>
+          <button type="button" id="gm-bo5" class="gm-card gm-card-sm" onclick="setGameMode('bo5')">
+            <span class="gm-card-t">5판3선</span><span class="gm-card-d">최대 5세트</span>
+          </button>
+          <button type="button" id="gm-bo7" class="gm-card gm-card-sm" onclick="setGameMode('bo7')">
+            <span class="gm-card-t">7판4선</span><span class="gm-card-d">최대 7세트</span>
+          </button>
         </div>
-        <div id="gm-hint" style="font-size:12px;color:var(--t3);margin-top:6px;text-align:center">
-          방식 미선택 — 점수만 기록합니다
-        </div>
+        <div id="gm-hint" class="gm-hint">방식 미선택 — 점수만 기록합니다</div>
       </div>
 
       <!-- ── 결과 입력 방식 ── -->

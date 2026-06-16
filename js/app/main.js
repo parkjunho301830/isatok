@@ -34,8 +34,16 @@ let db,_fbApp,MEMBERS=[],CHAL=[],NOTICES=[],BOARDS=[];
 let _delId=null,_fg='',_cf='all',_rid=null,_rw=null;
 // _sets: 결과 입력 모달에서 추가된 세트별 점수 배열 [{a:숫자, b:숫자}, ...]
 let _sets=[];
-// _gameMode: 경기 방식 (null=미선택, 'bo3'=3판2선, 'bo5'=5판3선, 'bo7'=7판4선)
+// _gameMode: 경기 방식 (null=미선택, 'bo1'|'bo3'|'bo5'|'bo7')
 let _gameMode=null;
+const GM={
+  bo1:{max:1,wins:1,lb:'단판 승부',short:'1판 1선승'},
+  bo3:{max:3,wins:2,lb:'3판 2선승',short:'3판 2선승'},
+  bo5:{max:5,wins:3,lb:'5판 3선승',short:'5판 3선승'},
+  bo7:{max:7,wins:4,lb:'7판 4선승',short:'7판 4선승'}
+};
+let _bsGameMode='bo5';
+let _bsCreateMode='normal';
 let _type='ms',_my=[],_opp=[];
 // _editChId: 대기 중 대결 신청 수정 시 편집 대상 ID (null이면 신규)
 let _editChId=null;
@@ -425,8 +433,10 @@ var BS_ANIM_MS=320;
 var BS_DISMISS_VEL=0.55; // px/ms — 빠른 아래 flick 시 닫기
 
 function _getActiveBSBody(){
-  var s2=g('bs-step2');
-  if(s2&&s2.style.display!=='none')return s2;
+  for(var i=4;i>=1;i--){
+    var s=g('bs-step'+i);
+    if(s&&s.style.display!=='none')return s;
+  }
   return g('bs-step1');
 }
 
@@ -434,7 +444,7 @@ function _isBSInteractive(target){
   if(!target||!target.closest)return false;
   var tag=target.tagName;
   if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='BUTTON'||tag==='LABEL')return true;
-  return!!target.closest('.mc-btn,.msg-chip,.tb,.mc2,.oc-toggle-wrap,.inst-toggle-wrap,.inst-res-opt,.sw,.btn');
+  return!!target.closest('.mc-btn,.msg-chip,.tb,.mc2,.oc-toggle-wrap,.gm-card,.ch-create-mode,.sw,.btn');
 }
 
 function _applyBSDragOffset(sheet,overlay,y){
@@ -621,9 +631,8 @@ window.openBS = function(){
   var noneChip = document.querySelector('#bet-chips .none-chip');
   if(noneChip) noneChip.classList.add('on');
   ['e-my','e-opp'].forEach(function(id){ g(id).classList.remove('on'); });
-  _resetInstantCreateUI();
+  _resetBsCreateUI();
   setType('ms');
-  // STEP1부터 시작
   bsStep(1);
   _showBS();
 }
@@ -631,7 +640,63 @@ window.openBS = function(){
 window.openInstantBS=function(){
   _bsPresetInstant=true;
   openBS();
-  toast('⚡ 팀 선택 후 다음 단계에서 즉시 대결을 확인하세요');
+};
+
+window.setBsGameMode=function(mode){
+  if(!GM[mode])return;
+  _bsGameMode=mode;
+  _applyBsGameModeUI(mode);
+};
+function _applyBsGameModeUI(mode){
+  ['bo1','bo3','bo5','bo7'].forEach(function(m){
+    var btn=g('bs-gm-'+m);
+    if(btn)btn.classList.toggle('on',m===mode);
+  });
+}
+window.setChCreateMode=function(mode){
+  if(!INSTANT_CREATE_ALLOWED&&mode==='instant')return;
+  var isOpen=g('oc-chk')&&g('oc-chk').checked;
+  if((isOpen||_editChId)&&mode==='instant')return;
+  _bsCreateMode=mode;
+  _instantCreate=(mode==='instant');
+  if(mode==='instant'){
+    var ocChk=g('oc-chk'),ocWrap=g('oc-toggle-wrap'),oppSec=g('opp-section');
+    if(ocChk&&ocChk.checked){
+      ocChk.checked=false;
+      if(ocWrap)ocWrap.classList.remove('on');
+      if(oppSec)oppSec.style.display='';
+    }
+  }
+  _applyChCreateModeUI();
+  _updateChSubmitBtn();
+  renderGridsBS();
+};
+function _applyChCreateModeUI(){
+  var isOpen=g('oc-chk')&&g('oc-chk').checked;
+  if(isOpen||_editChId)_bsCreateMode='normal';
+  var normalBtn=g('ch-mode-normal'),instantBtn=g('ch-mode-instant');
+  var note=g('ch-mode-open-note');
+  if(normalBtn)normalBtn.classList.toggle('on',_bsCreateMode==='normal');
+  if(instantBtn){
+    instantBtn.classList.toggle('on',_bsCreateMode==='instant');
+    instantBtn.classList.toggle('disabled',isOpen||!!_editChId);
+  }
+  if(note)note.style.display=(isOpen&&!_editChId)?'block':'none';
+}
+function _renderBsSummary(){
+  var box=g('bs-summary');
+  if(!box)return;
+  var tm=TM[_type]||TM.ms;
+  var isOpen=g('oc-chk')&&g('oc-chk').checked;
+  var gm=GM[_bsGameMode]||GM.bo5;
+  var my=_my.join(' · ')||'—';
+  var opp=isOpen?'오픈 (누구나)':(_opp.join(' · ')||'—');
+  var modeLbl=_bsCreateMode==='instant'?'⚡ 즉시 대결':'🏓 일반 대결';
+  box.innerHTML='<div><strong>'+my+'</strong> VS <strong>'+opp+'</strong></div>'
+    +'<div style="margin-top:6px">'+tm.lb+' · '+gm.lb+' · '+modeLbl+'</div>';
+}
+window.bsStepNextFrom2=function(){
+  bsStep(_editChId?4:3);
 };
 
 window.openResultPicker=function(){
@@ -798,8 +863,10 @@ window.openEditCh = function(id){
   var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
   if(bsTitleEm) bsTitleEm.textContent = '수정';
 
-  var instSec=g('inst-create-section');
-  if(instSec) instSec.style.display='none';
+  _bsGameMode=c.gameMode||'bo5';
+  _applyBsGameModeUI(_bsGameMode);
+  _bsCreateMode='normal';
+  _instantCreate=false;
 
   renderGridsBS();
   bsStep(1);
@@ -814,7 +881,7 @@ window.closeBS = function(){
     if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
     var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
     if(bsTitleEm) bsTitleEm.textContent = '신청';
-    _resetInstantCreateUI();
+    _resetBsCreateUI();
     requestAnimationFrame(function(){
       document.body.style.overflow = '';
     });
@@ -822,10 +889,10 @@ window.closeBS = function(){
   });
 }
 
-// ── STEP 전환: 1 → 2는 팀 선택 유효성 검사 후 진행
+// ── STEP 전환 (4단계: 상대 → 경기방식 → 일반/즉시 → 생성)
 window.bsStep = function(n){
-  if(n === 2){
-    // ── STEP1 → STEP2 전환 시 유효성 검사 ──
+  if(n===3&&_editChId)n=4;
+  if(n===2){
     const m = TM[_type] || TM.ms;
     var isOpenMode = g('oc-chk') && g('oc-chk').checked;
     var ok = true;
@@ -846,43 +913,45 @@ window.bsStep = function(n){
     }
     if(!ok) return;
   }
-  // ── 단계 표시 전환: bs-body + bs-foot 쌍으로 동시 전환 ──
-  g('bs-step1').style.display = n===1 ? '' : 'none';
-  g('bs-step2').style.display = n===2 ? '' : 'none';
-  // ★ bs-foot도 스텝에 맞춰 전환 (bs-body 밖으로 분리됐으므로 별도 제어 필요)
-  g('bs-foot1').style.display = n===1 ? '' : 'none';
-  g('bs-foot2').style.display = n===2 ? '' : 'none';
-  g('bsd1').classList.toggle('on', n===1);
-  g('bsd2').classList.toggle('on', n===2);
-  if(n===2){
-    var instSec=g('inst-create-section');
-    if(instSec) instSec.style.display=_editChId?'none':(INSTANT_CREATE_ALLOWED?'':'none');
+  if(n===4&&!_editChId&&_bsCreateMode==='instant'){
+    var tm2=TM[_type]||TM.ms;
+    if(_opp.length<tm2.maxO){
+      toast('⚠️ 즉시 대결은 상대 팀 선택이 필요합니다');
+      return;
+    }
+  }
+  for(var i=1;i<=4;i++){
+    var step=g('bs-step'+i),foot=g('bs-foot'+i);
+    if(step)step.style.display=(i===n)?'':'none';
+    if(foot)foot.style.display=(i===n)?'':'none';
+    var dot=g('bsd'+i);
+    if(dot)dot.classList.toggle('on',i===n);
+  }
+  if(n===3){
+    _applyChCreateModeUI();
     if(_bsPresetInstant&&!_editChId){
       _bsPresetInstant=false;
-      var ichk=g('inst-chk');
-      if(ichk){ichk.checked=true;}
-      toggleInstant();
+      setChCreateMode('instant');
     }
+  }
+  if(n===4){
+    _renderBsSummary();
     _updateChSubmitBtn();
   }
 }
 
 function _isInstantCreateMode(){
   if(!INSTANT_CREATE_ALLOWED)return false;
-  var chk=g('inst-chk');
-  if(chk)_instantCreate=!!chk.checked;
-  return _instantCreate;
+  var isOpen=g('oc-chk')&&g('oc-chk').checked;
+  if(isOpen)return false;
+  return _bsCreateMode==='instant';
 }
-function _resetInstantCreateUI(){
+function _resetBsCreateUI(){
   _instantCreate=false;
-  var instChk=g('inst-chk'),instWrap=g('inst-toggle-wrap');
-  var instResWrap=g('inst-res-wrap'),instResChk=g('ch-instant-res');
-  var instSec=g('inst-create-section');
-  if(instChk)instChk.checked=false;
-  if(instWrap)instWrap.classList.remove('on');
-  if(instResWrap)instResWrap.style.display='none';
-  if(instResChk)instResChk.checked=false;
-  if(instSec)instSec.style.display=INSTANT_CREATE_ALLOWED?'':'none';
+  _bsGameMode='bo5';
+  _bsCreateMode='normal';
+  _applyBsGameModeUI('bo5');
+  _applyChCreateModeUI();
   _updateChSubmitBtn();
 }
 function _updateChSubmitBtn(){
@@ -894,8 +963,7 @@ function _updateChSubmitBtn(){
     return;
   }
   if(_isInstantCreateMode()){
-    var autoRes=g('ch-instant-res')&&g('ch-instant-res').checked;
-    submitBtn.textContent=autoRes?'🏓 즉시 생성 · 결과 입력':'🏓 즉시 대결 생성';
+    submitBtn.textContent='⚡ 즉시 생성 · 결과 입력';
     return;
   }
   var isOpen=g('oc-chk')&&g('oc-chk').checked;
@@ -903,30 +971,6 @@ function _updateChSubmitBtn(){
   else submitBtn.textContent='🏓 도전장 보내기';
 }
 window.updateChSubmitBtn=_updateChSubmitBtn;
-window.toggleInstant=function(){
-  if(!INSTANT_CREATE_ALLOWED)return;
-  var chk=g('inst-chk'),wrap=g('inst-toggle-wrap');
-  var resWrap=g('inst-res-wrap');
-  if(!chk||!wrap)return;
-  _instantCreate=!!chk.checked;
-  var isOn=_instantCreate;
-  wrap.classList.toggle('on',isOn);
-  if(isOn){
-    var ocChk=g('oc-chk'),ocWrap=g('oc-toggle-wrap'),oppSec=g('opp-section');
-    if(ocChk&&ocChk.checked){
-      ocChk.checked=false;
-      if(ocWrap)ocWrap.classList.remove('on');
-      if(oppSec)oppSec.style.display='';
-    }
-    if(resWrap)resWrap.style.display='';
-  }else{
-    if(resWrap)resWrap.style.display='none';
-    var resChk=g('ch-instant-res');
-    if(resChk)resChk.checked=false;
-  }
-  _updateChSubmitBtn();
-  renderGridsBS();
-}
 
 function _debugChallengeCreate(info){
   if(typeof console==='undefined'||!console.log)return;
@@ -956,7 +1000,7 @@ window.submitChBS = async function(){
     instantCreate:instantMode,
     requiresAcceptance:!instantMode&&!isOpenMode,
     isOpenMode:isOpenMode,
-    checkboxChecked:!!(g('inst-chk')&&g('inst-chk').checked),
+    checkboxChecked:_bsCreateMode==='instant',
     stateFlag:_instantCreate,
     type:_type,
     myTeam:[..._my],
@@ -970,7 +1014,7 @@ window.submitChBS = async function(){
       return;
     }
   }
-  var autoOpenRes=instantMode&&g('ch-instant-res')&&g('ch-instant-res').checked;
+  var autoOpenRes=instantMode;
   var fields = {
     type: _type,
     myTeam: [..._my],
@@ -979,7 +1023,8 @@ window.submitChBS = async function(){
     time: g('ch-time').value,
     place: '',
     bet: _bet,
-    isOpen: !!isOpenMode
+    isOpen: !!isOpenMode,
+    gameMode: _bsGameMode
   };
   closeBS();
   try {
@@ -1020,12 +1065,8 @@ window.submitChBS = async function(){
     });
     _debugCardActions(saved);
     if(instantMode){
-      toast(autoOpenRes?'✅ 대결 생성! 결과를 입력해 주세요.':'✅ 대결이 즉시 생성됐습니다!');
-      if(autoOpenRes){
-        setTimeout(function(){ openRes(newId); }, 450);
-      }else{
-        setTimeout(function(){ openShareModal({id: newId, ...data}); }, 700);
-      }
+      toast('✅ 대결 생성! 결과를 입력해 주세요.');
+      setTimeout(function(){ openRes(newId); }, 450);
     }else{
       toast(isOpenMode ? '🔥 오픈 챌린지가 등록됐습니다!' : '🏓 도전장을 보냈습니다!');
       setTimeout(function(){ openShareModal({id: newId, ...data}); }, 700);
@@ -1340,13 +1381,7 @@ window.toggleOC=function(){
   var isOn=chk.checked;
   wrap.classList.toggle('on',isOn);
   if(isOn){
-    var instChk=g('inst-chk'),instWrap=g('inst-toggle-wrap'),instResWrap=g('inst-res-wrap');
-    if(instChk){instChk.checked=false;}
-    _instantCreate=false;
-    if(instWrap)instWrap.classList.remove('on');
-    if(instResWrap)instResWrap.style.display='none';
-    var instResChk=g('ch-instant-res');
-    if(instResChk)instResChk.checked=false;
+    setChCreateMode('normal');
     oppSec.style.display='none';
     _opp=[];
     g('e-opp').classList.remove('on');
@@ -1604,13 +1639,18 @@ function _isSetWinsScore(score){
   if(!m)return false;
   var a=parseInt(m[1],10),b=parseInt(m[2],10);
   if(a===b)return false;
-  return a<=4&&b<=4&&(a+b)>=2;
+  return a<=4&&b<=4;
+}
+function _gmInfo(mode){
+  return GM[mode]||GM.bo5;
 }
 function _maxSetRows(){
-  return _gameMode==='bo5'?5:_gameMode==='bo7'?7:3;
+  if(!_gameMode)return 3;
+  return _gmInfo(_gameMode).max;
 }
 function _winsNeeded(){
-  return _gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
+  if(!_gameMode)return 2;
+  return _gmInfo(_gameMode).wins;
 }
 function _syncSetWinsFromPicks(){
   var wA=0,wB=0;
@@ -1622,31 +1662,26 @@ function _syncSetWinsFromPicks(){
 }
 function _applyGameModeUI(mode){
   _gameMode=mode;
-  ['bo3','bo5','bo7'].forEach(function(m){
+  ['bo1','bo3','bo5','bo7'].forEach(function(m){
     var btn=g('gm-'+m);
-    if(!btn)return;
-    if(m===mode){
-      btn.style.borderColor='var(--a)';
-      btn.style.background='var(--adim)';
-      btn.style.color='var(--a)';
-    }else{
-      btn.style.borderColor='';
-      btn.style.background='';
-      btn.style.color='';
-    }
+    if(btn)btn.classList.toggle('on',m===mode);
   });
   var hint=g('gm-hint');
-  if(hint&&mode){
-    var winsNeeded=mode==='bo3'?2:mode==='bo5'?3:4;
-    var maxS=mode==='bo3'?3:mode==='bo5'?5:7;
-    var lb=mode==='bo3'?'3판 2선':mode==='bo5'?'5판 3선':'7판 4선';
-    hint.textContent=lb+' — '+winsNeeded+'승 달성 시 자동 승리 지정 (최대 '+maxS+'세트)';
+  if(hint){
+    if(mode){
+      var info=_gmInfo(mode);
+      hint.textContent=info.lb+' — '+info.wins+'승 달성 시 자동 승리 (최대 '+info.max+'세트)';
+    }else{
+      hint.textContent='방식 미선택 — 점수만 기록합니다';
+    }
   }
 }
 function _inferGameModeFromSetWins(wA,wB){
   var maxW=Math.max(wA,wB),total=wA+wB;
   if(maxW>=4)return'bo7';
-  if(total>3)return'bo5';
+  if(maxW>=3||total>5)return'bo5';
+  if(maxW>=2||total>2)return'bo3';
+  if(total>=1)return'bo1';
   return'bo3';
 }
 function _resizeSetWinPick(maxR){
@@ -1701,12 +1736,14 @@ function _renderSetWinPresets(){
   var box=g('sc-setwin-presets');
   if(!box)return;
   var presets;
-  if(_gameMode==='bo5'){
+  if(_gameMode==='bo1'){
+    presets=[[1,0],[0,1]];
+  }else if(_gameMode==='bo5'){
     presets=[[3,0],[3,1],[3,2],[2,3],[1,3],[0,3]];
   }else if(_gameMode==='bo7'){
     presets=[[4,0],[4,1],[4,2],[4,3],[0,4],[1,4],[2,4],[3,4]];
   }else{
-    presets=[[3,0],[3,1],[3,2],[0,3],[1,3],[2,3]];
+    presets=[[2,0],[2,1],[1,2],[0,2]];
   }
   box.innerHTML=presets.map(function(p){
     return '<button type="button" class="btn btn-g btn-sm" onclick="setSetWinsPreset('+p[0]+','+p[1]+')">'+p[0]+':'+p[1]+'</button>';
@@ -1779,7 +1816,7 @@ function _autoWinnerFromSetScores(){
   var wA=_sets.filter(function(x){return x.a>x.b;}).length;
   var wB=_sets.filter(function(x){return x.b>x.a;}).length;
   if(_gameMode){
-    var winsNeeded=_gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
+    var winsNeeded=_winsNeeded();
     if(wA>=winsNeeded){setW('a');return;}
     if(wB>=winsNeeded){setW('b');return;}
   }
@@ -1913,16 +1950,11 @@ window.openRes=function(id){
   _rw=null;
   _resInputMode='winner';
   _setWinsA=0;_setWinsB=0;
-  _setRowCount=3;
-  _initSetWinPick(3);
   _sets=[];
-  _gameMode=null;
-  ['gm-bo3','gm-bo5','gm-bo7'].forEach(function(bid){
-    var btn=g(bid);
-    if(btn){btn.style.borderColor='';btn.style.background='';btn.style.color='';}
-  });
-  var hint=g('gm-hint');
-  if(hint)hint.textContent='방식 미선택 — 점수만 기록합니다';
+  var chGm=c.gameMode&&GM[c.gameMode]?c.gameMode:'bo5';
+  _applyGameModeUI(chGm);
+  _setRowCount=_gmInfo(chGm).max;
+  _initSetWinPick(_gmInfo(chGm).max);
 
   var myNames=(c.myTeam||[]).join(' · ');
   var opNames=(c.oppTeam||[]).join(' · ');
@@ -2153,14 +2185,12 @@ function renderSets(){
 window.addSet=function(){addSetRow();};
 window.removeSet=function(idx){removeSetRow(idx);};
 
-// ── setGameMode: 경기 방식(3판2선/5판3선/7판4선) 선택 처리
-// 선택된 버튼은 강조 표시, 이미 선택된 방식을 다시 누르면 해제(토글)
+// ── setGameMode: 경기 방식(bo1/bo3/bo5/bo7) 선택 — 결과 입력 세트 수 연동
 window.setGameMode=function(mode){
+  if(!GM[mode])return;
   if(_gameMode===mode){
     _gameMode=null;
     _applyGameModeUI(null);
-    var hintOff=g('gm-hint');
-    if(hintOff)hintOff.textContent='방식 미선택 — 점수만 기록합니다';
     if(_resInputMode==='detail')renderSetInputRows();
     if(_resInputMode==='sets')renderSetWinPickRows();
     return;
@@ -2173,7 +2203,7 @@ window.setGameMode=function(mode){
   }else if(_resInputMode==='sets'){
     renderSetWinPickRows();
   }else if(_sets.length>0){
-    var winsNeeded2=mode==='bo3'?2:mode==='bo5'?3:4;
+    var winsNeeded2=_winsNeeded();
     var wA=_sets.filter(function(x){return x.a>x.b;}).length;
     var wB=_sets.filter(function(x){return x.b>x.a;}).length;
     var c=CHAL.find(function(c){return c.id===_rid;});
