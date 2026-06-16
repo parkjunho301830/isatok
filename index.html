@@ -3,12 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f2f2f7">
-<meta property="og:title" content="이사탁 탁구 대결">
-<meta property="og:description" content="이사탁 동호회 탁구 대결 신청, 수락, 결과, 랭킹">
+<meta name="theme-color" content="#007AFF">
+<meta name="apple-mobile-web-app-title" content="이사탁">
+<meta property="og:title" content="이사탁">
+<meta property="og:description" content="이사탁 탁구 동호회 — 대결 신청, 랭킹, 통계">
 <meta property="og:type" content="website">
 <meta property="og:image" content="assets/share-kakao.jpg">
-<title>이사탁 탁구 대결</title>
+<meta property="og:site_name" content="이사탁">
+<title>이사탁</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <!-- 카카오 JavaScript SDK (채팅방 선택 후 직접 전송 기능) -->
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
@@ -21,15 +25,26 @@
 
 <!-- 로딩 -->
 <div class="ls" id="ls">
+  <img src="assets/favicon.svg" alt="" class="ls-mark" width="56" height="56">
+  <div class="ls-brand">이사탁</div>
   <div class="sp"></div>
-  <div style="color:var(--t2);font-size:15px;font-weight:600;margin-top:4px">Firebase 연결 중...</div>
+  <div class="ls-msg">Firebase 연결 중...</div>
 </div>
 
 <div class="app-layout">
 
   <!-- PC 전용 사이드바 -->
   <nav class="sidebar" id="sidebar" style="display:none">
-    <div class="logo"><div class="logo-t">이사탁</div><div class="logo-s">이사탁 탁구 동호회</div><div style="font-size:11px;color:var(--t3);font-weight:500;margin-top:4px;letter-spacing:0.02em">v2025.06.12</div></div>
+    <div class="logo">
+      <div class="logo-row">
+        <img src="assets/favicon.svg" alt="" class="logo-mark" width="42" height="42">
+        <div class="logo-text">
+          <div class="logo-t">이사탁</div>
+          <div class="logo-s">탁구 동호회</div>
+        </div>
+      </div>
+      <div class="logo-ver">v2025.06.12</div>
+    </div>
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결</div>
     <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>랭킹</div>
@@ -46,13 +61,19 @@
   <div class="app-wrap" id="app" style="display:none">
 
   <!-- 모바일 헤더 -->
-  <div class="mhdr">
-    <div class="mhdr-logo">🏓 이사탁 <span style="font-size:10px;font-weight:600;color:var(--t3);letter-spacing:0;vertical-align:middle;margin-left:2px">v2025.06.12</span></div>
+  <header class="mhdr">
+    <div class="mhdr-brand">
+      <img src="assets/favicon.svg" alt="" class="mhdr-mark" width="30" height="30">
+      <div class="mhdr-text">
+        <span class="mhdr-name">이사탁</span>
+        <span class="mhdr-tag">탁구 동호회</span>
+      </div>
+    </div>
     <div class="mhdr-r">
       <button class="btn btn-g btn-xs admin-mhdr-btn" id="btn-admin-m" type="button" onclick="toggleAdmin()" title="관리자">🔐</button>
-      <span id="dbm" title="연결 상태">🟢</span>
+      <span class="mhdr-status" id="dbm" title="연결 상태">🟢</span>
     </div>
-  </div>
+  </header>
 
   <!-- FAB (모바일 대결 신청) -->
   <button class="fab" onclick="openBS()">🏓 대결 신청</button>
@@ -61,10 +82,17 @@
 
     <!-- ══ 대결 (홈) ══ -->
     <div class="page on" id="page-challenge">
-      <div class="ph">
-        <div class="ph-t">이사탁 <em>홈</em></div>
-        <button class="btn btn-p btn-sm pc-only" onclick="openBS()">+ 대결 신청</button>
-      </div>
+      <section class="brand-hero" aria-label="이사탁 소개">
+        <div class="brand-hero-bg" aria-hidden="true"></div>
+        <div class="brand-hero-inner">
+          <img src="assets/favicon.svg" alt="" class="brand-mark" width="52" height="52">
+          <div class="brand-hero-copy">
+            <h1 class="brand-name">이사탁</h1>
+            <p class="brand-tagline">탁구 동호회 · 대결 · 랭킹 · 통계</p>
+          </div>
+          <button class="btn btn-p btn-sm brand-hero-cta pc-only" type="button" onclick="openBS()">+ 대결 신청</button>
+        </div>
+      </section>
       <div class="quick-actions">
         <button class="qa-card" type="button" onclick="openBS()">
           <span class="qa-icon">🏓</span>

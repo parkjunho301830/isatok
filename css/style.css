@@ -71,9 +71,13 @@ body{
   position:sticky;top:0;height:100vh;
   overflow-y:auto;
 }
-.logo{padding:0 24px 24px;border-bottom:1px solid var(--b1);margin-bottom:18px;}
-.logo-t{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;color:var(--a);line-height:1;}
-.logo-s{font-size:11px;color:var(--t3);letter-spacing:1.2px;margin-top:5px;}
+.logo{padding:0 20px 20px;border-bottom:1px solid var(--b1);margin-bottom:18px;}
+.logo-row{display:flex;align-items:center;gap:12px;}
+.logo-mark{flex-shrink:0;border-radius:10px;box-shadow:0 2px 8px var(--aglow);}
+.logo-text{min-width:0;}
+.logo-t{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--a);line-height:1.05;}
+.logo-s{font-size:11px;color:var(--t3);letter-spacing:.4px;margin-top:3px;font-weight:600;}
+.logo-ver{font-size:10px;color:var(--t3);font-weight:500;margin-top:10px;letter-spacing:.02em;padding-left:2px;}
 .nav-g{font-size:11px;letter-spacing:.6px;color:var(--t3);padding:20px 24px 7px;text-transform:uppercase;font-weight:600;}
 .nav-i{
   display:flex;align-items:center;gap:12px;padding:12px 20px;margin:2px 12px;
@@ -404,13 +408,24 @@ tr:last-child td{border-bottom:none;}
    ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????? */
 .mhdr{
   display:none;position:sticky;top:0;
-  background:rgba(249,249,249,.94);
+  background:rgba(255,255,255,.96);
   border-bottom:1px solid var(--b2);
-  height:52px;padding:0 16px;
+  min-height:52px;
+  padding:env(safe-area-inset-top,0px) 14px 0;
   align-items:center;justify-content:space-between;z-index:200;
+  box-shadow:0 1px 0 rgba(0,0,0,.04);
 }
-.mhdr-logo{font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--t1);}
-.mhdr-r{display:flex;align-items:center;gap:14px;}
+.mhdr-brand{display:flex;align-items:center;gap:10px;min-width:0;height:52px;}
+.mhdr-mark{flex-shrink:0;border-radius:8px;}
+.mhdr-text{display:flex;flex-direction:column;gap:1px;min-width:0;}
+.mhdr-name{font-size:17px;font-weight:800;letter-spacing:-.4px;color:var(--t1);line-height:1.15;}
+.mhdr-tag{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.02em;line-height:1.2;}
+.mhdr-r{display:flex;align-items:center;gap:8px;flex-shrink:0;height:52px;}
+.mhdr-status{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:999px;
+  background:var(--c2);font-size:14px;line-height:1;
+}
 
 .bnav{
   display:none;
@@ -427,9 +442,16 @@ tr:last-child td{border-bottom:none;}
   color:var(--t3);font-size:10px;font-weight:600;
   -webkit-user-select:none;user-select:none;
   transition:color .2s var(--ios-ease);letter-spacing:-.1px;
+  position:relative;min-height:52px;
 }
 .bni .bi{font-size:22px;line-height:1;transition:transform .2s var(--ios-ease);}
 .bni.on{color:var(--a);}
+.bni.on::before{
+  content:'';position:absolute;
+  top:6px;left:50%;transform:translateX(-50%);
+  width:calc(100% - 4px);max-width:64px;height:calc(100% - 8px);
+  background:var(--adim);border-radius:12px;z-index:-1;
+}
 .bni.on .bi{transform:scale(1.05);}
 .bni:active .bi{transform:scale(.95);}
 
@@ -462,7 +484,10 @@ tr:last-child td{border-bottom:none;}
 }
 @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
-.ls{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
+.ls{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.ls-mark{border-radius:14px;box-shadow:0 4px 20px var(--aglow);margin-bottom:4px;}
+.ls-brand{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:var(--a);line-height:1;}
+.ls-msg{color:var(--t2);font-size:14px;font-weight:600;margin-top:2px;}
 .sp{width:40px;height:40px;border:3px solid var(--c3);border-top-color:var(--a);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -614,17 +639,17 @@ tr:last-child td{border-bottom:none;}
   .app-wrap{min-height:100dvh;width:100%;display:block;}
   .main{width:100%;padding-bottom:calc(68px + var(--sb));}
 
-  .mhdr{display:flex;}
+  .mhdr{display:flex;min-height:calc(52px + env(safe-area-inset-top,0px));}
   .bnav{display:flex;}
   .fab{display:flex;}
 
-  /* ???: iOS grouped background + solid nav (?? ??) */
+  /* 모바일: iOS grouped background + solid nav */
   .mhdr,.bnav,.mo{
-    backdrop-filter:none;
-    -webkit-backdrop-filter:none;
+    backdrop-filter:saturate(180%) blur(12px);
+    -webkit-backdrop-filter:saturate(180%) blur(12px);
   }
-  .mhdr{background:rgba(249,249,249,.98);}
-  .bnav{background:rgba(249,249,249,.98);}
+  .mhdr{background:rgba(255,255,255,.92);}
+  .bnav{background:rgba(255,255,255,.94);}
 
   html.is-scrolling .cc.open{animation-play-state:paused;}
 
