@@ -94,6 +94,10 @@
           <tbody id="rtb"></tbody>
         </table>
       </div>
+      <div class="card card-p" id="rk-hall-wrap" style="margin-top:16px;display:none">
+        <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:14px">🏆 최다 연승 TOP 10</div>
+        <div id="rk-hall"></div>
+      </div>
     </div>
 
     <!-- ══ 회원 관리 ══ -->
@@ -446,6 +450,24 @@
       <div style="font-size:14px;color:var(--t2);margin-bottom:28px;line-height:1.6">Firebase에 저장 완료!<br>회원 목록에서 확인할 수 있어요.</div>
       <div style="display:flex;gap:12px;justify-content:center"><button class="btn btn-g" onclick="closeMo('mo-add')">닫기</button><button class="btn btn-p" onclick="openAddModal()">+ 추가 등록</button></div>
     </div>
+  </div>
+</div>
+
+<!-- ══ 회원 상세 / 상대 전적 모달 ══ -->
+<div class="mo write-mo" id="mo-profile">
+  <div class="mw">
+    <div class="mh"><div class="mt">회원 <em>상세</em></div><button class="mc-btn" onclick="closeMo('mo-profile')">✕</button></div>
+    <div class="mb">
+      <div id="prof-header"></div>
+      <div id="prof-streak"></div>
+      <div id="prof-recent"></div>
+      <div class="fg" style="margin-top:18px;margin-bottom:0">
+        <label>상대 전적 조회 <span style="color:var(--t3);font-size:12px;font-weight:400">(개인전 · 단식)</span></label>
+        <select id="prof-opp" onchange="renderProfileH2H()" style="min-height:44px;width:100%"></select>
+      </div>
+      <div id="prof-h2h" style="margin-top:12px"></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-profile')">닫기</button></div>
   </div>
 </div>
 

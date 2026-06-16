@@ -389,3 +389,37 @@
   font-size:14px;font-weight:700;color:var(--t2);
 }
 
+/* ══ 연승 / 상대 전적 ══ */
+.stat-box{
+  background:var(--c2);border-radius:14px;padding:14px 16px;margin-bottom:12px;
+}
+.stat-box-t{font-size:13px;font-weight:800;color:var(--t2);margin-bottom:8px;}
+.stat-streak-row{display:flex;gap:12px;flex-wrap:wrap;}
+.stat-streak-item{flex:1;min-width:120px;text-align:center;padding:10px;background:var(--c1);border-radius:12px;}
+.stat-streak-num{font-size:24px;font-weight:900;color:var(--a);line-height:1.2;}
+.stat-streak-lbl{font-size:11px;color:var(--t3);margin-top:4px;font-weight:600;}
+.stat-recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.stat-chip{
+  min-width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;
+}
+.stat-chip.win{background:rgba(0,122,255,.12);color:var(--a);}
+.stat-chip.loss{background:rgba(255,59,48,.12);color:var(--red);}
+.h2h-summary{
+  background:var(--c2);border-radius:14px;padding:14px 16px;margin-bottom:12px;text-align:center;
+}
+.h2h-scores{display:flex;justify-content:center;gap:24px;font-size:15px;font-weight:800;color:var(--t1);}
+.h2h-list{display:flex;flex-direction:column;gap:8px;}
+.h2h-item{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--c2);border-radius:12px;padding:10px 14px;font-size:13px;
+}
+.hall-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 4px;border-bottom:1px solid var(--b1);
+}
+.hall-row:last-child{border-bottom:none;}
+.hall-rank{font-weight:800;color:var(--t3);min-width:28px;}
+.hall-name{font-weight:700;color:var(--t1);flex:1;}
+.hall-streak{font-weight:800;color:var(--amber);white-space:nowrap;}
+
