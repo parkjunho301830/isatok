@@ -49,6 +49,9 @@ let _betPickId=null,_betPickSide=null,_betPickMember=null;
 let _scA=0,_scB=0;
 // _resEditMode: 완료된 경기 결과 수정 여부
 let _resEditMode=false;
+// _resInputMode: 결과 입력 방식 ('detail'|'text'|'sets'|'winner')
+let _resInputMode='detail';
+let _setWinsA=0,_setWinsB=0;
 // _rkMode: 랭킹 탭 ('individual' | 'double')
 let _rkMode='individual';
 // _deepLinkCh: 카카오 공유 링크로 진입 시 강조할 대결 ID
@@ -1186,6 +1189,7 @@ window.delC=async function(id){
 // ── 저장된 score 문자열 → _sets 배열 복원 ("21:18, 15:21" 형식)
 function _parseScoreToSets(score){
   if(!score)return[];
+  if(_isSetWinsScore(score))return[];
   var setPattern=/^\d+:\d+$/;
   var parts=score.split(',').map(function(s){return s.trim();});
   if(!parts.length||!parts.every(function(p){return setPattern.test(p);}))return[];
@@ -1194,12 +1198,125 @@ function _parseScoreToSets(score){
     return{a:parseInt(ab[0],10),b:parseInt(ab[1],10)};
   });
 }
+function _isSetWinsScore(score){
+  if(!score||score.indexOf(',')>=0)return false;
+  var m=score.trim().match(/^(\d+):(\d+)$/);
+  if(!m)return false;
+  var a=parseInt(m[1],10),b=parseInt(m[2],10);
+  if(a===b)return false;
+  return a<=4&&b<=4&&(a+b)>=2;
+}
+function _parseScoreText(text){
+  if(!text)return[];
+  var tokens=text.split(/[\s,\n]+/).filter(Boolean);
+  var out=[];
+  for(var i=0;i<tokens.length;i++){
+    var p=tokens[i].trim();
+    if(!/^\d+:\d+$/.test(p))continue;
+    var ab=p.split(':');
+    out.push({a:parseInt(ab[0],10),b:parseInt(ab[1],10)});
+  }
+  return out;
+}
+function _updateResPreviewVisibility(){
+  var wrap=g('res-preview-wrap');
+  var swPrev=g('sc-setwins-preview');
+  if(!wrap)return;
+  if(_resInputMode==='sets'){
+    if(swPrev){
+      if(_setWinsA>0||_setWinsB>0){
+        var lblA=g('sw-lbl-a'),lblB=g('sw-lbl-b');
+        swPrev.innerHTML=(lblA?lblA.textContent:'A')+' <span style="color:var(--a)">'+_setWinsA+'</span>'
+          +' : <span style="color:var(--blue)">'+_setWinsB+'</span> '+(lblB?lblB.textContent:'B');
+        swPrev.style.display='block';
+      }else swPrev.style.display='none';
+    }
+    g('sc-list').innerHTML='';
+    g('sc-summary').style.display='none';
+    wrap.style.display=(_setWinsA>0||_setWinsB>0)?'':'none';
+    return;
+  }
+  if(swPrev)swPrev.style.display='none';
+  if(_resInputMode==='winner'){
+    wrap.style.display='none';
+    return;
+  }
+  wrap.style.display=_sets.length?'':'none';
+}
+window.setResMode=function(mode){
+  if(_resInputMode==='detail'&&mode==='text'&&_sets.length){
+    var ti=g('res-text-input');
+    if(ti)ti.value=_sets.map(function(s){return s.a+':'+s.b;}).join(', ');
+  }
+  if(_resInputMode==='text'&&mode==='detail'){
+    parseResTextInput();
+  }
+  _resInputMode=mode;
+  ['detail','text','sets','winner'].forEach(function(m){
+    var btn=g('rm-'+m);
+    if(btn)btn.classList.toggle('on',m===mode);
+    var panel=g('res-panel-'+m);
+    if(panel)panel.style.display=m===mode?'':'none';
+  });
+  _updateResPreviewVisibility();
+};
+window.parseResTextInput=function(){
+  var ti=g('res-text-input');
+  if(!ti)return;
+  _sets=_parseScoreText(ti.value);
+  renderSets();
+  if(_sets.length&&_gameMode){
+    var winsNeeded=_gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
+    var wA=_sets.filter(function(x){return x.a>x.b;}).length;
+    var wB=_sets.filter(function(x){return x.b>x.a;}).length;
+    if(wA>=winsNeeded)setW('a');
+    else if(wB>=winsNeeded)setW('b');
+  }
+};
+function _renderSetWinsUI(){
+  var va=g('sw-val-a'),vb=g('sw-val-b');
+  if(va)va.textContent=_setWinsA;
+  if(vb)vb.textContent=_setWinsB;
+  _updateResPreviewVisibility();
+}
+function _autoWinnerFromSetWins(){
+  if(_setWinsA>_setWinsB)setW('a');
+  else if(_setWinsB>_setWinsA)setW('b');
+}
+window.stepSetWins=function(team,delta){
+  if(team==='a')_setWinsA=Math.max(0,Math.min(4,_setWinsA+delta));
+  else _setWinsB=Math.max(0,Math.min(4,_setWinsB+delta));
+  _renderSetWinsUI();
+  _autoWinnerFromSetWins();
+};
+window.setSetWinsPreset=function(a,b){
+  _setWinsA=a;_setWinsB=b;
+  _renderSetWinsUI();
+  _autoWinnerFromSetWins();
+};
+function _buildResultScore(){
+  if(_resInputMode==='winner')return null;
+  if(_resInputMode==='sets'){
+    if(_setWinsA===0&&_setWinsB===0)return null;
+    return _setWinsA+':'+_setWinsB;
+  }
+  if(_resInputMode==='text'){
+    var ti=g('res-text-input');
+    var parsed=ti?_parseScoreText(ti.value):[];
+    if(!parsed.length)return null;
+    return parsed.map(function(s){return s.a+':'+s.b;}).join(', ');
+  }
+  if(_sets.length>0)return _sets.map(function(s){return s.a+':'+s.b;}).join(', ');
+  return null;
+}
 
 window.openRes=function(id){
   const c=CHAL.find(c=>c.id===id);if(!c)return;
   _rid=id;
   _resEditMode=c.status==='completed';
   _rw=null;
+  _resInputMode='detail';
+  _setWinsA=0;_setWinsB=0;
   // ── 세트 배열 초기화 ──
   _sets=[];
   // ── 경기 방식 초기화 (미선택 상태로 리셋) ──
@@ -1226,6 +1343,12 @@ window.openRes=function(id){
   var lblB=(c.oppTeam||[])[0]||'B팀';
   g('sc-lbl-a').textContent=lblA;
   g('sc-lbl-b').textContent=lblB;
+  var swA=g('sw-lbl-a'),swB=g('sw-lbl-b');
+  if(swA)swA.textContent=lblA;
+  if(swB)swB.textContent=lblB;
+  var ti=g('res-text-input');
+  if(ti)ti.value='';
+  _renderSetWinsUI();
 
   // ── 스텝퍼/드럼롤 초기화: 전역 변수와 화면 표시 모두 0으로 리셋 ──
   _scA=0;_scB=0;
@@ -1238,11 +1361,24 @@ window.openRes=function(id){
   // ── 결과 수정: 기존 승자·세트 점수 복원 ──
   if(_resEditMode){
     if(c.winner)setW(c.winner);
-    var parsed=_parseScoreToSets(c.score);
-    if(parsed.length){
-      _sets=parsed;
-      renderSets();
+    if(c.score&&_isSetWinsScore(c.score)){
+      var ab=c.score.split(':');
+      _setWinsA=parseInt(ab[0],10);_setWinsB=parseInt(ab[1],10);
+      setResMode('sets');
+      _renderSetWinsUI();
+    }else{
+      var parsed=_parseScoreToSets(c.score);
+      if(parsed.length){
+        _sets=parsed;
+        if(ti)ti.value=_sets.map(function(s){return s.a+':'+s.b;}).join(', ');
+        setResMode('detail');
+        renderSets();
+      }else if(!c.score){
+        setResMode('winner');
+      }
     }
+  }else{
+    setResMode('detail');
   }
 
   // 모달 제목: 입력 / 수정
@@ -1556,6 +1692,7 @@ function renderSets(){
   if(!_sets.length){
     list.innerHTML='';
     summary.style.display='none';
+    _updateResPreviewVisibility();
     return;
   }
 
@@ -1602,6 +1739,7 @@ function renderSets(){
   } else {
     summary.style.display='none';
   }
+  _updateResPreviewVisibility();
 }
 
 // ── 경기 결과에 따른 회원 포인트 반영 (sign: 1=적용, -1=취소)
@@ -1642,13 +1780,8 @@ window.submitResult=async function(){
   var c=CHAL.find(function(x){return x.id===_rid;});
   if(!c)return;
 
-  // ── 스코어 문자열 조합 ──
-  // 세트 미입력 시 null, 입력 시 "21:18, 15:21, 21:19" 형식으로 저장
-  var sc=null;
-  if(_sets.length>0){
-    // 세트별 "A점수:B점수" 를 콤마로 연결
-    sc=_sets.map(function(s){return s.a+':'+s.b;}).join(', ');
-  }
+  // ── 스코어 문자열 조합 (입력 방식별) ──
+  var sc=_buildResultScore();
 
   try{
     // 결과 수정 시 기존 포인트 되돌리기
@@ -1669,10 +1802,10 @@ window.submitResult=async function(){
     if(mtEm)mtEm.textContent='입력';
     if(_currentPage==='ranking')renderR();
     if(_currentPage==='members')renderM();
-    // 세트 수 포함해서 토스트 메시지 표시
+    var hasScore=!!sc;
     var msg=wasEdit
-      ?(_sets.length>0?'✏️ 결과 수정 완료! ('+_sets.length+'세트)':'✏️ 결과 수정 완료!')
-      :(_sets.length>0?'🏆 결과 기록! ('+_sets.length+'세트)':'🏆 결과 기록!');
+      ?(hasScore?'✏️ 결과 수정 완료!':'✏️ 결과 수정 완료!')
+      :(hasScore?'🏆 결과 기록!':'🏆 승자만 기록!');
     toast(msg);
   }
   catch(e){toast('❌ '+e.message);}
