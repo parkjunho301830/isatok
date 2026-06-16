@@ -272,13 +272,47 @@
 }
 
 /* ══ 결과 입력 모달 ══ */
+#mo-result{
+  visibility:hidden;
+}
+#mo-result.on{
+  visibility:visible;
+}
 #mo-result .mw{
-  overflow-x:hidden;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  max-height:min(93dvh,860px);
+  width:100%;
+  max-width:560px;
 }
 #mo-result .mb{
+  flex:1;
+  min-height:0;
   padding-left:16px;
   padding-right:16px;
   overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+#mo-result .mh,#mo-result .mf{flex-shrink:0;}
+@media(min-width:769px){
+  #mo-result{
+    align-items:center;
+    padding:24px 16px;
+  }
+  #mo-result .mw{
+    border-radius:var(--rxl);
+    box-shadow:var(--shadow-lg);
+    transform:translateY(16px) scale(.98);
+    opacity:0;
+    transition:transform .32s var(--ios-ease),opacity .28s var(--ios-ease);
+  }
+  #mo-result.on .mw{
+    transform:translateY(0) scale(1);
+    opacity:1;
+  }
 }
 
 .res-text-input{
@@ -335,4 +369,23 @@
 }
 .res-set-del:active{background:var(--c1);}
 .res-set-add{width:100%;min-height:44px;margin-top:4px;font-weight:700;}
-
+.res-setwin-row{
+  display:grid;grid-template-columns:52px 1fr 1fr;gap:8px;align-items:center;
+  background:var(--c2);border-radius:12px;padding:8px 10px;margin-bottom:8px;
+}
+.res-setwin-num{font-size:12px;font-weight:700;color:var(--t3);text-align:center;}
+.res-setwin-btn{
+  min-height:44px;border-radius:12px;border:1.5px solid var(--b2);
+  background:var(--c1);color:var(--t2);font-size:12px;font-weight:700;
+  cursor:pointer;font-family:inherit;padding:8px 6px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.res-setwin-btn.on-a{border-color:var(--a);background:var(--adim);color:var(--a);}
+.res-setwin-btn.on-b{border-color:var(--blue);background:rgba(0,122,255,.12);color:var(--blue);}
+.res-setwin-summary{
+  margin-top:4px;margin-bottom:10px;padding:10px 14px;
+  background:var(--c2);border-radius:10px;text-align:center;
+  font-size:14px;font-weight:700;color:var(--t2);
+}
+

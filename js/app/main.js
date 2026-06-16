@@ -49,10 +49,11 @@ let _betPickId=null,_betPickSide=null,_betPickMember=null;
 let _scA=0,_scB=0;
 // _resEditMode: 완료된 경기 결과 수정 여부
 let _resEditMode=false;
-// _resInputMode: 결과 입력 방식 ('detail'|'sets'|'winner')
-let _resInputMode='detail';
+// _resInputMode: 결과 입력 방식 ('winner'|'sets'|'detail')
+let _resInputMode='winner';
 let _setWinsA=0,_setWinsB=0;
 let _setRowCount=3;
+let _setWinPick=[]; // 세트 승패 모드: 각 세트 승자 ('a'|'b'|null)
 let _scLblA='A팀',_scLblB='B팀';
 // _rkMode: 랭킹 탭 ('individual' | 'double')
 let _rkMode='individual';
@@ -643,6 +644,7 @@ window.submitChBS = async function(){
 
 function openMo(id){
   const el = g(id);
+  if(!el){console.error('Modal not found:',id);return;}
   el.classList.add('on');
   // 작성 모달: 첫 번째 입력 필드로 포커스
   if(el.classList.contains('write-mo')){
@@ -651,15 +653,14 @@ function openMo(id){
       if(first) first.focus();
     }, 320);
   }
-  // ★ overflow 변경을 RAF로 defer: 모달 클래스 추가 직후 즉각 reflow 방지
-  // classList.add('on') 로 GPU 레이어가 승격된 후 다음 프레임에서 overflow 처리
   requestAnimationFrame(function(){
     document.body.style.overflow = 'hidden';
   });
 }
 window.closeMo=function(id){
-  g(id).classList.remove('on');
-  // ★ overflow 복원도 RAF defer: 모달 닫힘 애니메이션과 reflow 분리
+  var el=g(id);
+  if(!el)return;
+  el.classList.remove('on');
   requestAnimationFrame(function(){
     document.body.style.overflow = '';
   });
@@ -1211,6 +1212,130 @@ function _isSetWinsScore(score){
 function _maxSetRows(){
   return _gameMode==='bo5'?5:_gameMode==='bo7'?7:3;
 }
+function _winsNeeded(){
+  return _gameMode==='bo3'?2:_gameMode==='bo5'?3:4;
+}
+function _syncSetWinsFromPicks(){
+  var wA=0,wB=0;
+  for(var i=0;i<_setWinPick.length;i++){
+    if(_setWinPick[i]==='a')wA++;
+    else if(_setWinPick[i]==='b')wB++;
+  }
+  _setWinsA=wA;_setWinsB=wB;
+}
+function _applyGameModeUI(mode){
+  _gameMode=mode;
+  ['bo3','bo5','bo7'].forEach(function(m){
+    var btn=g('gm-'+m);
+    if(!btn)return;
+    if(m===mode){
+      btn.style.borderColor='var(--a)';
+      btn.style.background='var(--adim)';
+      btn.style.color='var(--a)';
+    }else{
+      btn.style.borderColor='';
+      btn.style.background='';
+      btn.style.color='';
+    }
+  });
+  var hint=g('gm-hint');
+  if(hint&&mode){
+    var winsNeeded=mode==='bo3'?2:mode==='bo5'?3:4;
+    var maxS=mode==='bo3'?3:mode==='bo5'?5:7;
+    var lb=mode==='bo3'?'3판 2선':mode==='bo5'?'5판 3선':'7판 4선';
+    hint.textContent=lb+' — '+winsNeeded+'승 달성 시 자동 승리 지정 (최대 '+maxS+'세트)';
+  }
+}
+function _inferGameModeFromSetWins(wA,wB){
+  var maxW=Math.max(wA,wB),total=wA+wB;
+  if(maxW>=4)return'bo7';
+  if(total>3)return'bo5';
+  return'bo3';
+}
+function _resizeSetWinPick(maxR){
+  if(_setWinPick.length===maxR)return;
+  var old=_setWinPick.slice();
+  _setWinPick=[];
+  for(var i=0;i<maxR;i++)_setWinPick.push(old[i]||null);
+}
+function _initSetWinPick(len){
+  var maxR=_maxSetRows();
+  if(len==null)len=maxR;
+  _setWinPick=[];
+  for(var i=0;i<len;i++)_setWinPick.push(null);
+}
+function _inferSetWinPickFromAggregate(wA,wB){
+  var mode=_inferGameModeFromSetWins(wA,wB);
+  _applyGameModeUI(mode);
+  var maxR=_maxSetRows();
+  _resizeSetWinPick(maxR);
+  var idx=0;
+  for(var i=0;i<wA&&idx<maxR;i++)_setWinPick[idx++]='a';
+  for(var i=0;i<wB&&idx<maxR;i++)_setWinPick[idx++]='b';
+}
+function renderSetWinPickRows(){
+  var box=g('sc-setwin-rows');
+  if(!box)return;
+  var maxR=_maxSetRows();
+  _resizeSetWinPick(maxR);
+  var rows='';
+  for(var i=0;i<maxR;i++){
+    var pick=_setWinPick[i];
+    rows+='<div class="res-setwin-row">'
+      +'<span class="res-setwin-num">'+(i+1)+'세트</span>'
+      +'<button type="button" class="res-setwin-btn'+(pick==='a'?' on-a':'')+'" onclick="pickSetWin('+i+",'a')\">"+_scLblA+'</button>'
+      +'<button type="button" class="res-setwin-btn'+(pick==='b'?' on-b':'')+'" onclick="pickSetWin('+i+",'b')\">"+_scLblB+'</button>'
+      +'</div>';
+  }
+  _syncSetWinsFromPicks();
+  var summaryHtml='';
+  if(_setWinsA>0||_setWinsB>0){
+    summaryHtml='<div class="res-setwin-summary">'
+      +'<span style="color:var(--a)">'+_scLblA+' '+_setWinsA+'</span>'
+      +' <span style="color:var(--t3)">:</span> '
+      +'<span style="color:var(--blue)">'+_setWinsB+' '+_scLblB+'</span></div>';
+  }
+  box.innerHTML=summaryHtml+rows;
+  _renderSetWinPresets();
+  _autoWinnerFromSetPicks();
+  _updateResPreviewVisibility();
+}
+function _renderSetWinPresets(){
+  var box=g('sc-setwin-presets');
+  if(!box)return;
+  var presets;
+  if(_gameMode==='bo5'){
+    presets=[[3,0],[3,1],[3,2],[2,3],[1,3],[0,3]];
+  }else if(_gameMode==='bo7'){
+    presets=[[4,0],[4,1],[4,2],[4,3],[0,4],[1,4],[2,4],[3,4]];
+  }else{
+    presets=[[3,0],[3,1],[3,2],[0,3],[1,3],[2,3]];
+  }
+  box.innerHTML=presets.map(function(p){
+    return '<button type="button" class="btn btn-g btn-sm" onclick="setSetWinsPreset('+p[0]+','+p[1]+')">'+p[0]+':'+p[1]+'</button>';
+  }).join('');
+}
+window.pickSetWin=function(idx,team){
+  if(idx<0||idx>=_setWinPick.length)return;
+  _setWinPick[idx]=_setWinPick[idx]===team?null:team;
+  renderSetWinPickRows();
+};
+window.setSetWinsPreset=function(a,b){
+  _inferSetWinPickFromAggregate(a,b);
+  renderSetWinPickRows();
+};
+function _autoWinnerFromSetPicks(){
+  if(_resInputMode!=='sets')return;
+  _syncSetWinsFromPicks();
+  if(_setWinsA===0&&_setWinsB===0)return;
+  if(_gameMode){
+    var need=_winsNeeded();
+    if(_setWinsA>=need){setW('a');return;}
+    if(_setWinsB>=need){setW('b');return;}
+  }
+  if(_setWinsA>_setWinsB)setW('a');
+  else if(_setWinsB>_setWinsA)setW('b');
+}
 function _readSetRowsFromDom(){
   var rows=document.querySelectorAll('#sc-input-rows .res-set-row');
   var out=[];
@@ -1274,7 +1399,8 @@ function renderSetInputRows(preserved){
   if(!box)return;
   var maxR=_maxSetRows();
   if(!preserved){
-    if(_sets.length>_setRowCount)_setRowCount=_sets.length;
+    if(_gameMode)_setRowCount=maxR;
+    else if(_sets.length>_setRowCount)_setRowCount=_sets.length;
   }else{
     _setRowCount=preserved.length;
   }
@@ -1334,18 +1460,12 @@ window.removeSetRow=function(idx){
 function _updateResPreviewVisibility(){
   var wrap=g('res-preview-wrap');
   var swPrev=g('sc-setwins-preview');
+  var summary=g('sc-summary');
   if(!wrap)return;
   if(_resInputMode==='sets'){
-    if(swPrev){
-      if(_setWinsA>0||_setWinsB>0){
-        var lblA=g('sw-lbl-a'),lblB=g('sw-lbl-b');
-        swPrev.innerHTML=(lblA?lblA.textContent:'A')+' <span style="color:var(--a)">'+_setWinsA+'</span>'
-          +' : <span style="color:var(--blue)">'+_setWinsB+'</span> '+(lblB?lblB.textContent:'B');
-        swPrev.style.display='block';
-      }else swPrev.style.display='none';
-    }
-    g('sc-summary').style.display='none';
-    wrap.style.display=(_setWinsA>0||_setWinsB>0)?'':'none';
+    if(swPrev)swPrev.style.display='none';
+    if(summary)summary.style.display='none';
+    wrap.style.display='none';
     return;
   }
   if(swPrev)swPrev.style.display='none';
@@ -1361,39 +1481,21 @@ function _updateResPreviewVisibility(){
 }
 window.setResMode=function(mode){
   _resInputMode=mode;
-  ['detail','sets','winner'].forEach(function(m){
+  ['winner','sets','detail'].forEach(function(m){
     var btn=g('rm-'+m);
     if(btn)btn.classList.toggle('on',m===mode);
     var panel=g('res-panel-'+m);
-    if(panel)panel.style.display=m===mode?'':'none';
+    if(panel)panel.style.display=m===mode?'block':'none';
   });
+  if(mode==='sets')renderSetWinPickRows();
+  if(mode==='detail')renderSetInputRows();
   _updateResPreviewVisibility();
   if(mode==='detail')_renderSetSummary();
-};
-function _renderSetWinsUI(){
-  var va=g('sw-val-a'),vb=g('sw-val-b');
-  if(va)va.textContent=_setWinsA;
-  if(vb)vb.textContent=_setWinsB;
-  _updateResPreviewVisibility();
-}
-function _autoWinnerFromSetWins(){
-  if(_setWinsA>_setWinsB)setW('a');
-  else if(_setWinsB>_setWinsA)setW('b');
-}
-window.stepSetWins=function(team,delta){
-  if(team==='a')_setWinsA=Math.max(0,Math.min(4,_setWinsA+delta));
-  else _setWinsB=Math.max(0,Math.min(4,_setWinsB+delta));
-  _renderSetWinsUI();
-  _autoWinnerFromSetWins();
-};
-window.setSetWinsPreset=function(a,b){
-  _setWinsA=a;_setWinsB=b;
-  _renderSetWinsUI();
-  _autoWinnerFromSetWins();
 };
 function _buildResultScore(){
   if(_resInputMode==='winner')return null;
   if(_resInputMode==='sets'){
+    _syncSetWinsFromPicks();
     if(_setWinsA===0&&_setWinsB===0)return null;
     return _setWinsA+':'+_setWinsB;
   }
@@ -1403,16 +1505,16 @@ function _buildResultScore(){
 }
 
 window.openRes=function(id){
+  try{
   const c=CHAL.find(c=>c.id===id);if(!c)return;
   _rid=id;
   _resEditMode=c.status==='completed';
   _rw=null;
-  _resInputMode='detail';
+  _resInputMode='winner';
   _setWinsA=0;_setWinsB=0;
   _setRowCount=3;
-  // ── 세트 배열 초기화 ──
+  _initSetWinPick(3);
   _sets=[];
-  // ── 경기 방식 초기화 (미선택 상태로 리셋) ──
   _gameMode=null;
   ['gm-bo3','gm-bo5','gm-bo7'].forEach(function(bid){
     var btn=g(bid);
@@ -1421,36 +1523,33 @@ window.openRes=function(id){
   var hint=g('gm-hint');
   if(hint)hint.textContent='방식 미선택 — 점수만 기록합니다';
 
-  // ── 대결 정보 배너 ──
   var myNames=(c.myTeam||[]).join(' · ');
   var opNames=(c.oppTeam||[]).join(' · ');
-  g('ri').innerHTML=`<strong>${myNames}</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>${opNames}</strong>`;
+  var riEl=g('ri');
+  if(riEl)riEl.innerHTML=`<strong>${myNames}</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>${opNames}</strong>`;
 
-  // ── 승리 팀 버튼 라벨 ──
-  g('wan').textContent=myNames+' 팀 승리';
-  g('wbn').textContent=opNames+' 팀 승리';
-  ['wa','wb'].forEach(x=>{g(x).style.borderColor='var(--b2)';g(x).style.background='transparent';});
+  var wanEl=g('wan'),wbnEl=g('wbn');
+  if(wanEl)wanEl.textContent=myNames+' 팀 승리';
+  if(wbnEl)wbnEl.textContent=opNames+' 팀 승리';
+  ['wa','wb'].forEach(x=>{var el=g(x);if(el){el.style.borderColor='var(--b2)';el.style.background='transparent';}});
 
-  // ── 세트 입력: 팀 약칭 라벨 (이름이 길면 첫 이름만 사용) ──
   var lblA=(c.myTeam||[])[0]||'A팀';
   var lblB=(c.oppTeam||[])[0]||'B팀';
   _scLblA=lblA;
   _scLblB=lblB;
-  var swA=g('sw-lbl-a'),swB=g('sw-lbl-b');
-  if(swA)swA.textContent=lblA;
-  if(swB)swB.textContent=lblB;
-  _renderSetWinsUI();
 
-  g('sc-summary').style.display='none';
+  var summaryEl=g('sc-summary');
+  if(summaryEl)summaryEl.style.display='none';
+  var swPrevEl=g('sc-setwins-preview');
+  if(swPrevEl)swPrevEl.style.display='none';
 
-  // ── 결과 수정: 기존 승자·세트 점수 복원 ──
   if(_resEditMode){
     if(c.winner)setW(c.winner);
     if(c.score&&_isSetWinsScore(c.score)){
       var ab=c.score.split(':');
       _setWinsA=parseInt(ab[0],10);_setWinsB=parseInt(ab[1],10);
+      _inferSetWinPickFromAggregate(_setWinsA,_setWinsB);
       setResMode('sets');
-      _renderSetWinsUI();
     }else{
       var parsed=_parseScoreToSets(c.score);
       if(parsed.length){
@@ -1464,15 +1563,19 @@ window.openRes=function(id){
       }
     }
   }else{
-    setResMode('detail');
+    setResMode('winner');
+    renderSetWinPickRows();
     renderSetInputRows();
   }
 
-  // 모달 제목: 입력 / 수정
   var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
   if(mtEm)mtEm.textContent=_resEditMode?'수정':'입력';
 
   openMo('mo-result');
+  }catch(e){
+    console.error('openRes error:',e);
+    toast('❌ 결과 입력을 열 수 없습니다');
+  }
 }
 window.setW=function(t){
   _rw=t;
@@ -1652,47 +1755,22 @@ window.removeSet=function(idx){removeSetRow(idx);};
 // ── setGameMode: 경기 방식(3판2선/5판3선/7판4선) 선택 처리
 // 선택된 버튼은 강조 표시, 이미 선택된 방식을 다시 누르면 해제(토글)
 window.setGameMode=function(mode){
-  // ── 토글: 동일 방식 재클릭 시 해제 ──
   if(_gameMode===mode){
     _gameMode=null;
-    ['gm-bo3','gm-bo5','gm-bo7'].forEach(function(bid){
-      var btn=g(bid);
-      if(btn){btn.style.borderColor='';btn.style.background='';btn.style.color='';}
-    });
-    var hint=g('gm-hint');
-    if(hint)hint.textContent='방식 미선택 — 점수만 기록합니다';
+    _applyGameModeUI(null);
+    var hintOff=g('gm-hint');
+    if(hintOff)hintOff.textContent='방식 미선택 — 점수만 기록합니다';
+    if(_resInputMode==='detail')renderSetInputRows();
+    if(_resInputMode==='sets')renderSetWinPickRows();
     return;
   }
-  // ── 새 방식 선택 ──
-  _gameMode=mode;
-  // 버튼 시각 강조: 선택된 것만 활성 색상
-  var modes=['bo3','bo5','bo7'];
-  modes.forEach(function(m){
-    var btn=g('gm-'+m);
-    if(!btn)return;
-    if(m===mode){
-      // 선택 상태: var(--a) 색상 테두리 + 배경
-      btn.style.borderColor='var(--a)';
-      btn.style.background='var(--adim)';
-      btn.style.color='var(--a)';
-    } else {
-      btn.style.borderColor='';
-      btn.style.background='';
-      btn.style.color='';
-    }
-  });
-  // ── 힌트 텍스트 업데이트 ──
-  var hint=g('gm-hint');
-  if(hint){
-    var winsNeeded=mode==='bo3'?2:mode==='bo5'?3:4;
-    var maxS=mode==='bo3'?3:mode==='bo5'?5:7;
-    var lb=mode==='bo3'?'3판 2선':mode==='bo5'?'5판 3선':'7판 4선';
-    hint.textContent=lb+' — '+winsNeeded+'승 달성 시 자동 승리 지정 (최대 '+maxS+'세트)';
-  }
-  // ── 세트가 이미 입력된 경우: 현재 방식으로 자동 승리 재계산 ──
+  _applyGameModeUI(mode);
+  _setRowCount=_maxSetRows();
   if(_resInputMode==='detail'){
     renderSetInputRows();
     onSetScoreInput();
+  }else if(_resInputMode==='sets'){
+    renderSetWinPickRows();
   }else if(_sets.length>0){
     var winsNeeded2=mode==='bo3'?2:mode==='bo5'?3:4;
     var wA=_sets.filter(function(x){return x.a>x.b;}).length;
