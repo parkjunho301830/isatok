@@ -825,7 +825,7 @@ function _buildChDetailActions(c,isOpen){
     parts.push('<button class="btn btn-g btn-sm" onclick="closeMo(\'mo-ch-detail\');openEditCh(\''+c.id+'\')">✏️ 수정</button>');
   }else if(_chResultReady(c)){
     parts.push('<button class="btn btn-p btn-sm" onclick="closeMo(\'mo-ch-detail\');openRes(\''+c.id+'\')">🏆 결과 입력</button>');
-    if(hasBet)parts.push('<button class="btn btn-sm" onclick="closeMo(\'mo-ch-detail\');openBetPick(\''+c.id+'\')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기 참여</button>');
+    if(hasBet)parts.push('<button class="btn btn-w btn-sm" onclick="closeMo(\'mo-ch-detail\');openBetPick(\''+c.id+'\')">🎯 내기 참여</button>');
   }else if(c.status==='completed'&&_isAdmin()){
     parts.push('<button class="btn btn-p btn-sm" onclick="closeMo(\'mo-ch-detail\');openRes(\''+c.id+'\')">✏️ 결과 수정</button>');
   }
@@ -851,24 +851,24 @@ function _chStatusPlain(c,isOpen){
 }
 function _buildChCardActions(c,isOpen,hasBet){
   var primary='',secondary='';
+  var detailBtn='<button class="btn btn-s cc-detail-btn" onclick="openChDetail(\''+c.id+'\')"><span class="cc-detail-icon" aria-hidden="true">▶</span> 자세히 보기</button>';
   if(isOpen){
     primary='<button class="btn btn-p cc-primary-btn" onclick="openAcceptOpen(\''+c.id+'\')">🔥 수락하기</button>';
-    secondary='<button class="btn btn-g btn-sm" onclick="openChDetail(\''+c.id+'\')">상세 보기</button>';
+    secondary=detailBtn;
   }else if(_chPendingAccept(c)){
     primary='<button class="btn btn-p cc-primary-btn" onclick="acceptC(\''+c.id+'\')">✅ 수락</button>';
-    secondary='<button class="btn btn-d btn-sm" onclick="rejectC(\''+c.id+'\')">거절</button>'
-      +'<button class="btn btn-g btn-sm" onclick="openChDetail(\''+c.id+'\')">상세 보기</button>';
+    secondary='<button class="btn btn-d btn-sm" onclick="rejectC(\''+c.id+'\')">거절</button>'+detailBtn;
   }else if(_chResultReady(c)){
     primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">🏆 결과 입력</button>';
-    secondary='<button class="btn btn-g btn-sm" onclick="openChDetail(\''+c.id+'\')">상세 보기</button>';
-    if(hasBet)secondary+='<button class="btn btn-sm" onclick="openBetPick(\''+c.id+'\')" style="background:var(--amber);color:#000;font-weight:700;border:none">🎯 내기</button>';
+    secondary=detailBtn;
+    if(hasBet)secondary+='<button class="btn btn-w btn-sm" onclick="openBetPick(\''+c.id+'\')">🎯 내기</button>';
   }else if(c.status==='completed'){
     if(_isAdmin()){
       primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">✏️ 결과 수정</button>';
     }
-    secondary='<button class="btn btn-g btn-sm" onclick="openChDetail(\''+c.id+'\')">상세 보기</button>';
+    secondary=detailBtn;
   }else{
-    secondary='<button class="btn btn-g btn-sm" onclick="openChDetail(\''+c.id+'\')">상세 보기</button>';
+    secondary=detailBtn;
   }
   return {primary:primary,secondary:secondary};
 }
@@ -1316,7 +1316,7 @@ function buildCCard(c){
     const dt=c.date?$ko(c.date+'T00:00'):'';
     // 내기 제목 표시용 텍스트
     const betLabel=c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
-    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',betLabel?`<span class="pill" style="color:var(--amber);font-weight:700">${betLabel}</span>`:''].filter(Boolean).join('');
+    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',betLabel?`<span class="pill pill-bet">${betLabel}</span>`:''].filter(Boolean).join('');
 
     // ── 완료 카드 결과 표시 ──
     var resHtml='';
@@ -1334,25 +1334,23 @@ function buildCCard(c){
             var sb=parseInt(scores[1]);
             var aWin=sa>sb;
             var bWin=sb>sa;
-            var aColor=aWin?'color:var(--a);font-weight:800':'color:var(--t2)';
-            var bColor=bWin?'color:var(--blue);font-weight:800':'color:var(--t2)';
-            return '<span style="display:inline-flex;align-items:center;gap:2px;background:var(--c2);border-radius:6px;padding:2px 7px;font-size:12px;margin:1px 2px">'
-              +'<span style="font-size:10px;color:var(--t3);margin-right:2px">'+(i+1)+'G</span>'
-              +'<span style="'+aColor+'">'+sa+'</span>'
-              +'<span style="color:var(--t3)">:</span>'
-              +'<span style="'+bColor+'">'+sb+'</span>'
+            return '<span class="cc-score-chip">'
+              +'<span class="cc-set-num">'+(i+1)+'G</span>'
+              +'<span class="cc-set-a'+(aWin?' win':'')+'">'+sa+'</span>'
+              +'<span class="cc-set-colon">:</span>'
+              +'<span class="cc-set-b'+(bWin?' win':'')+'">'+sb+'</span>'
               +'</span>';
           }).join('');
           var wA=parts.filter(function(p){var s=p.split(':');return parseInt(s[0])>parseInt(s[1]);}).length;
           var wB=parts.filter(function(p){var s=p.split(':');return parseInt(s[1])>parseInt(s[0]);}).length;
-          scoreHtml='<div style="margin-top:5px;display:flex;flex-wrap:wrap;align-items:center;gap:2px">'
-            +'<span style="font-size:11px;color:var(--t3);margin-right:2px">'+wA+':'+wB+'</span>'
+          scoreHtml='<div class="cc-score-wrap">'
+            +'<span class="cc-score-summary">'+wA+':'+wB+'</span>'
             +chips+'</div>';
         } else {
           scoreHtml='<span style="color:var(--t3);font-size:13px"> · '+c.score+'</span>';
         }
       }
-      resHtml='<div class="cc-result">🏆 '+winnerName+' 팀 승리'+scoreHtml+'</div>';
+      resHtml='<div class="cc-result"><span class="cc-result-winner">🏆 '+winnerName+' 팀 승리</span>'+scoreHtml+'</div>';
     }
     const res=resHtml;
 
@@ -1373,23 +1371,23 @@ function buildCCard(c){
         var failNames=hitSide==='a'?bPickNames:aPickNames;
         var hitLabel=betLabel+'<br>';
         if(hitNames.length>0)
-          hitLabel+='<span style="color:var(--a);font-weight:700">🎯 적중 ('+hitNames.length+'명)</span> '+hitNames.join(' ')+'<br>';
+          hitLabel+='<span class="cc-bet-hit">🎯 적중 ('+hitNames.length+'명)</span> '+hitNames.join(' ')+'<br>';
         if(failNames.length>0)
-          hitLabel+='<span style="color:var(--red);font-weight:700">💔 빗나감 ('+failNames.length+'명)</span> '+failNames.join(' ');
-        betPicksHtml='<div style="font-size:12px;color:var(--t2);background:var(--c2);border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.8">'+hitLabel+'</div>';
+          hitLabel+='<span class="cc-bet-miss">💔 빗나감 ('+failNames.length+'명)</span> '+failNames.join(' ');
+        betPicksHtml='<div class="cc-bet-picks">'+hitLabel+'</div>';
       } else {
         // 진행 중: A/B 예측 현황 표시
         var pickHtml=betLabel;
-        pickHtml+='<br><span style="color:var(--a);font-weight:700">'+myTeamLabel+' 승 예상</span> '+(aPickNames.length?aPickNames.join(' '):'없음');
-        pickHtml+='<br><span style="color:var(--blue);font-weight:700">'+oppTeamLabel+' 승 예상</span> '+(bPickNames.length?bPickNames.join(' '):'없음');
-        betPicksHtml='<div style="font-size:12px;color:var(--t2);background:var(--c2);border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.8">'+pickHtml+'</div>';
+        pickHtml+='<br><span class="cc-bet-team-a">'+myTeamLabel+' 승 예상</span> '+(aPickNames.length?aPickNames.join(' '):'없음');
+        pickHtml+='<br><span class="cc-bet-team-b">'+oppTeamLabel+' 승 예상</span> '+(bPickNames.length?bPickNames.join(' '):'없음');
+        betPicksHtml='<div class="cc-bet-picks">'+pickHtml+'</div>';
       }
     }
 
     // ── 오픈 챌린지 뱃지 ──
-    const openBadge=isOpen?`<span class="badge ba">🔥 오픈 챌린지</span>`:'';
+    const openBadge=isOpen?`<span class="badge badge-open">🔥 오픈 챌린지</span>`:'';
     // 내기 뱃지
-    const betBadge=hasBet?`<span class="badge ba" style="background:rgba(245,158,11,.15);color:var(--amber)">${betLabel}</span>`:'';
+    const betBadge=hasBet?`<span class="badge badge-bet">${betLabel}</span>`:'';
 
     // ── 액션 버튼 (주요 행동 우선) ──
     var cardActs=_buildChCardActions(c,isOpen,hasBet);
@@ -1399,11 +1397,15 @@ function buildCCard(c){
     // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
     var vsTitle=_chVsTitle(c,isOpen);
+    var vsParts=vsTitle.split(' VS ');
+    var vsHtml=vsParts.length===2
+      ?vsParts[0]+'<span class="cc-vs-sep">VS</span>'+vsParts[1]
+      :vsTitle;
     var statusPlain=_chStatusPlain(c,isOpen);
     return `<div class="${cardClass}" data-cid="${c.id}">
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
-      <div class="cc-vs-title" style="font-size:17px;font-weight:800;color:var(--t1);text-align:center;line-height:1.45;padding:4px 0">${vsTitle}</div>
-      <div class="cc-status-line"><em>상태</em> · ${statusPlain}</div>
+      <div class="cc-vs-title">${vsHtml}</div>
+      <div class="cc-status-line"><span class="cc-status-badge">${statusPlain}</span></div>
       ${pills?`<div class="cc-pills">${pills}</div>`:''}
       ${res}
       ${betPicksHtml}
@@ -2809,7 +2811,6 @@ function _streakForRankRow(m){
   return _computeStreakStats(m.name).currentStreak;
 }
 function _buildRankRowCells(m,rank,pt,grOpt){
-  var top3=rank<=3;
   var gr=grOpt||_memberGrade(m);
   var streakHtml='';
   if(_rkMode==='individual'){
@@ -2818,10 +2819,18 @@ function _buildRankRowCells(m,rank,pt,grOpt){
       streakHtml='<div style="font-size:12px;color:var(--amber);font-weight:700;margin-top:2px">🔥 '+cur+'연승</div>';
     }
   }
-  return '<td data-label="순위" style="font-weight:700;color:'+(top3?'var(--a)':'var(--t2)')+'">'+rank+'</td>'
+  var rankHtml;
+  if(rank===1)rankHtml='<span class="rk-medal rk-medal--1" aria-label="1위">🥇</span>';
+  else if(rank===2)rankHtml='<span class="rk-medal rk-medal--2" aria-label="2위">🥈</span>';
+  else if(rank===3)rankHtml='<span class="rk-medal rk-medal--3" aria-label="3위">🥉</span>';
+  else rankHtml='<span class="rk-rank-num">'+rank+'</span>';
+  return '<td data-label="순위">'+rankHtml+'</td>'
     +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px">'+ini(m.name)+'</div><div><div style="font-weight:600">'+gr.icon+' '+m.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div>'+streakHtml+'</div></div></td>'
     +'<td data-label="등급"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span></td>'
-    +'<td data-label="포인트" style="font-weight:700;color:var(--t1)">'+pt+'점</td>';
+    +'<td data-label="포인트"><span class="rk-pt">'+pt+'</span><span class="rk-pt-unit">점</span></td>';
+}
+function _rankRowClass(rank){
+  return rank<=3?'rk-row rk-row--top'+rank:'rk-row';
 }
 function renderR(){
   var tb=g('rtb');
@@ -2881,12 +2890,14 @@ function renderR(){
         existing.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);
         existing.dataset.rhash=newHash;
       }
+      existing.className=_rankRowClass(rank);
       if(childList[idx]!==existing){
         tb.insertBefore(existing,childList[idx]||null);
         childList=Array.from(tb.children);
       }
     }else{
       var tr=document.createElement('tr');
+      tr.className=_rankRowClass(rank);
       tr.dataset.rid=item.m.id;
       tr.dataset.rhash=newHash;
       tr.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);

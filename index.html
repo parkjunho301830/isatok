@@ -20,6 +20,7 @@
   crossorigin="anonymous"></script>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/design.css">
 </head>
 <body>
 
@@ -383,10 +384,10 @@
       <div class="fg">
         <label>승리 팀 선택</label>
         <div style="display:flex;gap:10px">
-          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
+          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
             <div id="wan" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승리</div>
           </div>
-          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
+          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
             <div id="wbn" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승리</div>
           </div>
         </div>
@@ -479,11 +480,11 @@
         <label>어느 팀이 이길까요?</label>
         <div style="display:flex;gap:12px">
           <div id="bet-pick-a" onclick="setBetPick('a')"
-            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
+            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .18s,background .18s,box-shadow .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
             <div id="bet-pick-a-lbl" style="font-size:15px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승</div>
           </div>
           <div id="bet-pick-b" onclick="setBetPick('b')"
-            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:all .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
+            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .18s,background .18s,box-shadow .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
             <div id="bet-pick-b-lbl" style="font-size:15px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승</div>
           </div>
         </div>
