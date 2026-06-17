@@ -83,10 +83,12 @@ let _bsPresetInstant=false;
 let _detailChId=null;
 // 바텀시트 선수 검색: IME 조합·포커스 경쟁 시 DOM 재렌더 방지
 let _bsSearchComposing=false;
-let _bsSearchEditing=false;
 let _bsGridRefreshPending=false;
 let _bsSearchRaf=null;
 let _bsSearchInited=false;
+let _bsAnimating=false;
+let _bsSearchBodyUnlocked=false;
+let _bsLockTimer=null;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -135,11 +137,39 @@ function _isBSFocused(){
   var focused=document.activeElement;
   return focused&&g('bs-ch').contains(focused);
 }
-function _isBsPlayerSearchActive(){
-  if(_bsSearchComposing||_bsSearchEditing)return true;
+function _isBsPlayerSearchFocused(){
   var ae=document.activeElement;
   return ae&&(ae.id==='bs-search-my'||ae.id==='bs-search-opp');
 }
+function _isBsPlayerSearchActive(){
+  if(_bsSearchComposing)return true;
+  return _isBsPlayerSearchFocused();
+}
+function _unlockBodyForBsSearch(){
+  if(_bodyScrollLock>0&&!_bsSearchBodyUnlocked){
+    _unlockBodyScroll();
+    _bsSearchBodyUnlocked=true;
+  }
+}
+function _relockBodyAfterBsSearch(){
+  if(!_bsSearchBodyUnlocked)return;
+  _bsSearchBodyUnlocked=false;
+  if(_isBSOpen()&&!_isBsPlayerSearchFocused())_lockBodyScroll();
+}
+function _cancelBsLockTimer(){
+  if(_bsLockTimer){
+    clearTimeout(_bsLockTimer);
+    _bsLockTimer=null;
+  }
+}
+function _resetBsScrollState(){
+  _cancelBsLockTimer();
+  _bsAnimating=false;
+  _bsSearchBodyUnlocked=false;
+  var sheet=g('bs-ch');
+  if(sheet)sheet.classList.remove('bs-ready');
+}
+
 function _isBsFormInputFocused(){
   if(!_isBSOpen())return false;
   var ae=document.activeElement;
@@ -402,6 +432,28 @@ function _scheduleBsPlayerSearchRender(){
 window.onBsPlayerSearch=function(){
   _scheduleBsPlayerSearchRender();
 };
+function _focusBsSearchInput(el){
+  if(!el||!_isBSOpen())return;
+  _unlockBodyForBsSearch();
+  var run=function(){
+    if(!_isBSOpen())return;
+    try{el.focus({preventScroll:true});}
+    catch(e){el.focus();}
+  };
+  if(_bsAnimating){
+    _cancelBsLockTimer();
+    _bsLockTimer=setTimeout(function(){
+      _bsLockTimer=null;
+      _bsAnimating=false;
+      var sheet=g('bs-ch');
+      if(sheet)sheet.classList.add('bs-ready');
+      run();
+      if(_isBSOpen()&&!_isBsPlayerSearchFocused())_lockBodyScroll();
+    },BS_ANIM_MS+40);
+    return;
+  }
+  run();
+}
 function _initBsPlayerSearchInputs(){
   if(_bsSearchInited)return;
   _bsSearchInited=true;
@@ -418,20 +470,30 @@ function _initBsPlayerSearchInputs(){
       _bsSearchComposing=false;
       _scheduleBsPlayerSearchRender();
     });
+    el.addEventListener('touchstart',function(e){
+      _deferBsGridRefresh();
+      if(_bsAnimating){
+        e.preventDefault();
+        _focusBsSearchInput(el);
+      }else{
+        _unlockBodyForBsSearch();
+      }
+    },{passive:false});
     el.addEventListener('focus',function(){
-      _bsSearchEditing=true;
-      requestAnimationFrame(function(){
-        try{el.scrollIntoView({block:'center',behavior:'smooth'});}
-        catch(e){el.scrollIntoView(true);}
-      });
+      _unlockBodyForBsSearch();
+      if(_bsAnimating){
+        el.blur();
+        _focusBsSearchInput(el);
+      }
     });
     el.addEventListener('blur',function(){
+      var inp=el;
       setTimeout(function(){
-        if(_isBsPlayerSearchActive())return;
-        _bsSearchEditing=false;
+        if(document.activeElement===inp)return;
+        _relockBodyAfterBsSearch();
         _flushBsGridIfPending();
         if(_isBSOpen())renderGridsBS({force:true});
-      },0);
+      },150);
     });
     el.addEventListener('input',function(){
       if(_bsSearchComposing)return;
@@ -767,12 +829,20 @@ function _showBS(){
   var sheet=g('bs-ch'),overlay=g('bs-overlay');
   if(!sheet||!overlay)return;
   _bsClosing=false;
+  _resetBsScrollState();
+  _bsAnimating=true;
+  sheet.classList.remove('bs-ready');
   _resetBSDragStyles(sheet,overlay);
   overlay.classList.add('on');
   sheet.classList.remove('on');
   void sheet.offsetHeight;
   requestAnimationFrame(function(){sheet.classList.add('on');});
-  requestAnimationFrame(_lockBodyScroll);
+  _bsLockTimer=setTimeout(function(){
+    _bsLockTimer=null;
+    _bsAnimating=false;
+    sheet.classList.add('bs-ready');
+    if(_isBSOpen()&&!_isBsPlayerSearchFocused())_lockBodyScroll();
+  },BS_ANIM_MS);
 }
 
 function _hideBS(done){
@@ -782,6 +852,8 @@ function _hideBS(done){
   if(!sheet.classList.contains('on')&&!overlay.classList.contains('on')){
     if(done)done();return;
   }
+  _cancelBsLockTimer();
+  _bsAnimating=false;
   _bsClosing=true;
   _resetBSDragStyles(sheet,overlay);
   sheet.classList.remove('on');
@@ -1097,10 +1169,10 @@ window.closeBS = function(){
   var wasOpen=_isBSOpen();
   _hideBS(function(){
     _editChId = null;
-    _bsSearchEditing=false;
     _bsSearchComposing=false;
     _bsGridRefreshPending=false;
     if(_bsSearchRaf){cancelAnimationFrame(_bsSearchRaf);_bsSearchRaf=null;}
+    _resetBsScrollState();
     var submitBtn = g('ch-submit-btn');
     if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
     var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');

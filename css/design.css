@@ -176,6 +176,8 @@
   color:var(--t1);
   -webkit-appearance:none;
   touch-action:manipulation;
+  -webkit-user-select:text;
+  user-select:text;
 }
 .bs-player-search:focus{
   border-color:var(--a);
