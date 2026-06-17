@@ -11,5 +11,13 @@ self.addEventListener('activate', function (event) {
 });
 
 self.addEventListener('fetch', function (event) {
+  if (event.request.method !== 'GET') return;
+  var url;
+  try {
+    url = new URL(event.request.url);
+  } catch (e) {
+    return;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
   event.respondWith(fetch(event.request));
 });

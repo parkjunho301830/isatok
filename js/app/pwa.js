@@ -18,13 +18,6 @@ function _isIosSafari() {
   return isIos && isSafari;
 }
 
-function _registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/service-worker.js').catch(function () {});
-  });
-}
-
 function _showPwaBanner(mode) {
   if (_isStandalone() || localStorage.getItem(LS_PWA_DISMISS)) return;
   if (!_isMobile()) return;
@@ -37,7 +30,7 @@ function _showPwaBanner(mode) {
     if (textEl) textEl.textContent = '🏓 이사탁을 홈 화면에 추가해 보세요. (공유 → 홈 화면에 추가)';
     if (installBtn) installBtn.style.display = 'none';
   } else {
-    if (textEl) textEl.textContent = '🏓 이사탁을 홈 화면에 추가해 보세요.';
+    if (textEl) textEl.textContent = '🏓 이사탁 앱을 설치해 보세요.';
     if (installBtn) installBtn.style.display = '';
   }
   banner.hidden = false;
@@ -62,18 +55,25 @@ window.installPwa = async function () {
   window.dismissPwaInstall();
 };
 
+// Firebase 초기화 전에 등록해야 installability 조건을 충족함
+if ('serviceWorker' in navigator && !_isStandalone()) {
+  navigator.serviceWorker.register('/service-worker.js').catch(function () {});
+}
+
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window._deferredPwaPrompt = e;
+  if (document.body && document.getElementById('pwa-install-banner')) {
+    _showPwaBanner('android');
+  }
+});
+
 export function initPwa() {
   if (_isStandalone()) return;
 
-  _registerServiceWorker();
-
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault();
-    window._deferredPwaPrompt = e;
+  if (window._deferredPwaPrompt) {
     _showPwaBanner('android');
-  });
-
-  if (_isIosSafari() && !localStorage.getItem(LS_PWA_DISMISS)) {
+  } else if (_isIosSafari() && !localStorage.getItem(LS_PWA_DISMISS)) {
     _showPwaBanner('ios');
   }
 }
