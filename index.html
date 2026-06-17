@@ -44,7 +44,7 @@
           <div class="logo-s">탁구 동호회</div>
         </div>
       </div>
-      <div class="logo-ver">v2025.06.12</div>
+      <div class="logo-ver" id="sidebar-version">v1.0.28</div>
     </div>
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결</div>
@@ -767,6 +767,29 @@
       <div class="fg" style="margin-bottom:0"><label>내용</label><textarea id="bebody"></textarea></div>
     </div>
     <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-bedit')">취소</button><button class="btn btn-p" onclick="saveBoardEdit()">저장</button></div>
+  </div>
+</div>
+
+
+<!-- ══ 버전 정보 (우측 하단 고정) ══ -->
+<button type="button" class="app-version" id="app-version" onclick="openVersionInfo()" aria-label="버전 정보">
+  <span class="app-version-tag" id="app-version-tag">v1.0.28</span>
+  <span class="app-version-time" id="app-version-time">2026-06-17 09:15</span>
+</button>
+
+<!-- ══ 버전 상세 모달 ══ -->
+<div class="mo" id="mo-version">
+  <div class="mw" style="max-width:340px">
+    <div class="mh"><div class="mt">📦 배포 <em>정보</em></div><button class="mc-btn" onclick="closeMo('mo-version')">✕</button></div>
+    <div class="mb">
+      <div class="ver-detail-box">
+        <div class="ver-detail-row"><span class="ver-detail-lbl">버전</span><strong id="ver-detail-version">v1.0.28</strong></div>
+        <div class="ver-detail-row"><span class="ver-detail-lbl">빌드</span><strong id="ver-detail-time">2026-06-17 09:15</strong></div>
+        <div class="ver-detail-row"><span class="ver-detail-lbl">서비스</span><span>이사탁</span></div>
+      </div>
+      <p class="ver-detail-note">운영 중인 코드 버전 확인용입니다.</p>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-version')">닫기</button></div>
   </div>
 </div>
 

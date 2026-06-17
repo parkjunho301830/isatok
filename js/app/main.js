@@ -20,6 +20,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{APP_VERSION,BUILD_TIME}from'./version.js';
 
 const FB={
   apiKey:"AIzaSyDttEMgDQx3iS2siRzVIizxBBDZ4KjcJEw",
@@ -638,7 +639,9 @@ function finish(){
   _applyEntryNavigation();
   _applyAdminUI();
   _initBsPlayerSearchInputs();
+  _initVersionUI();
   _initUxDefaults();
+  document.body.classList.toggle('has-fab',_currentPage==='challenge');
 }
 function _initUxDefaults(){
   setRkScope('season');
@@ -655,6 +658,24 @@ function setDb(ok){
   const h=ok?'<span style="color:var(--a)">● Firebase 연결됨</span>':'<span style="color:var(--amber)">● 연결 실패</span>';
   g('dbs').innerHTML=h;g('dbm').textContent=ok?'🟢':'🟡';
 }
+
+function _initVersionUI(){
+  var label='v'+APP_VERSION;
+  var tag=g('app-version-tag');
+  var timeEl=g('app-version-time');
+  if(tag)tag.textContent=label;
+  if(timeEl)timeEl.textContent=BUILD_TIME;
+  var logoVer=document.querySelector('.logo-ver');
+  if(logoVer)logoVer.textContent=label;
+  var detailVer=g('ver-detail-version');
+  var detailTime=g('ver-detail-time');
+  if(detailVer)detailVer.textContent=label;
+  if(detailTime)detailTime.textContent=BUILD_TIME;
+}
+window.openVersionInfo=function(){
+  _initVersionUI();
+  openMo('mo-version');
+};
 
 // ── 모달 헬퍼 ──
 
@@ -1439,6 +1460,7 @@ window.nav=function(id){
   if(_navMain)_navMain.scrollTo(0,0);
   const fabDisplay=id==='challenge'?'flex':'none';
   _navFab.forEach(f=>f.style.display=fabDisplay);
+  document.body.classList.toggle('has-fab',id==='challenge');
   // 탭 전환 시 스냅샷 중 스킵된 렌더 1회 보정
   if(id==='members')renderM();
   else if(id==='ranking')renderR();
