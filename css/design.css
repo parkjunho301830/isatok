@@ -838,6 +838,11 @@ body.has-fab .app-version{
 .my-record-more{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--t3);font-weight:600;}
 
 .my-setting-row{display:flex;justify-content:space-between;align-items:center;font-size:15px;}
+.my-setting-head{font-size:13px;font-weight:800;color:var(--t3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px;}
+.cc-creator-meta{font-size:12px;color:var(--t3);line-height:1.55;margin:0 0 10px;padding:10px 12px;background:var(--c2);border-radius:var(--radius-md);}
+.cc-creator-meta span{display:block;}
+.mo-my-player-mandatory .mc-btn{display:none;}
+.rk-row--me td{background:var(--adim);}
 .my-stat-block{margin-bottom:16px;}
 .my-stat-block:last-child{margin-bottom:0;}
 .my-stat-head{font-size:16px;font-weight:800;color:var(--t1);margin-bottom:12px;}

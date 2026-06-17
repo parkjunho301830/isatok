@@ -24,7 +24,8 @@ import{APP_VERSION,BUILD_TIME}from'./version.js';
 import{
   initWizard,checkMyPlayerSetup,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
-  getWizQuickResult,wizPrefillEdit
+  getWizQuickResult,wizPrefillEdit,requireMyPlayer,isMyPlayerSetupMandatory,
+  buildCreatorFields,formatChallengeCreatorHtml,validateMyPlayer,isMyPlayerReady,getMyPlayerId
 }from'./wizard.js';
 
 const FB={
@@ -204,6 +205,11 @@ function _flushPendingRenders(){
   _pendingRender.sn=false;_pendingRender.h=false;
 }
 function _applyMembersSnapshotRender(){
+  if(!validateMyPlayer()&&MEMBERS.length){
+    checkMyPlayerSetup();
+  }else if(validateMyPlayer()){
+    renderMyRecordHome();
+  }
   if(_isScrolling){
     _pendingRender.m=true;
     if(_isBSOpen()){
@@ -916,6 +922,7 @@ function _hideBS(done){
 
 // ── 바텀시트 열기 (신규 신청)
 window.openBS = function(){
+  if(!requireMyPlayer())return;
   _editChId = null;
   _bsPresetInstant = false;
   _my = []; _opp = [];
@@ -940,6 +947,7 @@ window.openBS = function(){
 };
 
 window.openInstantBS=function(){
+  if(!requireMyPlayer())return;
   _editChId=null;
   _bsPresetInstant=true;
   _my=[];_opp=[];
@@ -1028,6 +1036,7 @@ window.bsStepPrevFrom4=function(){
 };
 
 window.openResultPicker=function(){
+  if(!requireMyPlayer())return;
   nav('challenge');
   var ready=CHAL.filter(function(c){return _chResultReady(c);});
   if(!ready.length){
@@ -1090,6 +1099,7 @@ window.openChDetail=function(id){
   var actsHtml=_buildChDetailActions(c,isOpen);
   box.innerHTML='<div style="text-align:center;font-size:18px;font-weight:800;color:var(--t1);margin-bottom:8px">'+my+' <span style="color:var(--t3);font-weight:600">VS</span> '+opp+'</div>'
     +'<div style="text-align:center;margin-bottom:16px"><span class="badge '+tm.badge+'">'+tm.lb+'</span> <span class="badge '+_chStatusBadge(c,isOpen)+'">'+_chStatusLabel(c,isOpen)+'</span></div>'
+    +formatChallengeCreatorHtml(c)
     +(c.date?'<div style="font-size:13px;color:var(--t3);margin-bottom:8px">📅 '+c.date+(c.time?' '+c.time:'')+'</div>':'')
     +(c.status==='completed'&&c.winner?'<div class="cc-result" style="margin-bottom:12px">🏆 '+((c.winner==='a'?c.myTeam:c.oppTeam)||[]).join('·')+' 승'+(c.score?' · '+c.score:'')+'</div>':'')
     +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">'+actsHtml+'</div>';
@@ -1300,6 +1310,9 @@ function _debugCardActions(c){
 
 // ── 바텀시트 전용 신청 저장 (기존 submitCh 로직 재사용, ID 참조만 동일하게 유지)
 window.submitChBS = async function(){
+  if(!requireMyPlayer())return;
+  var creator=buildCreatorFields();
+  if(!creator)return;
   var isOpenMode = g('oc-chk') && g('oc-chk').checked;
   var editId = _editChId;
   var instantMode = !editId && _isInstantCreateMode() && !isOpenMode;
@@ -1350,6 +1363,7 @@ window.submitChBS = async function(){
     }
   const data = {
     ...fields,
+    ...creator,
     betPicks: {},
     status: instantMode ? 'accepted' : 'pending',
     createdAt: new Date().toISOString(),
@@ -1414,6 +1428,7 @@ function openMo(id){
   requestAnimationFrame(_lockBodyScroll);
 }
 window.closeMo=function(id){
+  if(id==='mo-my-player'&&isMyPlayerSetupMandatory())return;
   var el=g(id);
   if(!el||!el.classList.contains('on'))return;
   el.classList.remove('on');
@@ -1426,6 +1441,7 @@ window.closeMo=function(id){
 }
 document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{
   if(e.target===m&&m.classList.contains('on')){
+    if(m.id==='mo-my-player'&&isMyPlayerSetupMandatory())return;
     m.classList.remove('on');
     requestAnimationFrame(_unlockBodyScroll);
   }
@@ -1443,6 +1459,7 @@ function _initNavCache(){
   _navMain=document.querySelector('.main');
 }
 window.nav=function(id){
+  if(id==='my'&&!requireMyPlayer())return;
   // 최초 1회 캐싱 (DOM 로드 후 변하지 않는 노드)
   if(!_navPages)_initNavCache();
   _currentPage=id;
@@ -1690,6 +1707,7 @@ function buildCCard(c){
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
       <div class="cc-vs-title">${vsHtml}</div>
       <div class="cc-status-line"><span class="cc-status-badge">${statusPlain}</span></div>
+      ${formatChallengeCreatorHtml(c)}
       ${pills?`<div class="cc-pills">${pills}</div>`:''}
       ${res}
       ${betPicksHtml}
@@ -2289,6 +2307,7 @@ function _buildResultScore(){
 
 window.openRes=function(id){
   try{
+  if(!requireMyPlayer())return;
   const c=CHAL.find(c=>c.id===id);if(!c)return;
   if(c.status==='completed'&&!_isAdmin()){
     _requireAdmin(function(){openRes(id);});
@@ -3197,6 +3216,7 @@ function _renderProfileModal(){
   _renderMemberBadges(m.name);
 }
 window.openMemberProfile=function(id){
+  if(!requireMyPlayer())return;
   _profileMemberId=id;
   _renderProfileModal();
   openMo('mo-profile');
@@ -3344,14 +3364,14 @@ function renderR(){
         existing.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);
         existing.dataset.rhash=newHash;
       }
-      existing.className=_rankRowClass(rank);
+      existing.className=_rankRowClass(rank)+(item.m.id===getMyPlayerId()?' rk-row--me':'');
       if(childList[idx]!==existing){
         tb.insertBefore(existing,childList[idx]||null);
         childList=Array.from(tb.children);
       }
     }else{
       var tr=document.createElement('tr');
-      tr.className=_rankRowClass(rank);
+      tr.className=_rankRowClass(rank)+(item.m.id===getMyPlayerId()?' rk-row--me':'');
       tr.dataset.rid=item.m.id;
       tr.dataset.rhash=newHash;
       tr.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);

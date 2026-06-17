@@ -7,11 +7,14 @@ let C = null;
 
 const LS = {
   myPlayerId: 'isatok_myPlayerId',
+  myPlayerName: 'isatok_myPlayerName',
   recentPartners: 'isatok_recentPartners',
   recentMyTeams: 'isatok_recentMyTeams',
   recentOppTeams: 'isatok_recentOppTeams'
 };
 
+let _setupMandatory = false;
+let _pendingPlayerId = null;
 let _category = 'double';
 let _partner = null;
 let _oppDraft = [];
@@ -36,20 +39,101 @@ export function getMyPlayerId() {
   return localStorage.getItem(LS.myPlayerId) || '';
 }
 
+function _clearMyPlayerStorage() {
+  localStorage.removeItem(LS.myPlayerId);
+  localStorage.removeItem(LS.myPlayerName);
+}
+
+export function validateMyPlayer() {
+  var id = localStorage.getItem(LS.myPlayerId);
+  if (!id) {
+    _clearMyPlayerStorage();
+    return null;
+  }
+  var m = members().find(function (x) { return x.id === id; });
+  if (!m || m.status === '비활성') {
+    _clearMyPlayerStorage();
+    return null;
+  }
+  var storedName = localStorage.getItem(LS.myPlayerName);
+  if (storedName !== m.name) {
+    localStorage.setItem(LS.myPlayerName, m.name);
+  }
+  return m;
+}
+
+export function isMyPlayerReady() {
+  return !!validateMyPlayer();
+}
+
+export function isMyPlayerSetupMandatory() {
+  return _setupMandatory;
+}
+
+export function requireMyPlayer(message) {
+  if (isMyPlayerReady()) return true;
+  toast(message || '서비스 이용을 위해 먼저 내 선수 설정을 진행해주세요.');
+  openMyPlayerSetup(true);
+  return false;
+}
+
 export function getMyPlayer() {
-  var id = getMyPlayerId();
-  if (!id) return null;
-  return members().find(function (m) { return m.id === id; }) || null;
+  return validateMyPlayer();
 }
 
 export function getMyPlayerName() {
   var m = getMyPlayer();
-  return m ? m.name : '';
+  if (m) return m.name;
+  return localStorage.getItem(LS.myPlayerName) || '';
 }
 
-function _setMyPlayerId(id) {
+function _setMyPlayer(id) {
+  var m = members().find(function (x) { return x.id === id; });
+  if (!m) return false;
   localStorage.setItem(LS.myPlayerId, id);
+  localStorage.setItem(LS.myPlayerName, m.name);
+  _pendingPlayerId = null;
+  _setupMandatory = false;
   C.onMyPlayerChanged();
+  return true;
+}
+
+export function buildCreatorFields() {
+  var m = validateMyPlayer();
+  if (!m) return null;
+  return {
+    createdByPlayerId: m.id,
+    createdByPlayerName: m.name
+  };
+}
+
+function _fmtCreatedAt(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  var y = d.getFullYear();
+  var mo = String(d.getMonth() + 1).padStart(2, '0');
+  var da = String(d.getDate()).padStart(2, '0');
+  var h = String(d.getHours()).padStart(2, '0');
+  var mi = String(d.getMinutes()).padStart(2, '0');
+  return y + '-' + mo + '-' + da + ' ' + h + ':' + mi;
+}
+
+export function formatChallengeCreatorHtml(c) {
+  if (!c) return '';
+  var creator = c.createdByPlayerName || '';
+  var at = _fmtCreatedAt(c.createdAt);
+  if (!creator && !at) return '';
+  var html = '<div class="cc-creator-meta">';
+  if (creator) html += '<span>등록자 : ' + creator + '</span>';
+  if (at) html += '<span>등록일시 : ' + at + '</span>';
+  html += '</div>';
+  return html;
+}
+
+export function isChallengeCreatedByMe(c) {
+  if (!c || !c.createdByPlayerId) return false;
+  return c.createdByPlayerId === getMyPlayerId();
 }
 
 function _resolveType(category, member) {
@@ -426,24 +510,52 @@ export function getWizQuickResult() {
 }
 
 export function checkMyPlayerSetup() {
-  if (getMyPlayerId() && getMyPlayer()) return;
+  if (validateMyPlayer()) {
+    _setupMandatory = false;
+    return;
+  }
   if (!members().length) return;
+  _setupMandatory = true;
+  _pendingPlayerId = null;
   setTimeout(function () { openMyPlayerSetup(true); }, 400);
 }
 
-export function openMyPlayerSetup(firstVisit) {
+function _updateMyPlayerModalUI() {
+  var mo = g('mo-my-player');
+  if (mo) mo.classList.toggle('mo-my-player-mandatory', _setupMandatory);
+  var closeBtn = g('my-player-close');
+  if (closeBtn) closeBtn.style.display = _setupMandatory ? 'none' : '';
+  var confirmBtn = g('my-player-confirm');
+  if (confirmBtn) confirmBtn.disabled = !_pendingPlayerId;
+}
+
+function _renderMyPlayerList() {
   var box = g('my-player-list');
   if (!box) return;
+  var curId = _pendingPlayerId || getMyPlayerId();
   var html = '';
   _activeMembers([]).forEach(function (m) {
-    var on = getMyPlayerId() === m.id ? ' wiz-pick-on' : '';
-    html += '<button type="button" class="wiz-pick' + on + '" onclick="selectMyPlayer(\'' + _escAttr(m.id) + '\')">'
+    var on = curId === m.id ? ' wiz-pick-on' : '';
+    html += '<button type="button" class="wiz-pick' + on + '" onclick="pickMyPlayerPending(\'' + _escAttr(m.id) + '\')">'
       + '<span class="wiz-pick-name">' + m.name + '</span>'
       + '<span class="wiz-pick-sub">' + (m.grade || '') + ' · ' + (m.gender || '') + '</span></button>';
   });
   box.innerHTML = html || '<div class="wiz-empty">등록된 회원이 없습니다.</div>';
+  _updateMyPlayerModalUI();
+}
+
+export function openMyPlayerSetup(firstVisit) {
+  _setupMandatory = !!firstVisit || !isMyPlayerReady();
+  if (!_pendingPlayerId && isMyPlayerReady()) {
+    _pendingPlayerId = getMyPlayerId();
+  }
   var title = g('my-player-title');
-  if (title) title.textContent = firstVisit ? '본인을 선택해주세요.' : '내 선수를 선택하세요.';
+  if (title) {
+    title.textContent = _setupMandatory
+      ? '본인을 선택해주세요.'
+      : '내 선수를 선택하세요.';
+  }
+  _renderMyPlayerList();
   openMo('mo-my-player');
 }
 
@@ -493,15 +605,24 @@ export function renderMyRecordHome() {
 }
 
 export function renderMyPage() {
+  if (!isMyPlayerReady()) {
+    var stats = g('my-page-stats');
+    var setting = g('my-page-setting');
+    if (stats) stats.innerHTML = '';
+    if (setting) {
+      setting.innerHTML = '<div class="wiz-empty" style="padding:8px 0">내 선수 설정 후 기록을 확인할 수 있습니다.</div>'
+        + '<button type="button" class="btn btn-p" style="width:100%;margin-top:12px" onclick="openMyPlayerSetup(true)">🏓 내 선수 설정</button>';
+    }
+    return;
+  }
   var stats = g('my-page-stats');
   var setting = g('my-page-setting');
   if (stats) stats.innerHTML = _renderMyStatsHtml(false);
   if (setting) {
     var me = getMyPlayer();
-    setting.innerHTML = me
-      ? '<div class="my-setting-row"><span>내 선수</span><strong>' + me.name + '</strong></div>'
-        + '<button type="button" class="btn btn-g" style="width:100%;margin-top:12px" onclick="openMyPlayerSetup()">내 선수 변경</button>'
-      : '<button type="button" class="btn btn-p" style="width:100%" onclick="openMyPlayerSetup()">🏓 내 선수 설정</button>';
+    setting.innerHTML = '<div class="my-setting-head">설정</div>'
+      + '<div class="my-setting-row"><span>내 선수</span><strong>' + me.name + '</strong></div>'
+      + '<button type="button" class="btn btn-g" style="width:100%;margin-top:12px" onclick="openMyPlayerSetup(false)">내 선수 변경</button>';
   }
 }
 
@@ -574,8 +695,19 @@ export function initWizard(ctx) {
     openMyPlayerSetup(firstVisit);
   };
 
-  window.selectMyPlayer = function (id) {
-    _setMyPlayerId(id);
+  window.pickMyPlayerPending = function (id) {
+    _pendingPlayerId = id;
+    _renderMyPlayerList();
+  };
+
+  window.confirmMyPlayer = function () {
+    if (!_pendingPlayerId) return;
+    if (!_setMyPlayer(_pendingPlayerId)) {
+      toast('⚠️ 선택한 선수를 찾을 수 없습니다. 다시 설정해주세요.');
+      _pendingPlayerId = null;
+      openMyPlayerSetup(true);
+      return;
+    }
     closeMo('mo-my-player');
     toast('✅ 내 선수가 설정되었습니다');
     renderMyRecordHome();

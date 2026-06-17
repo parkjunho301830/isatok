@@ -731,10 +731,13 @@
 <!-- ══ 내 선수 설정 모달 ══ -->
 <div class="mo" id="mo-my-player">
   <div class="mw" style="max-width:400px">
-    <div class="mh"><div class="mt">🏓 내 선수 <em>설정</em></div><button class="mc-btn" onclick="closeMo('mo-my-player')">✕</button></div>
+    <div class="mh"><div class="mt">🏓 내 선수 <em>설정</em></div><button class="mc-btn" id="my-player-close" onclick="closeMo('mo-my-player')">✕</button></div>
     <div class="mb">
       <p class="wiz-setup-desc" id="my-player-title">본인을 선택해주세요.</p>
       <div class="wiz-pick-grid" id="my-player-list"></div>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-p" id="my-player-confirm" onclick="confirmMyPlayer()" disabled>확인</button>
     </div>
   </div>
 </div>
