@@ -42,9 +42,9 @@ const GM={
   bo5:{max:5,wins:3,lb:'5판 3선승',short:'5판 3선승'},
   bo7:{max:7,wins:4,lb:'7판 4선승',short:'7판 4선승'}
 };
-let _bsGameMode='bo5';
+let _bsGameMode='bo1';
 let _bsCreateMode='normal';
-let _type='ms',_my=[],_opp=[];
+let _type='md',_my=[],_opp=[];
 // _editChId: 대기 중 대결 신청 수정 시 편집 대상 ID (null이면 신규)
 let _editChId=null;
 // _bet: 내기 제목 선택 ('' = 없음, 'coffee' = 커피 내기, 'jjajang' = 짜장면 내기)
@@ -64,9 +64,11 @@ let _setRowCount=3;
 let _setWinPick=[]; // 세트 승패 모드: 각 세트 승자 ('a'|'b'|null)
 let _scLblA='A팀',_scLblB='B팀';
 // _rkMode: 랭킹 탭 ('individual' | 'double')
-let _rkMode='individual';
+let _rkMode='double';
 // _rkScope: 랭킹 범위 ('all' | 'season')
-let _rkScope='all';
+let _rkScope='season';
+// _hallMode: 통계 탭 ('individual' | 'double')
+let _hallMode='double';
 let SEASONS=[];
 let TOURNAMENTS=[];
 // _profileMemberId: 회원 상세 모달 대상
@@ -308,6 +310,54 @@ function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5]
 function ini(n){return n?n[0]:'?';}
 function $ko(d){return new Date(d).toLocaleDateString('ko-KR',{month:'long',day:'numeric'});}
 
+const _KO_CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+function _extractChosung(str){
+  var r='';
+  for(var i=0;i<(str||'').length;i++){
+    var c=str.charCodeAt(i);
+    if(c>=0xAC00&&c<=0xD7A3)r+=_KO_CHOSUNG[Math.floor((c-0xAC00)/588)];
+  }
+  return r;
+}
+function _matchMemberSearch(name,query){
+  if(!query)return true;
+  var q=query.trim();
+  if(!q)return true;
+  var n=name||'';
+  if(n.includes(q))return true;
+  var cs=_extractChosung(n);
+  if(cs.includes(q))return true;
+  if(/^[ㄱ-ㅎ]+$/.test(q)&&cs.indexOf(q)>=0)return true;
+  return false;
+}
+function _getRecentPlayers(){
+  try{return JSON.parse(localStorage.getItem('isatok_recent')||'[]');}
+  catch(e){return [];}
+}
+function _saveRecentPlayers(names){
+  var cur=_getRecentPlayers();
+  (names||[]).forEach(function(n){
+    if(!n)return;
+    cur=cur.filter(function(x){return x!==n;});
+    cur.unshift(n);
+  });
+  try{localStorage.setItem('isatok_recent',JSON.stringify(cur.slice(0,24)));}
+  catch(e){}
+}
+function _nowDateTimeFields(){
+  var now=new Date();
+  return{
+    date:now.toISOString().slice(0,10),
+    time:String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')
+  };
+}
+function _clearBsPlayerSearch(){
+  ['bs-search-my','bs-search-opp'].forEach(function(id){
+    var el=g(id);if(el)el.value='';
+  });
+}
+window.onBsPlayerSearch=function(){renderGridsBS();};
+
 // ─────────────────────────────────────────
 // 회원 그리드 diff-patch 공통 헬퍼
 // renderGrid, renderAcceptGrid, _renderBetMemberGrid 에서 공통 사용
@@ -443,6 +493,14 @@ function finish(){
   // 카카오 공유 링크: ?p=challenge&ch=ID (카톡 Feed) 또는 #challenge?… (구버전)
   _applyEntryNavigation();
   _applyAdminUI();
+  _initUxDefaults();
+}
+function _initUxDefaults(){
+  setRkScope('season');
+  setRk('double');
+  var hallDbl=g('hall-dbl'),hallInd=g('hall-ind');
+  if(hallDbl)hallDbl.classList.toggle('on',_hallMode==='double');
+  if(hallInd)hallInd.classList.toggle('on',_hallMode==='individual');
 }
 function _applyDeepLinkFilter(chId){
   var c=CHAL.find(function(x){return x.id===chId;});
@@ -654,37 +712,62 @@ function _hideBS(done){
 // ── 바텀시트 열기 (신규 신청)
 window.openBS = function(){
   _editChId = null;
+  _bsPresetInstant = false;
   _my = []; _opp = [];
-  // 오픈 챌린지 초기화
+  _clearBsPlayerSearch();
   var chk = g('oc-chk');
   if(chk) chk.checked = false;
   var wrap = g('oc-toggle-wrap');
-  if(wrap) wrap.classList.remove('on');
+  if(wrap){ wrap.classList.remove('on'); wrap.style.display = ''; }
   var oppSec = g('opp-section');
   if(oppSec) oppSec.style.display = '';
   var submitBtn = g('ch-submit-btn');
   if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
   var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
   if(bsTitleEm) bsTitleEm.textContent = '신청';
-  // 날짜 초기값: 내일
   const d = new Date(); d.setDate(d.getDate() + 1);
   g('ch-date').value = d.toISOString().slice(0, 10);
   g('ch-time').value = '10:00';
-  // 내기 제목 초기화: _bet 변수 및 칩 버튼 초기화 (없음 선택 상태로)
   _bet = '';
   document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){ btn.classList.remove('on'); });
   var noneChip = document.querySelector('#bet-chips .none-chip');
   if(noneChip) noneChip.classList.add('on');
   ['e-my','e-opp'].forEach(function(id){ g(id).classList.remove('on'); });
   _resetBsCreateUI();
-  setType('ms');
+  setType('md');
   bsStep(1);
   _showBS();
-}
+};
 
 window.openInstantBS=function(){
+  _editChId=null;
   _bsPresetInstant=true;
-  openBS();
+  _my=[];_opp=[];
+  _clearBsPlayerSearch();
+  var chk=g('oc-chk');
+  if(chk)chk.checked=false;
+  var wrap=g('oc-toggle-wrap');
+  if(wrap){wrap.classList.remove('on');wrap.style.display='none';}
+  var oppSec=g('opp-section');
+  if(oppSec)oppSec.style.display='';
+  var submitBtn=g('ch-submit-btn');
+  if(submitBtn)submitBtn.textContent='⚡ 즉시 생성 · 결과 입력';
+  var bsTitleEm=g('bs-ch')&&g('bs-ch').querySelector('.bs-title em');
+  if(bsTitleEm)bsTitleEm.textContent='즉시';
+  _bet='';
+  document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){btn.classList.remove('on');});
+  var noneChip=document.querySelector('#bet-chips .none-chip');
+  if(noneChip)noneChip.classList.add('on');
+  ['e-my','e-opp'].forEach(function(id){g(id).classList.remove('on');});
+  _resetBsCreateUI();
+  setChCreateMode('instant');
+  setBsGameMode('bo1');
+  setType('md');
+  var now=_nowDateTimeFields();
+  g('ch-date').value=now.date;
+  g('ch-time').value=now.time;
+  bsStep(1);
+  _showBS();
 };
 
 window.setBsGameMode=function(mode){
@@ -733,7 +816,7 @@ function _renderBsSummary(){
   if(!box)return;
   var tm=TM[_type]||TM.ms;
   var isOpen=g('oc-chk')&&g('oc-chk').checked;
-  var gm=GM[_bsGameMode]||GM.bo5;
+  var gm=GM[_bsGameMode]||GM.bo1;
   var my=_my.join(' · ')||'—';
   var opp=isOpen?'오픈 (누구나)':(_opp.join(' · ')||'—');
   var modeLbl=_bsCreateMode==='instant'?'⚡ 즉시 대결':'🏓 일반 대결';
@@ -741,7 +824,14 @@ function _renderBsSummary(){
     +'<div style="margin-top:6px">'+tm.lb+' · '+gm.lb+' · '+modeLbl+'</div>';
 }
 window.bsStepNextFrom2=function(){
-  bsStep(_editChId?4:3);
+  if(_editChId)bsStep(4);
+  else if(_isInstantCreateMode())bsStep(4);
+  else bsStep(3);
+};
+window.bsStepPrevFrom4=function(){
+  if(_editChId)bsStep(1);
+  else if(_isInstantCreateMode())bsStep(2);
+  else bsStep(3);
 };
 
 window.openResultPicker=function(){
@@ -908,7 +998,7 @@ window.openEditCh = function(id){
   var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
   if(bsTitleEm) bsTitleEm.textContent = '수정';
 
-  _bsGameMode=c.gameMode||'bo5';
+  _bsGameMode=c.gameMode||'bo1';
   _applyBsGameModeUI(_bsGameMode);
   _bsCreateMode='normal';
   _instantCreate=false;
@@ -969,7 +1059,14 @@ window.bsStep = function(n){
     if(step)step.style.display=(i===n)?'':'none';
     if(foot)foot.style.display=(i===n)?'':'none';
     var dot=g('bsd'+i);
-    if(dot)dot.classList.toggle('on',i===n);
+    if(dot){
+      if(_isInstantCreateMode()&&!_editChId){
+        if(n===4)dot.classList.toggle('on',i===1||i===2||i===4);
+        else dot.classList.toggle('on',i<=n);
+      }else{
+        dot.classList.toggle('on',i===n);
+      }
+    }
   }
   if(n===3){
     _applyChCreateModeUI();
@@ -979,6 +1076,15 @@ window.bsStep = function(n){
     }
   }
   if(n===4){
+    if(_isInstantCreateMode()&&!_editChId){
+      var ocWrap=g('oc-toggle-wrap');
+      if(ocWrap)ocWrap.style.display='none';
+      if(!g('ch-date').value||!g('ch-time').value){
+        var now=_nowDateTimeFields();
+        g('ch-date').value=now.date;
+        g('ch-time').value=now.time;
+      }
+    }
     _renderBsSummary();
     _updateChSubmitBtn();
   }
@@ -992,11 +1098,13 @@ function _isInstantCreateMode(){
 }
 function _resetBsCreateUI(){
   _instantCreate=false;
-  _bsGameMode='bo5';
+  _bsGameMode='bo1';
   _bsCreateMode='normal';
-  _applyBsGameModeUI('bo5');
+  _applyBsGameModeUI('bo1');
   _applyChCreateModeUI();
   _updateChSubmitBtn();
+  var ocWrap=g('oc-toggle-wrap');
+  if(ocWrap)ocWrap.style.display='';
 }
 function _updateChSubmitBtn(){
   var submitBtn=g('ch-submit-btn');
@@ -1098,6 +1206,7 @@ window.submitChBS = async function(){
     let newId = 'l' + Date.now();
     if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
+    _saveRecentPlayers([..._my,..._opp]);
     var saved={id:newId,...data};
     _debugChallengeCreate({
       phase:'saved',
@@ -1434,6 +1543,7 @@ window.toggleOC=function(){
 
 window.setType=function(tp){
   _type=tp;_my=[];_opp=[];
+  _clearBsPlayerSearch();
   const m=TM[tp]||TM.ms;
   // 버튼 스타일
   ['ms','md','fs','fd','mx'].forEach(k=>{
@@ -1456,8 +1566,9 @@ function renderGridsBS(){
   var bsEl=g('bs-ch');
   if(bsEl&&bsEl.classList.contains('on')){
     var focused=document.activeElement;
-    // 바텀시트 내부 어떤 input/textarea든 입력 중이면 그리드 재렌더 차단
-    if(focused&&bsEl.contains(focused)&&(focused.tagName==='INPUT'||focused.tagName==='TEXTAREA')) return;
+    if(focused&&bsEl.contains(focused)&&(focused.tagName==='INPUT'||focused.tagName==='TEXTAREA')){
+      if(focused.id!=='bs-search-my'&&focused.id!=='bs-search-opp')return;
+    }
   }
   renderGrid('gmy',_my,_opp,true);
   renderGrid('gopp',_opp,_my,false);
@@ -1468,7 +1579,20 @@ function renderGrid(gid,sel,other,isMy){
   const gr=g(gid);if(!gr)return;
   const m=TM[_type]||TM.ms;
   const max=isMy?m.maxM:m.maxO;
-  let mems=MEMBERS.filter(x=>x.status!=='비활성');
+  var searchInp=g(isMy?'bs-search-my':'bs-search-opp');
+  var q=searchInp?searchInp.value.trim():'';
+  let mems=MEMBERS.filter(x=>x.status!=='비활성'&&_matchMemberSearch(x.name,q));
+  var isDbl=_isDoublesType(_type);
+  var recent=_getRecentPlayers();
+  mems.sort(function(a,b){
+    var ra=recent.indexOf(a.name),rb=recent.indexOf(b.name);
+    if(ra>=0||rb>=0){
+      if(ra<0)return 1;
+      if(rb<0)return -1;
+      if(ra!==rb)return ra-rb;
+    }
+    return _memberPt(b,isDbl)-_memberPt(a,isDbl)||(a.name||'').localeCompare(b.name||'');
+  });
   mems=mems.map(x=>{
     let dim=other.includes(x.name);
     if(!dim&&m.mix){
@@ -1484,18 +1608,18 @@ function renderGrid(gid,sel,other,isMy){
       const gf=isMy?m.gM:m.gO;
       if(!sel.includes(x.name)&&(gf&&x.gender&&x.gender!==gf||sel.length>=max))dim=true;
     }
-    return{...x,_d:dim};
+    return{...x,_d:dim,_recent:recent.indexOf(x.name)>=0};
   });
   const items=mems.map(x=>{
     const sSel=sel.includes(x.name);
     return{
       name:x.name,
-      cls:'mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':''),
+      cls:'mc2'+(sSel?(isMy?' sel':' selp'):'')+(x._d?' dim':'')+(x._recent?' mc2-recent':''),
       onclick:x._d?'':'tgl(\''+gid+'\',\''+x.name+'\','+isMy+')',
-      subtext:_memberGrade(x).label+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')
+      subtext:(x._recent?'⭐ ':'')+_calcGrade(_memberPt(x,isDbl)).label+(x.gender?' '+(x.gender==='남성'?'♂':'♀'):'')
     };
   });
-  patchMc2Grid(gr,items,'해당 회원 없음');
+  patchMc2Grid(gr,items,q?'검색 결과 없음':'해당 회원 없음');
 }
 window.tgl=function(gid,name,isMy){
   const arr=isMy?_my:_opp;
@@ -2363,6 +2487,81 @@ function _getSinglesMatchesFor(playerName){
     return my===playerName||opp===playerName;
   }).sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
 }
+function _getDoublesMatchesFor(playerName){
+  return CHAL.filter(function(c){
+    if(c.status!=='completed'||!_isDoublesType(c.type))return false;
+    return _playerSideInAnyMatch(c,playerName);
+  }).sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
+}
+function _getMatchesForMode(playerName,isDbl,filterFn){
+  var matches=isDbl?_getDoublesMatchesFor(playerName):_getSinglesMatchesFor(playerName);
+  if(filterFn)matches=matches.filter(filterFn);
+  return matches;
+}
+function _computeModeRecord(name,isDbl,filterFn){
+  var matches=_getMatchesForMode(name,isDbl,filterFn);
+  var wins=0,losses=0;
+  matches.forEach(function(c){
+    if(isDbl?_playerWonAnyMatch(c,name):_playerWonMatch(c,name))wins++;
+    else losses++;
+  });
+  var streak=_computeStreakFromMatches(matches,name,isDbl);
+  var total=wins+losses;
+  var winRate=total?Math.round(wins/total*100):0;
+  return {wins:wins,losses:losses,total:total,winRate:winRate,currentStreak:streak.currentStreak,maxStreak:streak.maxStreak,matches:matches};
+}
+function _computeDoublesRecord(name,filterFn){
+  return _computeModeRecord(name,true,filterFn);
+}
+function _computeTopPartner(name,filterFn){
+  var matches=_getDoublesMatchesFor(name);
+  if(filterFn)matches=matches.filter(filterFn);
+  var counts={};
+  matches.forEach(function(c){
+    var side=_playerSideInAnyMatch(c,name);
+    var team=side==='a'?(c.myTeam||[]):(c.oppTeam||[]);
+    team.filter(function(p){return p!==name;}).forEach(function(p){
+      counts[p]=(counts[p]||0)+1;
+    });
+  });
+  var top=null,max=0;
+  Object.keys(counts).forEach(function(p){
+    if(counts[p]>max){max=counts[p];top=p;}
+  });
+  return {name:top,count:max};
+}
+function _formatRecentMatchLine(c,playerName,isDbl){
+  var won=isDbl?_playerWonAnyMatch(c,playerName):_playerWonMatch(c,playerName);
+  var side=_playerSideInAnyMatch(c,playerName);
+  var myTeam=c.myTeam||[],oppTeam=c.oppTeam||[];
+  var opponents=side==='a'?oppTeam:myTeam;
+  var oppLabel=opponents.join('·')||'—';
+  var score=c.score||'';
+  var icon=won?'✅':'❌';
+  var result=won?'승':'패';
+  var dateStr=_fmtStatDate(c);
+  return {icon:icon,score:score,result:result,opp:oppLabel,date:dateStr,won:won};
+}
+function _getRecentMatchLines(playerName,isDbl,limit,seasonFilter){
+  var matches=_getMatchesForMode(playerName,isDbl,seasonFilter);
+  return matches.slice(0,limit||3).map(function(c){
+    return _formatRecentMatchLine(c,playerName,isDbl);
+  });
+}
+function _getMemberRankPosition(m,isDbl,isSeason){
+  var season=_getCurrentSeason();
+  if(isSeason&&!season)return null;
+  var list=MEMBERS.filter(function(x){return x.status!=='비활성';})
+    .map(function(x){
+      var pt=isSeason&&season?_computeSeasonPoints(x,season,isDbl):_memberPt(x,isDbl);
+      return {m:x,pt:pt};
+    })
+    .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
+  for(var i=0;i<list.length;i++){
+    if(list[i].m.id===m.id)return i+1;
+  }
+  return null;
+}
 function _computeStreakStats(playerName){
   var matches=_getSinglesMatchesFor(playerName);
   var current=0,max=0,run=0;
@@ -2446,15 +2645,18 @@ function _computeSeasonPoints(member,season,isDbl){
 function _seasonFilterFn(season){
   return function(c){return _chInSeason(c,season);};
 }
-function _computeStreakFromMatches(matches,playerName){
+function _computeStreakFromMatches(matches,playerName,isDbl){
+  var won=function(c){
+    return isDbl?_playerWonAnyMatch(c,playerName):_playerWonMatch(c,playerName);
+  };
   var current=0,max=0,run=0;
   for(var i=0;i<matches.length;i++){
-    if(_playerWonMatch(matches[i],playerName))current++;
+    if(won(matches[i]))current++;
     else break;
   }
   var asc=matches.slice().reverse();
   for(var j=0;j<asc.length;j++){
-    if(_playerWonMatch(asc[j],playerName)){run++;if(run>max)max=run;}
+    if(won(asc[j])){run++;if(run>max)max=run;}
     else run=0;
   }
   return {currentStreak:current,maxStreak:max};
@@ -2467,7 +2669,7 @@ function _computeSinglesRecord(name,filterFn){
     if(_playerWonMatch(c,name))wins++;
     else losses++;
   });
-  var streak=_computeStreakFromMatches(matches,name);
+  var streak=_computeStreakFromMatches(matches,name,false);
   var total=wins+losses;
   var winRate=total?Math.round(wins/total*100):0;
   return {wins:wins,losses:losses,total:total,winRate:winRate,currentStreak:streak.currentStreak,maxStreak:streak.maxStreak};
@@ -2663,93 +2865,141 @@ function _buildHallMemberRows(mapFn){
 function renderHall(){
   var box=g('hall-content');
   if(!box)return;
+  var isDbl=_hallMode==='double';
   var winsRows=_buildHallMemberRows(function(m){
-    var r=_computeSinglesRecord(m.name);
+    var r=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
     return {name:m.name,value:r.wins};
   });
   var rateRows=_buildHallMemberRows(function(m){
-    var r=_computeSinglesRecord(m.name);
+    var r=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
     if(r.total<10)return null;
     return {name:m.name,value:r.winRate,extra:r.total+'경기'};
   });
   var streakRows=_buildHallMemberRows(function(m){
-    var r=_computeSinglesRecord(m.name);
+    var r=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
     return {name:m.name,value:r.maxStreak};
   });
   var gamesRows=_buildHallMemberRows(function(m){
-    var r=_computeSinglesRecord(m.name);
+    var r=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
     return {name:m.name,value:r.total};
   });
-  var tourRows=_buildHallMemberRows(function(m){
-    var n=_countTournamentWins(m.name);
-    return {name:m.name,value:n};
+  var partnerRows=_buildHallMemberRows(function(m){
+    if(!isDbl)return null;
+    var p=_computeTopPartner(m.name);
+    if(!p.name)return null;
+    return {name:m.name+' / '+p.name,value:p.count,extra:m.name+' 기준'};
   });
-  var seasonRows={};
-  SEASONS.filter(function(s){return s.status==='ended'&&s.champion&&s.champion.name;}).forEach(function(s){
-    var nm=s.champion.name;
-    seasonRows[nm]=(seasonRows[nm]||0)+1;
-  });
-  var seasonList=Object.keys(seasonRows).map(function(nm){return {name:nm,value:seasonRows[nm]};})
-    .sort(function(a,b){return b.value-a.value||a.name.localeCompare(b.name);});
+  var modeLbl=isDbl?'복식':'단식';
   var cats=[
-    {title:'🏆 최다승 TOP10',rows:winsRows,fn:function(x){return x.value+'승';}},
-    {title:'🏆 최고승률 TOP10',rows:rateRows,fn:function(x){return x.value+'%'+(x.extra?' · '+x.extra:'');}},
-    {title:'🏆 최다연승 TOP10',rows:streakRows,fn:function(x){return x.value+'연승';}},
-    {title:'🏆 최다경기 TOP10',rows:gamesRows,fn:function(x){return x.value+'경기';}},
-    {title:'🏆 토너먼트 우승 TOP10',rows:tourRows,fn:function(x){return x.value+'회';}},
-    {title:'👑 시즌 우승 TOP10',rows:seasonList,fn:function(x){return x.value+'회';}}
+    {title:'🏆 '+modeLbl+' 최다승 TOP10',rows:winsRows,fn:function(x){return x.value+'승';}},
+    {title:'🏆 '+modeLbl+' 최고승률 TOP10',rows:rateRows,fn:function(x){return x.value+'%'+(x.extra?' · '+x.extra:'');}},
+    {title:'🏆 '+modeLbl+' 최다연승 TOP10',rows:streakRows,fn:function(x){return x.value+'연승';}},
+    {title:'🏆 '+modeLbl+' 최다경기 TOP10',rows:gamesRows,fn:function(x){return x.value+'경기';}}
   ];
+  if(isDbl){
+    cats.push({title:'🤝 복식 최다 파트너 TOP10',rows:partnerRows,fn:function(x){return x.value+'경기';}});
+  }else{
+    var tourRows=_buildHallMemberRows(function(m){
+      var n=_countTournamentWins(m.name);
+      return {name:m.name,value:n};
+    });
+    var seasonRows={};
+    SEASONS.filter(function(s){return s.status==='ended'&&s.champion&&s.champion.name;}).forEach(function(s){
+      var nm=s.champion.name;
+      seasonRows[nm]=(seasonRows[nm]||0)+1;
+    });
+    var seasonList=Object.keys(seasonRows).map(function(nm){return {name:nm,value:seasonRows[nm]};})
+      .sort(function(a,b){return b.value-a.value||a.name.localeCompare(b.name);});
+    cats.push({title:'🏆 토너먼트 우승 TOP10',rows:tourRows,fn:function(x){return x.value+'회';}});
+    cats.push({title:'👑 시즌 우승 TOP10',rows:seasonList,fn:function(x){return x.value+'회';}});
+  }
   box.innerHTML=cats.map(function(cat){
     return '<div class="card card-p hall-cat"><div class="hall-cat-t">'+cat.title+'</div>'
       +_hallTop10(cat.rows,cat.fn)+'</div>';
   }).join('');
 }
+window.setHallMode=function(mode){
+  _hallMode=mode;
+  var dbl=g('hall-dbl'),ind=g('hall-ind');
+  if(dbl)dbl.classList.toggle('on',mode==='double');
+  if(ind)ind.classList.toggle('on',mode==='individual');
+  renderHall();
+};
 function _renderHallOfFame(){
   var wrap=g('rk-hall-wrap'),box=g('rk-hall');
   if(!wrap||!box)return;
-  if(_rkMode!=='individual'){wrap.style.display='none';return;}
   wrap.style.display='';
+  var isDbl=_rkMode==='double';
   var rows=MEMBERS.filter(function(m){return m.status!=='비활성';}).map(function(m){
-    var s=_computeStreakStats(m.name);
-    return {name:m.name,max:s.maxStreak,cur:s.currentStreak};
+    var r=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
+    return {name:m.name,max:r.maxStreak,cur:r.currentStreak};
   }).filter(function(x){return x.max>0;})
     .sort(function(a,b){return b.max-a.max||b.cur-a.cur||a.name.localeCompare(b.name);})
     .slice(0,3);
   if(!rows.length){
-    box.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3)">연승 기록이 없습니다</div>';
+    box.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3)">'+(isDbl?'복식':'단식')+' 연승 기록이 없습니다</div>';
     return;
   }
   box.innerHTML=rows.map(function(x,i){
     return '<div class="hall-row"><span class="hall-rank">'+(i+1)+'위</span><span class="hall-name">'+x.name+'</span><span class="hall-streak">'+x.max+'연승'+(x.cur>0?' · 🔥 '+x.cur:'')+'</span></div>';
   }).join('');
 }
+function _buildProfileModeBlock(title,rec,rank,partner,isDbl){
+  var rankHtml=rank?(' · <span class="prof-rank">'+rank+'위</span>'):'';
+  var partnerHtml='';
+  if(isDbl&&partner&&partner.name){
+    partnerHtml='<div class="prof-meta-row"><span>최다 파트너</span><strong>'+partner.name+' ('+partner.count+'경기)</strong></div>';
+  }
+  var recentHtml='';
+  if(rec.matches&&rec.matches.length){
+    recentHtml='<div class="prof-recent-list">'+rec.matches.slice(0,6).map(function(c){
+      var m=MEMBERS.find(function(x){return x.id===_profileMemberId;});
+      var nm=m?m.name:'';
+      var line=_formatRecentMatchLine(c,nm,isDbl);
+      return '<div class="prof-recent-item'+(line.won?' win':' loss')+'">'+line.icon+' '+line.score+' '+line.result+' · vs '+line.opp+' <span class="prof-recent-date">'+line.date+'</span></div>';
+    }).join('')+'</div>';
+  }else{
+    recentHtml='<div class="prof-empty">완료된 '+title+' 기록이 없습니다</div>';
+  }
+  return '<div class="stat-box prof-mode-block"><div class="stat-box-t">'+title+rankHtml+'</div>'
+    +'<div class="prof-stats-grid">'
+    +'<div class="prof-stat"><div class="prof-stat-n">'+rec.total+'</div><div class="prof-stat-l">경기</div></div>'
+    +'<div class="prof-stat"><div class="prof-stat-n">'+rec.winRate+'%</div><div class="prof-stat-l">승률</div></div>'
+    +'<div class="prof-stat"><div class="prof-stat-n">'+rec.currentStreak+'</div><div class="prof-stat-l">현재 연승</div></div>'
+    +'<div class="prof-stat"><div class="prof-stat-n" style="color:var(--amber)">'+rec.maxStreak+'</div><div class="prof-stat-l">최고 연승</div></div>'
+    +'</div>'+partnerHtml
+    +'<div class="stat-box-t" style="margin-top:14px">최근 경기</div>'+recentHtml
+    +'</div>';
+}
 function _renderProfileModal(){
   var m=MEMBERS.find(function(x){return x.id===_profileMemberId;});
   if(!m)return;
-  var gr=_memberGrade(m);
-  var st=_computeStreakStats(m.name);
+  var dblRec=_computeDoublesRecord(m.name);
+  var indRec=_computeSinglesRecord(m.name);
+  var dblRank=_getMemberRankPosition(m,true,_rkScope==='season');
+  var indRank=_getMemberRankPosition(m,false,_rkScope==='season');
+  var dblGr=_calcGrade(_memberPt(m,true));
+  var indGr=_calcGrade(_memberPt(m,false));
+  var partner=_computeTopPartner(m.name);
   var hdr=g('prof-header');
   if(hdr){
     hdr.innerHTML='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
       +'<div class="av '+avc(m.name)+'" style="width:48px;height:48px;font-size:18px">'+ini(m.name)+'</div>'
       +'<div><div style="font-size:18px;font-weight:800;color:var(--t1)">'+m.name+'</div>'
-      +'<div style="font-size:13px;color:var(--t3);margin-top:2px">'+gr.icon+' '+gr.label+' · 개인전 '+st.total+'경기</div></div></div>';
+      +'<div style="font-size:13px;color:var(--t3);margin-top:2px">🤝 '+dblGr.icon+' '+dblGr.label+' · 🏓 '+indGr.icon+' '+indGr.label+'</div></div></div>';
   }
-  var streakEl=g('prof-streak');
-  if(streakEl){
-    streakEl.innerHTML='<div class="stat-box"><div class="stat-box-t">🔥 연승</div><div class="stat-streak-row">'
-      +'<div class="stat-streak-item"><div class="stat-streak-num">'+st.currentStreak+'</div><div class="stat-streak-lbl">현재 연승</div></div>'
-      +'<div class="stat-streak-item"><div class="stat-streak-num" style="color:var(--amber)">'+st.maxStreak+'</div><div class="stat-streak-lbl">최고 연승</div></div>'
-      +'</div></div>';
+  var dblEl=g('prof-doubles');
+  if(dblEl){
+    dblRec.matches=_getDoublesMatchesFor(m.name);
+    dblEl.innerHTML=_buildProfileModeBlock('🤝 복식',dblRec,dblRank,partner,true);
   }
-  var recentEl=g('prof-recent');
-  if(recentEl){
-    if(st.recent.length){
-      recentEl.innerHTML='<div class="stat-box"><div class="stat-box-t">최근 경기</div><div class="stat-recent">'
-        +st.recent.map(function(r){return '<span class="stat-chip '+(r==='W'?'win':'loss')+'">'+(r==='W'?'승':'패')+'</span>';}).join('')
-        +'</div></div>';
-    }else recentEl.innerHTML='<div class="stat-box" style="text-align:center;color:var(--t3);font-size:13px">완료된 개인전 기록이 없습니다</div>';
+  var indEl=g('prof-singles');
+  if(indEl){
+    indRec.matches=_getSinglesMatchesFor(m.name);
+    indEl.innerHTML=_buildProfileModeBlock('🏓 단식',indRec,indRank,null,false);
   }
+  var streakEl=g('prof-streak');if(streakEl)streakEl.innerHTML='';
+  var recentEl=g('prof-recent');if(recentEl)recentEl.innerHTML='';
   var sel=g('prof-opp');
   if(sel){
     var others=MEMBERS.filter(function(x){return x.status!=='비활성'&&x.id!==m.id&&x.name;})
@@ -2798,34 +3048,51 @@ window.setRk=function(mode){
   if(dbl)dbl.classList.toggle('on',mode==='double');
   renderR();
 }
-function _rankRowHash(m,rank,pt,gr,streak){
-  return m.id+'|'+rank+'|'+(m.name||'')+'|'+gr.label+'|'+pt+'|'+streak+'|'+_rkScope;
+function _rankRowHash(m,rank,pt,gr,streak,recentKey){
+  return m.id+'|'+rank+'|'+(m.name||'')+'|'+gr.label+'|'+pt+'|'+streak+'|'+_rkScope+'|'+_rkMode+'|'+recentKey;
 }
 function _streakForRankRow(m){
-  if(_rkMode!=='individual')return 0;
+  var isDbl=_rkMode==='double';
   if(_rkScope==='season'){
     var season=_getCurrentSeason();
     if(!season)return 0;
-    return _computeSinglesRecord(m.name,_seasonFilterFn(season)).currentStreak;
+    var rec=isDbl?_computeDoublesRecord(m.name,_seasonFilterFn(season)):_computeSinglesRecord(m.name,_seasonFilterFn(season));
+    return rec.currentStreak;
   }
-  return _computeStreakStats(m.name).currentStreak;
+  var rec=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
+  return rec.currentStreak;
+}
+function _buildRankRecentHtml(m){
+  var isDbl=_rkMode==='double';
+  var isSeason=_rkScope==='season';
+  var season=_getCurrentSeason();
+  var filterFn=isSeason&&season?_seasonFilterFn(season):null;
+  var lines=_getRecentMatchLines(m.name,isDbl,3,filterFn);
+  if(!lines.length)return '';
+  return '<div class="rk-recent">'+lines.map(function(r){
+    return '<div class="rk-recent-line'+(r.won?' rk-recent-win':' rk-recent-loss')+'">'
+      +'<span class="rk-recent-icon">'+r.icon+'</span>'
+      +'<span class="rk-recent-score">'+(r.score||'-')+' '+r.result+'</span>'
+      +'<span class="rk-recent-opp">vs '+r.opp+'</span>'
+      +'<span class="rk-recent-date">'+r.date+'</span>'
+      +'</div>';
+  }).join('')+'</div>';
 }
 function _buildRankRowCells(m,rank,pt,grOpt){
   var gr=grOpt||_memberGrade(m);
   var streakHtml='';
-  if(_rkMode==='individual'){
-    var cur=_streakForRankRow(m);
-    if(cur>0){
-      streakHtml='<div style="font-size:12px;color:var(--amber);font-weight:700;margin-top:2px">🔥 '+cur+'연승</div>';
-    }
+  var cur=_streakForRankRow(m);
+  if(cur>0){
+    streakHtml='<div style="font-size:12px;color:var(--amber);font-weight:700;margin-top:2px">🔥 '+cur+'연승</div>';
   }
+  var recentHtml=_buildRankRecentHtml(m);
   var rankHtml;
   if(rank===1)rankHtml='<span class="rk-medal rk-medal--1" aria-label="1위">🥇</span>';
   else if(rank===2)rankHtml='<span class="rk-medal rk-medal--2" aria-label="2위">🥈</span>';
   else if(rank===3)rankHtml='<span class="rk-medal rk-medal--3" aria-label="3위">🥉</span>';
   else rankHtml='<span class="rk-rank-num">'+rank+'</span>';
   return '<td data-label="순위">'+rankHtml+'</td>'
-    +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:center;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px">'+ini(m.name)+'</div><div><div style="font-weight:600">'+gr.icon+' '+m.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div>'+streakHtml+'</div></div></td>'
+    +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:flex-start;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px;flex-shrink:0">'+ini(m.name)+'</div><div style="min-width:0;flex:1"><div style="font-weight:600">'+gr.icon+' '+m.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div>'+streakHtml+recentHtml+'</div></div></td>'
     +'<td data-label="등급"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span></td>'
     +'<td data-label="포인트"><span class="rk-pt">'+pt+'</span><span class="rk-pt-unit">점</span></td>';
 }
@@ -2853,7 +3120,7 @@ function renderR(){
   var list=MEMBERS.filter(function(m){return m.status!=='비활성';})
     .map(function(m){
       var pt=isSeason&&season?_computeSeasonPoints(m,season,isDbl):_memberPt(m,isDbl);
-      var gr=isSeason&&season?_calcGrade(pt):_memberGrade(m);
+      var gr=isSeason&&season?_calcGrade(pt):_calcGrade(_memberPt(m,isDbl));
       return {m:m,pt:pt,gr:gr};
     })
     .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
@@ -2883,7 +3150,9 @@ function renderR(){
     var rank=idx+1;
     var gr=item.gr||_memberGrade(item.m);
     var streak=_streakForRankRow(item.m);
-    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak);
+    var recentKey=_getRecentMatchLines(item.m.name,_rkMode==='double',3,_rkScope==='season'&&season?_seasonFilterFn(season):null)
+      .map(function(r){return r.date+r.score+r.result;}).join('|');
+    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak,recentKey);
     var existing=existingMap[item.m.id];
     if(existing){
       if(existing.dataset.rhash!==newHash){
@@ -2925,8 +3194,8 @@ function _buildMemberRowCells(m){
 }
 
 function renderM(){
-  const q=g('ms')?.value||'',gr=_fg;
-  const f=MEMBERS.filter(m=>m.name?.includes(q)&&(!gr||_memberGrade(m).label===gr));
+  const q=(g('ms')?.value||'').trim(),gr=_fg;
+  const f=MEMBERS.filter(m=>_matchMemberSearch(m.name,q)&&(!gr||_memberGrade(m).label===gr));
   const tb=g('mtb');
   if(!tb)return;
 
@@ -2974,7 +3243,11 @@ function renderM(){
     }
   });
 }
-window.filterM=function(){renderM();}
+window.filterM=function(val){
+  var inp=g('ms');
+  if(val!==undefined&&inp&&inp.value!==val)inp.value=val;
+  renderM();
+}
 window.filterG=function(gr){_fg=gr;renderM();}
 window.openAddModal=function(){
   _requireAdmin(function(){

@@ -76,8 +76,8 @@
     </div>
   </header>
 
-  <!-- FAB (모바일 대결 신청) -->
-  <button class="fab" onclick="openBS()">🏓 대결 신청</button>
+  <!-- FAB (모바일 즉시 대결) -->
+  <button class="fab fab-instant" onclick="openInstantBS()">⚡ 즉시 대결</button>
 
   <main class="main">
 
@@ -91,19 +91,19 @@
             <h1 class="brand-name">이사탁</h1>
             <p class="brand-tagline">탁구 동호회 · 대결 · 랭킹 · 통계</p>
           </div>
-          <button class="btn btn-p btn-sm brand-hero-cta pc-only" type="button" onclick="openBS()">+ 대결 신청</button>
+          <button class="btn btn-p btn-sm brand-hero-cta pc-only" type="button" onclick="openInstantBS()">⚡ 즉시 대결</button>
         </div>
       </section>
       <div class="quick-actions">
-        <button class="qa-card" type="button" onclick="openBS()">
-          <span class="qa-icon">🏓</span>
-          <span class="qa-label">대결 신청</span>
-          <span class="qa-desc">일반 · 수락 필요</span>
-        </button>
-        <button class="qa-card qa-instant" type="button" onclick="openInstantBS()">
+        <button class="qa-card qa-instant qa-primary" type="button" onclick="openInstantBS()">
           <span class="qa-icon">⚡</span>
           <span class="qa-label">즉시 대결</span>
           <span class="qa-desc">수락 없이 바로</span>
+        </button>
+        <button class="qa-card qa-secondary" type="button" onclick="openBS()">
+          <span class="qa-icon">🏓</span>
+          <span class="qa-label">대결 신청</span>
+          <span class="qa-desc">일반 · 수락 필요</span>
         </button>
         <button class="qa-card" type="button" onclick="openResultPicker()">
           <span class="qa-icon">📝</span>
@@ -122,11 +122,11 @@
         <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈 챌린지</button>
         <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기중</button>
         <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 수락됨</button>
-        <button class="fc"    id="f-ms"         onclick="setF('ms')">🏓 남단식</button>
         <button class="fc"    id="f-md"         onclick="setF('md')">🏓 남복식</button>
-        <button class="fc"    id="f-fs"         onclick="setF('fs')">🎀 여단식</button>
         <button class="fc"    id="f-fd"         onclick="setF('fd')">🎀 여복식</button>
         <button class="fc"    id="f-mx"         onclick="setF('mx')">🤝 혼합복식</button>
+        <button class="fc"    id="f-ms"         onclick="setF('ms')">🏓 남단식</button>
+        <button class="fc"    id="f-fs"         onclick="setF('fs')">🎀 여단식</button>
         <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
       </div>
       <div id="ch-empty" style="display:none;text-align:center;padding:64px 20px;color:var(--t3)">
@@ -144,13 +144,13 @@
         <button class="btn btn-g btn-sm" onclick="nav('hall')">📈 통계 보기</button>
       </div>
       <div class="fscroll">
-        <button class="fc on" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
-        <button class="fc" id="rk-scope-season" type="button" onclick="setRkScope('season')">시즌 랭킹</button>
+        <button class="fc" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
+        <button class="fc on" id="rk-scope-season" type="button" onclick="setRkScope('season')">시즌 랭킹</button>
       </div>
       <div id="rk-season-info" class="season-info-bar" style="display:none"></div>
       <div class="fscroll">
-        <button class="fc on" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
-        <button class="fc"    id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
+        <button class="fc" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
+        <button class="fc on" id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
       </div>
       <div class="card card-p">
         <table class="tm">
@@ -174,6 +174,10 @@
         <button class="btn btn-g btn-sm" onclick="nav('ranking')">← 랭킹</button>
       </div>
       <p class="page-sub">명예의 전당 · TOP10 기록</p>
+      <div class="fscroll">
+        <button class="fc on" id="hall-dbl" type="button" onclick="setHallMode('double')">🤝 복식</button>
+        <button class="fc" id="hall-ind" type="button" onclick="setHallMode('individual')">🏓 단식</button>
+      </div>
       <div id="hall-content"></div>
     </div>
 
@@ -185,7 +189,7 @@
       </div>
       <div class="card card-p">
         <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
-          <input type="search" placeholder="🔍 이름 검색" style="max-width:220px;min-height:44px" oninput="filterM(this.value)" id="ms">
+          <input type="text" placeholder="🔍 이름 검색 (초성·부분 검색)" style="max-width:100%;flex:1;min-height:48px" oninput="filterM(this.value)" id="ms" autocomplete="off" inputmode="search" enterkeyhint="search">
           <select style="max-width:150px;min-height:44px" onchange="filterG(this.value)">
             <option value="">전체 등급</option><option>마스터</option><option>고수</option><option>상급</option><option>중급</option><option>초급</option><option>입문</option>
           </select>
@@ -266,17 +270,18 @@
     <div class="fg">
       <label>경기 유형</label>
       <div class="tg">
-        <div id="t-ms" class="tb as" onclick="setType('ms')"><div class="te">🏓</div><div class="tl" style="color:var(--a)">남단식</div></div>
-        <div id="t-md" class="tb"    onclick="setType('md')"><div class="te">🏓🏓</div><div class="tl">남복식</div></div>
-        <div id="t-fs" class="tb"    onclick="setType('fs')"><div class="te">🎀</div><div class="tl">여단식</div></div>
+        <div id="t-md" class="tb ad" onclick="setType('md')"><div class="te">🏓🏓</div><div class="tl" style="color:var(--blue)">남복식</div></div>
         <div id="t-fd" class="tb"    onclick="setType('fd')"><div class="te">🎀🎀</div><div class="tl">여복식</div></div>
         <div id="t-mx" class="tb"    onclick="setType('mx')"><div class="te">🤝</div><div class="tl">혼합복식</div></div>
+        <div id="t-ms" class="tb"    onclick="setType('ms')"><div class="te">🏓</div><div class="tl">남단식</div></div>
+        <div id="t-fs" class="tb"    onclick="setType('fs')"><div class="te">🎀</div><div class="tl">여단식</div></div>
       </div>
     </div>
 
     <!-- 내 팀 선택 -->
     <div class="fg">
       <label id="lbl-my">내 팀 선택</label>
+      <input type="text" class="bs-player-search" id="bs-search-my" placeholder="🔍 이름 검색 · 초성 가능" autocomplete="off" inputmode="search" enterkeyhint="search" oninput="onBsPlayerSearch()">
       <div class="msg" id="gmy"></div>
       <div class="emsg" id="e-my">선택해주세요</div>
     </div>
@@ -284,6 +289,7 @@
     <!-- 상대 팀 선택: 오픈 챌린지 ON이면 숨김 -->
     <div id="opp-section" class="fg">
       <label id="lbl-opp">상대 팀 선택</label>
+      <input type="text" class="bs-player-search" id="bs-search-opp" placeholder="🔍 이름 검색 · 초성 가능" autocomplete="off" inputmode="search" enterkeyhint="search" oninput="onBsPlayerSearch()">
       <div class="msg" id="gopp"></div>
       <div class="emsg" id="e-opp">선택해주세요</div>
     </div>
@@ -301,17 +307,17 @@
   <div class="bs-body" id="bs-step2" style="display:none">
     <p class="bs-step-hint">경기 방식을 선택하세요. 결과 입력 시 세트 수가 자동으로 맞춰집니다.</p>
     <div class="gm-grid" id="bs-gm-grid">
-      <button type="button" class="gm-card" id="bs-gm-bo1" onclick="setBsGameMode('bo1')">
+      <button type="button" class="gm-card on" id="bs-gm-bo1" onclick="setBsGameMode('bo1')">
         <span class="gm-card-t">단판 승부</span>
-        <span class="gm-card-d">1판 1선승</span>
+        <span class="gm-card-d">1판 1선승 · 기본</span>
       </button>
       <button type="button" class="gm-card" id="bs-gm-bo3" onclick="setBsGameMode('bo3')">
         <span class="gm-card-t">3판 2선승</span>
         <span class="gm-card-d">최대 3세트</span>
       </button>
-      <button type="button" class="gm-card on" id="bs-gm-bo5" onclick="setBsGameMode('bo5')">
+      <button type="button" class="gm-card" id="bs-gm-bo5" onclick="setBsGameMode('bo5')">
         <span class="gm-card-t">5판 3선승</span>
-        <span class="gm-card-d">최대 5세트 · 기본</span>
+        <span class="gm-card-d">최대 5세트</span>
       </button>
       <button type="button" class="gm-card" id="bs-gm-bo7" onclick="setBsGameMode('bo7')">
         <span class="gm-card-t">7판 4선승</span>
@@ -366,7 +372,7 @@
     <div style="height:8px"></div>
   </div>
   <div class="bs-foot" id="bs-foot4" style="display:none">
-    <button class="btn btn-g" onclick="bsStep(3)">← 이전</button>
+    <button class="btn btn-g" onclick="bsStepPrevFrom4()">← 이전</button>
     <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
   </div>
 </div>
@@ -609,8 +615,10 @@
     <div class="mh"><div class="mt">회원 <em>상세</em></div><button class="mc-btn" onclick="closeMo('mo-profile')">✕</button></div>
     <div class="mb">
       <div id="prof-header"></div>
-      <div id="prof-streak"></div>
-      <div id="prof-recent"></div>
+      <div id="prof-doubles"></div>
+      <div id="prof-singles"></div>
+      <div id="prof-streak" style="display:none"></div>
+      <div id="prof-recent" style="display:none"></div>
       <div id="prof-badges"></div>
       <div class="fg" style="margin-top:18px;margin-bottom:0">
         <label>상대 전적 조회 <span style="color:var(--t3);font-size:12px;font-weight:400">(개인전 · 단식)</span></label>

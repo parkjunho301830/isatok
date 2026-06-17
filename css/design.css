@@ -153,10 +153,110 @@
   transform:scale(.98);
   box-shadow:var(--shadow-card-lift);
 }
-.qa-card.qa-instant{
-  background:var(--surface);
-  border:1.5px solid rgba(255,149,0,.35);
-  box-shadow:0 2px 12px rgba(255,149,0,.1);
+.qa-card.qa-instant,
+.qa-card.qa-primary{
+  background:linear-gradient(135deg,rgba(255,204,0,.14),rgba(255,149,0,.1));
+  border:1.5px solid rgba(255,149,0,.4);
+  box-shadow:0 4px 16px rgba(255,149,0,.12);
+}
+.qa-card.qa-secondary{
+  opacity:.92;
+}
+
+/* ── Player search (bottom sheet) ── */
+.bs-player-search{
+  width:100%;
+  min-height:48px;
+  padding:12px 14px;
+  margin-bottom:10px;
+  border-radius:var(--radius-md);
+  border:1.5px solid var(--b2);
+  background:var(--c2);
+  font-size:16px;
+  color:var(--t1);
+  -webkit-appearance:none;
+}
+.bs-player-search:focus{
+  border-color:var(--a);
+  outline:none;
+  box-shadow:0 0 0 3px rgba(0,200,150,.15);
+}
+.mc2.mc2-recent{
+  box-shadow:inset 0 0 0 1px rgba(255,193,7,.35);
+}
+.msg .mc2{
+  min-height:48px;
+  padding:10px 12px;
+}
+
+/* ── Ranking recent matches ── */
+.rk-recent{
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.rk-recent-line{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px 8px;
+  font-size:11px;
+  line-height:1.4;
+  color:var(--t2);
+}
+.rk-recent-score{font-weight:700;color:var(--t1);}
+.rk-recent-opp{color:var(--t3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rk-recent-date{color:var(--t3);font-size:10px;margin-left:auto;}
+.rk-recent-win .rk-recent-score{color:var(--a);}
+.rk-recent-loss .rk-recent-score{color:var(--red);}
+
+/* ── Profile mode blocks ── */
+.prof-mode-block{margin-bottom:14px;}
+.prof-stats-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:10px;
+}
+.prof-stat{
+  text-align:center;
+  padding:10px 6px;
+  border-radius:var(--radius-md);
+  background:var(--c2);
+}
+.prof-stat-n{font-size:18px;font-weight:800;color:var(--t1);}
+.prof-stat-l{font-size:11px;color:var(--t3);margin-top:2px;}
+.prof-rank{font-size:13px;color:var(--amber);font-weight:700;}
+.prof-meta-row{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:12px;
+  font-size:13px;
+  color:var(--t2);
+}
+.prof-recent-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.prof-recent-item{
+  font-size:12px;
+  padding:8px 10px;
+  border-radius:var(--radius-sm);
+  background:var(--c2);
+  line-height:1.45;
+}
+.prof-recent-item.win{border-left:3px solid var(--a);}
+.prof-recent-item.loss{border-left:3px solid var(--red);}
+.prof-recent-date{color:var(--t3);font-size:11px;}
+.prof-empty{text-align:center;color:var(--t3);font-size:13px;padding:12px 0;}
+
+/* ── FAB instant ── */
+.fab.fab-instant{
+  background:linear-gradient(135deg,#ffb300,#ff9500);
+  color:#1a1a1a;
+  box-shadow:0 6px 22px rgba(255,149,0,.45);
+}
+.fab.fab-instant:active{
+  box-shadow:0 3px 14px rgba(255,149,0,.35);
 }
 
 /* ── Challenge cards ── */
@@ -539,6 +639,10 @@
   .tm td[data-label="포인트"] .rk-pt{font-size:18px;}
 
   .mf .btn,.bs-foot .btn{min-height:52px;}
+  .bs-player-search{font-size:16px;min-height:52px;}
+  .msg .mc2{min-height:52px;font-size:15px;}
+  .prof-stats-grid{grid-template-columns:repeat(2,1fr);}
+  .rk-recent-line{font-size:12px;}
 }
 
 @media(min-width:769px){
