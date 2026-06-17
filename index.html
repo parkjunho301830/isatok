@@ -435,32 +435,24 @@
       <button class="mc-btn" onclick="closeMo('mo-bet')">✕</button>
     </div>
     <div class="mb">
-      <!-- 내기 대결 정보 -->
-      <div id="bet-info" style="background:var(--c2);border-radius:14px;padding:14px 16px;margin-bottom:16px;text-align:center;font-size:15px;font-weight:700;color:var(--t2)"></div>
-      <!-- 예측 선택 -->
-      <div class="fg">
-        <label>어느 팀이 이길까요?</label>
-        <div style="display:flex;gap:12px">
-          <div id="bet-pick-a" onclick="setBetPick('a')"
-            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .18s,background .18s,box-shadow .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
-            <div id="bet-pick-a-lbl" style="font-size:15px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승</div>
+      <div id="bet-info" class="bet-info-box"></div>
+      <div id="bet-my-info" class="bet-my-info"></div>
+      <div class="fg bet-pick-fg">
+        <label>예상 승리팀 선택</label>
+        <p class="bet-pick-hint">응원할 팀을 선택해주세요.</p>
+        <div class="bet-pick-row">
+          <div id="bet-pick-a" class="bet-pick-card" onclick="setBetPick('a')" role="button" tabindex="0">
+            <div id="bet-pick-a-lbl" class="bet-pick-lbl">A팀</div>
           </div>
-          <div id="bet-pick-b" onclick="setBetPick('b')"
-            style="flex:1;padding:18px 10px;border-radius:16px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .18s,background .18s,box-shadow .18s;min-height:64px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent">
-            <div id="bet-pick-b-lbl" style="font-size:15px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승</div>
+          <div id="bet-pick-b" class="bet-pick-card" onclick="setBetPick('b')" role="button" tabindex="0">
+            <div id="bet-pick-b-lbl" class="bet-pick-lbl">B팀</div>
           </div>
         </div>
-      </div>
-      <!-- 참여자 이름 입력 -->
-      <div class="fg" style="margin-bottom:0">
-        <label>내 이름 선택 <span style="color:var(--red);font-size:12px;font-weight:400">*</span></label>
-        <div class="msg" id="g-bet-member"></div>
-        <div class="emsg" id="e-bet-member">이름을 선택해주세요</div>
       </div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-bet')">취소</button>
-      <button class="btn btn-p" onclick="submitBetPick()">🎯 예측 참여</button>
+      <button class="btn btn-p" onclick="submitBetPick()">🎯 참여하기</button>
     </div>
   </div>
 </div>

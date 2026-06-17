@@ -544,6 +544,74 @@ html.is-admin .nav-admin-only{display:flex!important;}
 .cc-secondary-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 .cc-utility-btns{display:inline-flex;gap:6px;margin-left:auto;flex-shrink:0;}
 
+/* ══ 내기 참여 모달 ══ */
+.bet-info-box{
+  background:var(--c2);
+  border-radius:14px;
+  padding:14px 16px;
+  margin-bottom:12px;
+  text-align:center;
+  font-size:15px;
+  font-weight:700;
+  color:var(--t2);
+}
+.bet-my-info{
+  background:var(--surface-2);
+  border:1px solid var(--b1);
+  border-radius:12px;
+  padding:12px 14px;
+  margin-bottom:14px;
+  font-size:13px;
+  color:var(--t2);
+  line-height:1.5;
+}
+.bet-my-info-title{
+  font-size:11px;
+  font-weight:800;
+  color:var(--t3);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:8px;
+}
+.bet-my-info-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.bet-my-info-row+.bet-my-info-row{margin-top:6px;}
+.bet-my-info-row strong{color:var(--t1);font-weight:800;text-align:right;}
+.bet-pick-fg{margin-bottom:0;}
+.bet-pick-hint{
+  margin:-4px 0 12px;
+  font-size:12px;
+  color:var(--t3);
+  font-weight:500;
+}
+.bet-pick-row{display:flex;gap:10px;}
+.bet-pick-card{
+  flex:1;
+  min-height:72px;
+  padding:16px 10px;
+  border-radius:16px;
+  border:2px solid var(--b2);
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .18s,background .18s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.bet-pick-lbl{
+  font-size:14px;
+  font-weight:800;
+  color:var(--t2);
+  word-break:keep-all;
+  line-height:1.35;
+}
+
 /* ══ 대결 생성 모드 안내 ══ */
 .ch-mode-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .ch-mode-card{padding:12px;border-radius:14px;background:var(--c2);border:1px solid var(--b1);}
