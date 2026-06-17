@@ -21,6 +21,11 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{APP_VERSION,BUILD_TIME}from'./version.js';
+import{
+  initWizard,checkMyPlayerSetup,renderMyRecordHome,renderMyPage,
+  wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
+  getWizQuickResult,wizPrefillEdit
+}from'./wizard.js';
 
 const FB={
   apiKey:"AIzaSyDttEMgDQx3iS2siRzVIizxBBDZ4KjcJEw",
@@ -617,7 +622,7 @@ function _parseEntryFromLocation(){
 }
 function _applyEntryNavigation(){
   var entry=_parseEntryFromLocation();
-  var validPages=['challenge','ranking','members','hall','admin'];
+  var validPages=['challenge','ranking','members','hall','admin','my'];
   if(!entry.pageId||validPages.indexOf(entry.pageId)<0)return;
   nav(entry.pageId);
   if(entry.pageId==='challenge'){
@@ -641,6 +646,29 @@ function finish(){
   _initBsPlayerSearchInputs();
   _initVersionUI();
   _initUxDefaults();
+  initWizard({
+    g,
+    getMembers:function(){return MEMBERS;},
+    getChal:function(){return CHAL;},
+    TM,GM,
+    toast:window.toast,
+    openMo,closeMo,
+    nav:window.nav,
+    getState:function(){return{_my,_opp,_type,_bet};},
+    setMy:function(v){_my=v;},
+    setOpp:function(v){_opp=v;},
+    setType:function(tp){_type=tp;},
+    getEditId:function(){return _editChId;},
+    isInstantMode:_isInstantCreateMode,
+    computeDoublesRecord:_computeDoublesRecord,
+    computeSinglesRecord:_computeSinglesRecord,
+    getMemberRankPosition:_getMemberRankPosition,
+    nowDateTimeFields:_nowDateTimeFields,
+    updateChSubmitBtn:_updateChSubmitBtn,
+    onMyPlayerChanged:function(){renderMyRecordHome();renderMyPage();}
+  });
+  checkMyPlayerSetup();
+  renderMyRecordHome();
   document.body.classList.toggle('has-fab',_currentPage==='challenge');
 }
 function _initUxDefaults(){
@@ -891,27 +919,22 @@ window.openBS = function(){
   _editChId = null;
   _bsPresetInstant = false;
   _my = []; _opp = [];
-  _clearBsPlayerSearch();
   var chk = g('oc-chk');
   if(chk) chk.checked = false;
   var wrap = g('oc-toggle-wrap');
   if(wrap){ wrap.classList.remove('on'); wrap.style.display = ''; }
-  var oppSec = g('opp-section');
-  if(oppSec) oppSec.style.display = '';
   var submitBtn = g('ch-submit-btn');
   if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
   var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
   if(bsTitleEm) bsTitleEm.textContent = '신청';
   const d = new Date(); d.setDate(d.getDate() + 1);
-  g('ch-date').value = d.toISOString().slice(0, 10);
-  g('ch-time').value = '10:00';
+  var dateEl=g('ch-date');if(dateEl)dateEl.value=d.toISOString().slice(0,10);
+  var timeEl=g('ch-time');if(timeEl)timeEl.value='10:00';
   _bet = '';
-  document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){ btn.classList.remove('on'); });
-  var noneChip = document.querySelector('#bet-chips .none-chip');
-  if(noneChip) noneChip.classList.add('on');
-  ['e-my','e-opp'].forEach(function(id){ g(id).classList.remove('on'); });
   _resetBsCreateUI();
-  setType('md');
+  setChCreateMode('normal');
+  setBsGameMode('bo1');
+  wizResetFlow(false);
   bsStep(1);
   _showBS();
 };
@@ -920,29 +943,22 @@ window.openInstantBS=function(){
   _editChId=null;
   _bsPresetInstant=true;
   _my=[];_opp=[];
-  _clearBsPlayerSearch();
   var chk=g('oc-chk');
   if(chk)chk.checked=false;
   var wrap=g('oc-toggle-wrap');
   if(wrap){wrap.classList.remove('on');wrap.style.display='none';}
-  var oppSec=g('opp-section');
-  if(oppSec)oppSec.style.display='';
   var submitBtn=g('ch-submit-btn');
   if(submitBtn)submitBtn.textContent='⚡ 즉시 생성 · 결과 입력';
   var bsTitleEm=g('bs-ch')&&g('bs-ch').querySelector('.bs-title em');
   if(bsTitleEm)bsTitleEm.textContent='즉시';
   _bet='';
-  document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){btn.classList.remove('on');});
-  var noneChip=document.querySelector('#bet-chips .none-chip');
-  if(noneChip)noneChip.classList.add('on');
-  ['e-my','e-opp'].forEach(function(id){g(id).classList.remove('on');});
   _resetBsCreateUI();
   setChCreateMode('instant');
   setBsGameMode('bo1');
-  setType('md');
   var now=_nowDateTimeFields();
-  g('ch-date').value=now.date;
-  g('ch-time').value=now.time;
+  var dateEl=g('ch-date');if(dateEl)dateEl.value=now.date;
+  var timeEl=g('ch-time');if(timeEl)timeEl.value=now.time;
+  wizResetFlow(true);
   bsStep(1);
   _showBS();
 };
@@ -1156,12 +1172,13 @@ window.openEditCh = function(id){
   if(wrap) wrap.classList.toggle('on', isOpen);
   if(oppSec) oppSec.style.display = isOpen ? 'none' : '';
 
-  setType(c.type || 'ms');
+  _type = c.type || 'ms';
   _my = [...(c.myTeam || [])];
   _opp = isOpen ? [] : [...(c.oppTeam || [])];
+  wizPrefillEdit(c.type || 'ms', _my, _opp);
 
-  g('ch-date').value = c.date || '';
-  g('ch-time').value = c.time || '10:00';
+  var dateEl=g('ch-date');if(dateEl)dateEl.value=c.date||'';
+  var timeEl=g('ch-time');if(timeEl)timeEl.value=c.time||'10:00';
 
   _bet = c.bet || '';
   document.querySelectorAll('#bet-chips .msg-chip').forEach(function(btn){
@@ -1180,7 +1197,6 @@ window.openEditCh = function(id){
   _bsCreateMode='normal';
   _instantCreate=false;
 
-  renderGridsBS({force:true});
   bsStep(1);
   _showBS();
 }
@@ -1204,69 +1220,29 @@ window.closeBS = function(){
   });
 }
 
-// ── STEP 전환 (4단계: 상대 → 경기방식 → 일반/즉시 → 생성)
+function _getCurrentBsStep(){
+  for(var i=1;i<=4;i++){
+    var s=g('bs-step'+i);
+    if(s&&s.style.display!=='none')return i;
+  }
+  return 1;
+}
+
+// ── STEP 전환 (Wizard 4단계: 유형 → 내팀 → 상대팀 → 결과)
 window.bsStep = function(n){
-  if(n===3&&_editChId)n=4;
-  if(n===2){
-    const m = TM[_type] || TM.ms;
-    var isOpenMode = g('oc-chk') && g('oc-chk').checked;
-    var ok = true;
-    if(m.mix){
-      const myM = _my.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='남성'; }).length;
-      const myF = _my.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='여성'; }).length;
-      if(myM<1||myF<1){ g('e-my').classList.add('on'); ok=false; } else g('e-my').classList.remove('on');
-      if(!isOpenMode){
-        const opM = _opp.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='남성'; }).length;
-        const opF = _opp.filter(function(nm){ return MEMBERS.find(function(x){ return x.name===nm; })?.gender==='여성'; }).length;
-        if(opM<1||opF<1){ g('e-opp').classList.add('on'); ok=false; } else g('e-opp').classList.remove('on');
-      }
-    } else {
-      if(_my.length < m.maxM){ g('e-my').classList.add('on'); ok=false; } else g('e-my').classList.remove('on');
-      if(!isOpenMode){
-        if(_opp.length < m.maxO){ g('e-opp').classList.add('on'); ok=false; } else g('e-opp').classList.remove('on');
-      }
-    }
-    if(!ok) return;
-  }
-  if(n===4&&!_editChId&&_bsCreateMode==='instant'){
-    var tm2=TM[_type]||TM.ms;
-    if(_opp.length<tm2.maxO){
-      toast('⚠️ 즉시 대결은 상대 팀 선택이 필요합니다');
-      return;
-    }
-  }
+  var cur=_getCurrentBsStep();
+  if(n>cur&&!wizValidateStep(cur,n))return;
   for(var i=1;i<=4;i++){
     var step=g('bs-step'+i),foot=g('bs-foot'+i);
     if(step)step.style.display=(i===n)?'':'none';
     if(foot)foot.style.display=(i===n)?'':'none';
-    var dot=g('bsd'+i);
-    if(dot){
-      if(_isInstantCreateMode()&&!_editChId){
-        if(n===4)dot.classList.toggle('on',i===1||i===2||i===4);
-        else dot.classList.toggle('on',i<=n);
-      }else{
-        dot.classList.toggle('on',i===n);
-      }
-    }
   }
-  if(n===3){
-    _applyChCreateModeUI();
-    if(_bsPresetInstant&&!_editChId){
-      _bsPresetInstant=false;
-      setChCreateMode('instant');
-    }
-  }
+  wizRenderStep(n);
   if(n===4){
     if(_isInstantCreateMode()&&!_editChId){
       var ocWrap=g('oc-toggle-wrap');
       if(ocWrap)ocWrap.style.display='none';
-      if(!g('ch-date').value||!g('ch-time').value){
-        var now=_nowDateTimeFields();
-        g('ch-date').value=now.date;
-        g('ch-time').value=now.time;
-      }
     }
-    _renderBsSummary();
     _updateChSubmitBtn();
   }
 }
@@ -1352,8 +1328,8 @@ window.submitChBS = async function(){
     type: _type,
     myTeam: [..._my],
     oppTeam: isOpenMode ? [] : [..._opp],
-    date: g('ch-date').value,
-    time: g('ch-time').value,
+    date: (g('ch-date')&&g('ch-date').value)||_nowDateTimeFields().date,
+    time: (g('ch-time')&&g('ch-time').value)||'10:00',
     place: '',
     bet: _bet,
     isOpen: !!isOpenMode,
@@ -1388,6 +1364,7 @@ window.submitChBS = async function(){
     if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
     _saveRecentPlayers([..._my,..._opp]);
+    saveWizRecentCombos();
     var saved={id:newId,...data};
     _debugChallengeCreate({
       phase:'saved',
@@ -1399,6 +1376,21 @@ window.submitChBS = async function(){
     });
     _debugCardActions(saved);
     if(instantMode){
+      var qr=getWizQuickResult();
+      if(qr.winner){
+        try{
+          if(db){
+            await updateDoc(doc(db,'challenges',newId),{status:'completed',winner:qr.winner,score:qr.score});
+          }
+          saved.status='completed';saved.winner=qr.winner;saved.score=qr.score;
+          if(!db){var loc=CHAL.find(function(c){return c.id===newId;});if(loc)Object.assign(loc,saved);renderC();}
+          await _updateMatchPoints(saved,qr.winner,1);
+          toast(qr.score?'🏆 대결 생성 및 결과 저장!':'🏆 대결 생성 · 승자 기록!');
+          if(_currentPage==='ranking')renderR();
+          renderMyRecordHome();renderMyPage();
+          return;
+        }catch(e2){toast('⚠️ 결과 저장 실패 — 결과 입력에서 다시 시도해주세요');}
+      }
       toast('✅ 대결 생성! 결과를 입력해 주세요.');
       setTimeout(function(){ openRes(newId); }, 450);
     }else{
@@ -1465,6 +1457,7 @@ window.nav=function(id){
   if(id==='members')renderM();
   else if(id==='ranking')renderR();
   else if(id==='hall')renderHall();
+  else if(id==='my')renderMyPage();
   else if(id==='admin'){if(_isAdmin())renderAdminHub();else nav('challenge');}
   else if(id==='challenge')renderC();
 }
@@ -1708,19 +1701,15 @@ function buildCCard(c){
 window.toggleOC=function(){
   var chk=g('oc-chk');
   var wrap=g('oc-toggle-wrap');
-  var oppSec=g('opp-section');
   var isOn=chk.checked;
   wrap.classList.toggle('on',isOn);
   if(isOn){
     setChCreateMode('normal');
-    oppSec.style.display='none';
     _opp=[];
-    g('e-opp').classList.remove('on');
-  } else {
-    oppSec.style.display='';
   }
   _updateChSubmitBtn();
-  renderGridsBS({force:true});
+  if(_isBSOpen())wizRenderStep(3);
+  else renderGridsBS({force:true});
 }
 
 window.setType=function(tp){

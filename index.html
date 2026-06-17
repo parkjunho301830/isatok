@@ -49,8 +49,9 @@
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결</div>
     <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>랭킹</div>
+    <div class="nav-i"     data-page="my"       onclick="nav('my')"><span class="ni-icon">👤</span>마이</div>
     <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">📈</span>통계</div>
-    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">👤</span>회원</div>
+    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">📋</span>회원</div>
     <div class="nav-i nav-admin-only admin-only" data-page="admin" onclick="nav('admin')"><span class="ni-icon">⚙️</span>관리자</div>
     <div class="admin-bar" id="admin-bar">
       <button class="btn btn-g btn-sm" id="btn-admin" type="button" onclick="toggleAdmin()" style="width:100%;min-height:40px">🔐 관리자</button>
@@ -94,6 +95,7 @@
           <button class="btn btn-p btn-sm brand-hero-cta pc-only" type="button" onclick="openInstantBS()">⚡ 즉시 대결</button>
         </div>
       </section>
+      <div id="my-record-home" style="display:none"></div>
       <div class="quick-actions">
         <button class="qa-card qa-instant qa-primary" type="button" onclick="openInstantBS()">
           <span class="qa-icon">⚡</span>
@@ -167,6 +169,16 @@
       </div>
     </div>
 
+    <!-- ══ 마이 (내 기록) ══ -->
+    <div class="page" id="page-my">
+      <div class="ph">
+        <div class="ph-t">👤 <em>마이</em></div>
+      </div>
+      <p class="page-sub">내 선수 · 개인 기록</p>
+      <div class="card card-p" id="my-page-setting"></div>
+      <div class="card card-p" id="my-page-stats" style="margin-top:16px"></div>
+    </div>
+
     <!-- ══ 통계 (명예의 전당) ══ -->
     <div class="page" id="page-hall">
       <div class="ph">
@@ -219,8 +231,9 @@
 <nav class="bnav">
   <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
   <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
+  <div class="bni"    onclick="nav('my')"        data-p="my"><span class="bi">👤</span><span>마이</span></div>
   <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">📈</span><span>통계</span></div>
-  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">👤</span><span>회원</span></div>
+  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">📋</span><span>회원</span></div>
   <div class="bni nav-admin-only admin-only" onclick="nav('admin')" data-p="admin"><span class="bi">⚙️</span><span>관리</span></div>
 </nav>
 
@@ -238,26 +251,45 @@
     </div>
   </div>
 
-  <!-- ── STEP 인디케이터 (4단계) ── -->
-  <div class="bs-steps">
-    <div class="bs-step-dot on" id="bsd1"></div>
-    <div class="bs-step-line"></div>
-    <div class="bs-step-dot" id="bsd2"></div>
-    <div class="bs-step-line"></div>
-    <div class="bs-step-dot" id="bsd3"></div>
-    <div class="bs-step-line"></div>
-    <div class="bs-step-dot" id="bsd4"></div>
+  <!-- ── Wizard 진행 표시 ── -->
+  <div class="wiz-bar" id="wiz-bar">
+    <div class="wiz-bar-item on" id="wiz-bar-1"><span>경기유형</span></div>
+    <div class="wiz-bar-sep">→</div>
+    <div class="wiz-bar-item" id="wiz-bar-2"><span>내팀</span></div>
+    <div class="wiz-bar-sep">→</div>
+    <div class="wiz-bar-item" id="wiz-bar-3"><span>상대팀</span></div>
+    <div class="wiz-bar-sep">→</div>
+    <div class="wiz-bar-item" id="wiz-bar-4"><span>결과입력</span></div>
   </div>
 
-  <!-- ══ STEP 1: 상대 선택 ══ -->
+  <!-- ══ STEP 1: 경기 유형 ══ -->
   <div class="bs-body" id="bs-step1">
-    <!-- 오픈 챌린지 토글 -->
+    <div id="wiz-panel-1"></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot1">
+    <button class="btn btn-g" onclick="closeBS()">취소</button>
+    <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
+  </div>
+
+  <!-- ══ STEP 2: 내팀 ══ -->
+  <div class="bs-body" id="bs-step2" style="display:none">
+    <div id="wiz-panel-2"></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot2" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
+    <button class="btn btn-p" onclick="bsStep(3)">다음 →</button>
+  </div>
+
+  <!-- ══ STEP 3: 상대팀 ══ -->
+  <div class="bs-body" id="bs-step3" style="display:none">
     <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
       <div class="oc-toggle-label">
         <span class="oc-icon">🔥</span>
         <div>
           <div class="oc-text">오픈 챌린지</div>
-          <div class="oc-desc">상대 팀 미지정 — 누구나 수락 가능</div>
+          <div class="oc-desc">상대 미지정 — 누구나 수락</div>
         </div>
       </div>
       <div class="sw">
@@ -265,88 +297,7 @@
         <span class="sw-track"></span>
       </div>
     </label>
-
-    <!-- 경기 유형 선택 -->
-    <div class="fg">
-      <label>경기 유형</label>
-      <div class="tg">
-        <div id="t-md" class="tb ad" onclick="setType('md')"><div class="te">🏓🏓</div><div class="tl" style="color:var(--blue)">남복식</div></div>
-        <div id="t-fd" class="tb"    onclick="setType('fd')"><div class="te">🎀🎀</div><div class="tl">여복식</div></div>
-        <div id="t-mx" class="tb"    onclick="setType('mx')"><div class="te">🤝</div><div class="tl">혼합복식</div></div>
-        <div id="t-ms" class="tb"    onclick="setType('ms')"><div class="te">🏓</div><div class="tl">남단식</div></div>
-        <div id="t-fs" class="tb"    onclick="setType('fs')"><div class="te">🎀</div><div class="tl">여단식</div></div>
-      </div>
-    </div>
-
-    <!-- 내 팀 선택 -->
-    <div class="fg">
-      <label id="lbl-my">내 팀 선택</label>
-      <input type="text" class="bs-player-search" id="bs-search-my" placeholder="🔍 이름 검색 · 초성 가능" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <div class="msg" id="gmy"></div>
-      <div class="emsg" id="e-my">선택해주세요</div>
-    </div>
-
-    <!-- 상대 팀 선택: 오픈 챌린지 ON이면 숨김 -->
-    <div id="opp-section" class="fg">
-      <label id="lbl-opp">상대 팀 선택</label>
-      <input type="text" class="bs-player-search" id="bs-search-opp" placeholder="🔍 이름 검색 · 초성 가능" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <div class="msg" id="gopp"></div>
-      <div class="emsg" id="e-opp">선택해주세요</div>
-    </div>
-
-    <!-- 스크롤 여백 -->
-    <div style="height:8px"></div>
-  </div>
-  <!-- ★ STEP1 하단 버튼: bs-body 바깥, bs-ch 직속 자식 → flex column 말단 고정 -->
-  <div class="bs-foot" id="bs-foot1">
-    <button class="btn btn-g" onclick="closeBS()">취소</button>
-    <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
-  </div>
-
-  <!-- ══ STEP 2: 경기 방식 ══ -->
-  <div class="bs-body" id="bs-step2" style="display:none">
-    <p class="bs-step-hint">경기 방식을 선택하세요. 결과 입력 시 세트 수가 자동으로 맞춰집니다.</p>
-    <div class="gm-grid" id="bs-gm-grid">
-      <button type="button" class="gm-card on" id="bs-gm-bo1" onclick="setBsGameMode('bo1')">
-        <span class="gm-card-t">단판 승부</span>
-        <span class="gm-card-d">1판 1선승 · 기본</span>
-      </button>
-      <button type="button" class="gm-card" id="bs-gm-bo3" onclick="setBsGameMode('bo3')">
-        <span class="gm-card-t">3판 2선승</span>
-        <span class="gm-card-d">최대 3세트</span>
-      </button>
-      <button type="button" class="gm-card" id="bs-gm-bo5" onclick="setBsGameMode('bo5')">
-        <span class="gm-card-t">5판 3선승</span>
-        <span class="gm-card-d">최대 5세트</span>
-      </button>
-      <button type="button" class="gm-card" id="bs-gm-bo7" onclick="setBsGameMode('bo7')">
-        <span class="gm-card-t">7판 4선승</span>
-        <span class="gm-card-d">최대 7세트</span>
-      </button>
-    </div>
-    <div style="height:8px"></div>
-  </div>
-  <div class="bs-foot" id="bs-foot2" style="display:none">
-    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
-    <button class="btn btn-p" onclick="bsStepNextFrom2()">다음 →</button>
-  </div>
-
-  <!-- ══ STEP 3: 일반 / 즉시 대결 ══ -->
-  <div class="bs-body" id="bs-step3" style="display:none">
-    <p class="bs-step-hint">대결 생성 방식을 선택하세요.</p>
-    <div class="ch-create-modes" id="ch-create-modes">
-      <button type="button" class="ch-create-mode on" id="ch-mode-normal" onclick="setChCreateMode('normal')">
-        <span class="ch-create-icon">🏓</span>
-        <span class="ch-create-t">일반 대결</span>
-        <ul class="ch-create-ul"><li>상대방 수락 필요</li><li>수락 후 경기 진행</li></ul>
-      </button>
-      <button type="button" class="ch-create-mode ch-create-instant" id="ch-mode-instant" onclick="setChCreateMode('instant')">
-        <span class="ch-create-icon">⚡</span>
-        <span class="ch-create-t">즉시 대결</span>
-        <ul class="ch-create-ul"><li>상대방 수락 없이 바로 생성</li><li>생성 후 즉시 결과 입력</li></ul>
-      </button>
-    </div>
-    <p class="bs-step-note" id="ch-mode-open-note" style="display:none">오픈 챌린지는 일반 대결만 가능합니다.</p>
+    <div id="wiz-panel-3"></div>
     <div style="height:8px"></div>
   </div>
   <div class="bs-foot" id="bs-foot3" style="display:none">
@@ -354,26 +305,26 @@
     <button class="btn btn-p" onclick="bsStep(4)">다음 →</button>
   </div>
 
-  <!-- ══ STEP 4: 일정 · 내기 · 생성 ══ -->
+  <!-- ══ STEP 4: 결과 · 생성 ══ -->
   <div class="bs-body" id="bs-step4" style="display:none">
-    <div class="bs-summary" id="bs-summary"></div>
-    <div class="fr" style="margin-bottom:14px">
-      <div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>
-      <div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>
-    </div>
-    <div class="fg" style="margin-bottom:0">
-      <label>내기 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>
-      <div class="msg-chips" id="bet-chips">
-        <button class="msg-chip none-chip on" data-bet="" onclick="selectBet(this)">없음</button>
-        <button class="msg-chip" data-bet="coffee" onclick="selectBet(this)">☕ 커피</button>
-        <button class="msg-chip" data-bet="jjajang" onclick="selectBet(this)">🍜 짜장면</button>
-      </div>
-    </div>
+    <div id="wiz-panel-4"></div>
     <div style="height:8px"></div>
   </div>
   <div class="bs-foot" id="bs-foot4" style="display:none">
-    <button class="btn btn-g" onclick="bsStepPrevFrom4()">← 이전</button>
+    <button class="btn btn-g" onclick="bsStep(3)">← 이전</button>
     <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
+  </div>
+
+  <!-- 레거시 그리드 (숨김 — 오픈 수락 등) -->
+  <div style="display:none" aria-hidden="true">
+    <div id="gmy"></div><div id="gopp"></div>
+    <div id="t-md"></div><div id="t-fd"></div><div id="t-mx"></div><div id="t-ms"></div><div id="t-fs"></div>
+    <label id="lbl-my"></label><label id="lbl-opp"></label>
+    <div id="opp-section"></div><div id="e-my"></div><div id="e-opp"></div>
+    <div id="bs-summary"></div>
+    <button id="bs-gm-bo1"></button><button id="bs-gm-bo3"></button><button id="bs-gm-bo5"></button><button id="bs-gm-bo7"></button>
+    <button id="ch-mode-normal"></button><button id="ch-mode-instant"></button>
+    <p id="ch-mode-open-note"></p>
   </div>
 </div>
 
@@ -776,6 +727,17 @@
   <span class="app-version-tag" id="app-version-tag">v1.0.28</span>
   <span class="app-version-time" id="app-version-time">2026-06-17 09:15</span>
 </button>
+
+<!-- ══ 내 선수 설정 모달 ══ -->
+<div class="mo" id="mo-my-player">
+  <div class="mw" style="max-width:400px">
+    <div class="mh"><div class="mt">🏓 내 선수 <em>설정</em></div><button class="mc-btn" onclick="closeMo('mo-my-player')">✕</button></div>
+    <div class="mb">
+      <p class="wiz-setup-desc" id="my-player-title">본인을 선택해주세요.</p>
+      <div class="wiz-pick-grid" id="my-player-list"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ══ 버전 상세 모달 ══ -->
 <div class="mo" id="mo-version">
