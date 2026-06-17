@@ -87,7 +87,6 @@ let _pendingDeepLinkFilter=null;
 const INSTANT_CREATE_ALLOWED=true;
 let _instantCreate=false;
 let _bsPresetInstant=false;
-let _detailChId=null;
 // 바텀시트 선수 검색: IME 조합·포커스 경쟁 시 DOM 재렌더 방지
 let _bsSearchComposing=false;
 let _bsGridRefreshPending=false;
@@ -1065,7 +1064,7 @@ window.adminGoResultEdit=function(){
 window.adminGoDelete=function(){
   nav('challenge');
   setF('all');
-  toast('삭제할 대결 카드의 🗑 또는 상세에서 삭제하세요');
+  toast('삭제할 대결 카드의 🗑 버튼을 눌러주세요');
 };
 window.adminRefreshStats=function(){
   renderHall();
@@ -1073,84 +1072,37 @@ window.adminRefreshStats=function(){
   toast('📈 통계를 새로고침했습니다');
 };
 
-window.openChDetail=function(id){
-  var c=CHAL.find(function(x){return x.id===id;});
-  if(!c)return;
-  _detailChId=id;
-  var box=g('ch-detail-body');
-  if(!box)return;
-  var isOpen=!!c.isOpen&&c.status==='pending';
-  var tm=TM[c.type]||TM.ms;
-  var my=(c.myTeam||[]).join(' · ')||'—';
-  var opp=isOpen?'(오픈)':((c.oppTeam||[]).join(' · ')||'—');
-  var actsHtml=_buildChDetailActions(c,isOpen);
-  box.innerHTML='<div style="text-align:center;font-size:18px;font-weight:800;color:var(--t1);margin-bottom:8px">'+my+' <span style="color:var(--t3);font-weight:600">VS</span> '+opp+'</div>'
-    +'<div style="text-align:center;margin-bottom:16px"><span class="badge '+tm.badge+'">'+tm.lb+'</span> <span class="badge '+_chStatusBadge(c,isOpen)+'">'+_chStatusLabel(c,isOpen)+'</span></div>'
-    +formatChallengeCreatorHtml(c)
-    +(c.date?'<div style="font-size:13px;color:var(--t3);margin-bottom:8px">📅 '+c.date+(c.time?' '+c.time:'')+'</div>':'')
-    +(c.status==='completed'&&c.winner?'<div class="cc-result" style="margin-bottom:12px">🏆 '+((c.winner==='a'?c.myTeam:c.oppTeam)||[]).join('·')+' 승'+(c.score?' · '+c.score:'')+'</div>':'')
-    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">'+actsHtml+'</div>';
-  openMo('mo-ch-detail');
-};
-function _buildChDetailActions(c,isOpen){
-  var hasBet=c.bet==='coffee'||c.bet==='jjajang';
-  var parts=[];
-  if(isOpen){
-    parts.push('<button class="btn btn-p btn-sm" onclick="closeMo(\'mo-ch-detail\');openAcceptOpen(\''+c.id+'\')">🔥 수락하기</button>');
-    parts.push('<button class="btn btn-g btn-sm" onclick="closeMo(\'mo-ch-detail\');openEditCh(\''+c.id+'\')">✏️ 수정</button>');
-    parts.push('<button class="btn btn-d btn-sm" onclick="closeMo(\'mo-ch-detail\');rejectC(\''+c.id+'\')">❌ 거절</button>');
-  }else if(_chPendingAccept(c)){
-    parts.push('<button class="btn btn-p btn-sm" onclick="closeMo(\'mo-ch-detail\');acceptC(\''+c.id+'\')">✅ 수락</button>');
-    parts.push('<button class="btn btn-d btn-sm" onclick="closeMo(\'mo-ch-detail\');rejectC(\''+c.id+'\')">❌ 거절</button>');
-    parts.push('<button class="btn btn-g btn-sm" onclick="closeMo(\'mo-ch-detail\');openEditCh(\''+c.id+'\')">✏️ 수정</button>');
-  }else if(_chResultReady(c)){
-    parts.push('<button class="btn btn-p btn-sm" onclick="closeMo(\'mo-ch-detail\');openRes(\''+c.id+'\')">🏆 결과 입력</button>');
-    if(hasBet)parts.push('<button class="btn btn-w btn-sm" onclick="closeMo(\'mo-ch-detail\');openBetPick(\''+c.id+'\')">🎯 내기 참여</button>');
-  }else if(c.status==='completed'&&_isAdmin()){
-    parts.push('<button class="btn btn-p btn-sm" onclick="closeMo(\'mo-ch-detail\');openRes(\''+c.id+'\')">✏️ 결과 수정</button>');
-  }
-  parts.push('<button class="btn-kakao btn-sm" onclick="shareKakao(\''+c.id+'\')"><span class="kt-icon">💬</span>카톡 공유</button>');
-  if(_isAdmin())parts.push('<button class="btn btn-d btn-sm" onclick="closeMo(\'mo-ch-detail\');delC(\''+c.id+'\')">🗑 삭제</button>');
-  return parts.join('');
+function _chShareBtn(id){
+  return '<button type="button" class="btn btn-g btn-sm cc-aux-btn" onclick="shareKakao(\''+id+'\')" title="카톡 공유" aria-label="카톡 공유"><span class="kt-icon">💬</span></button>';
 }
-
+function _chDeleteBtn(id){
+  return '<button type="button" class="btn btn-d btn-sm cc-aux-btn" onclick="delC(\''+id+'\')" title="삭제" aria-label="삭제">🗑</button>';
+}
+function _buildChCardActions(c,isOpen,hasBet){
+  var primary='',secondary='',utility='';
+  utility+=_chShareBtn(c.id);
+  if(_isAdmin())utility+=_chDeleteBtn(c.id);
+  if(isOpen){
+    primary='<button class="btn btn-p cc-primary-btn" onclick="openAcceptOpen(\''+c.id+'\')">🔥 수락하기</button>';
+    secondary='<button class="btn btn-g btn-sm" onclick="openEditCh(\''+c.id+'\')">✏️ 수정</button>'
+      +'<button class="btn btn-d btn-sm" onclick="rejectC(\''+c.id+'\')">거절</button>';
+  }else if(_chPendingAccept(c)){
+    primary='<button class="btn btn-p cc-primary-btn" onclick="acceptC(\''+c.id+'\')">✅ 수락</button>';
+    secondary='<button class="btn btn-d btn-sm" onclick="rejectC(\''+c.id+'\')">거절</button>'
+      +'<button class="btn btn-g btn-sm" onclick="openEditCh(\''+c.id+'\')">✏️ 수정</button>';
+  }else if(_chResultReady(c)){
+    primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">🏆 결과 입력</button>';
+    if(hasBet)secondary='<button class="btn btn-w btn-sm" onclick="openBetPick(\''+c.id+'\')">🎯 내기</button>';
+  }else if(c.status==='completed'&&_isAdmin()){
+    primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">✏️ 결과 수정</button>';
+  }
+  return {primary:primary,secondary:secondary,utility:utility};
+}
 function _chVsTitle(c,isOpen){
   var my=(c.myTeam||[]).join(' · ')||'—';
   if(isOpen)return my+' VS ?';
   var opp=(c.oppTeam||[]).join(' · ')||'—';
   return my+' VS '+opp;
-}
-function _chStatusPlain(c,isOpen){
-  if(isOpen)return '수락 대기 (오픈)';
-  if(c.status==='pending'&&c.instantCreate)return '진행중';
-  if(_chPendingAccept(c))return '대기중';
-  if(_chResultReady(c))return '진행중';
-  if(c.status==='completed')return '완료';
-  if(c.status==='rejected')return '거절됨';
-  return _chStatusLabel(c,isOpen).replace(/^[^\s]+\s/,'');
-}
-function _buildChCardActions(c,isOpen,hasBet){
-  var primary='',secondary='';
-  var detailBtn='<button class="btn btn-s cc-detail-btn" onclick="openChDetail(\''+c.id+'\')"><span class="cc-detail-icon" aria-hidden="true">▶</span> 자세히 보기</button>';
-  if(isOpen){
-    primary='<button class="btn btn-p cc-primary-btn" onclick="openAcceptOpen(\''+c.id+'\')">🔥 수락하기</button>';
-    secondary=detailBtn;
-  }else if(_chPendingAccept(c)){
-    primary='<button class="btn btn-p cc-primary-btn" onclick="acceptC(\''+c.id+'\')">✅ 수락</button>';
-    secondary='<button class="btn btn-d btn-sm" onclick="rejectC(\''+c.id+'\')">거절</button>'+detailBtn;
-  }else if(_chResultReady(c)){
-    primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">🏆 결과 입력</button>';
-    secondary=detailBtn;
-    if(hasBet)secondary+='<button class="btn btn-w btn-sm" onclick="openBetPick(\''+c.id+'\')">🎯 내기</button>';
-  }else if(c.status==='completed'){
-    if(_isAdmin()){
-      primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">✏️ 결과 수정</button>';
-    }
-    secondary=detailBtn;
-  }else{
-    secondary=detailBtn;
-  }
-  return {primary:primary,secondary:secondary};
 }
 
 // ── 대기 중 대결 신청 수정: 기존 바텀시트 재사용 + 값 복원
@@ -1604,7 +1556,7 @@ function buildCCard(c){
     const dt=c.date?$ko(c.date+'T00:00'):'';
     // 내기 제목 표시용 텍스트
     const betLabel=c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
-    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:'',betLabel?`<span class="pill pill-bet">${betLabel}</span>`:''].filter(Boolean).join('');
+    const pills=[dt?`<span class="pill">📅 ${dt}</span>`:'',c.time?`<span class="pill">🕐 ${c.time}</span>`:''].filter(Boolean).join('');
 
     // ── 완료 카드 결과 표시 ──
     var resHtml='';
@@ -1649,26 +1601,22 @@ function buildCCard(c){
       var picks=c.betPicks||{};
       var aPickNames=Object.keys(picks).filter(function(n){return picks[n]==='a';});
       var bPickNames=Object.keys(picks).filter(function(n){return picks[n]==='b';});
-      var myTeamLabel=(c.myTeam||[])[0]||'A팀';
-      var oppTeamLabel=(c.oppTeam||[])[0]||'B팀';
 
       // 완료된 경우: 적중/실패 표시
       if(c.status==='completed'&&c.winner){
-        var hitSide=c.winner; // 'a' or 'b'
+        var hitSide=c.winner;
         var hitNames=hitSide==='a'?aPickNames:bPickNames;
         var failNames=hitSide==='a'?bPickNames:aPickNames;
-        var hitLabel=betLabel+'<br>';
-        if(hitNames.length>0)
-          hitLabel+='<span class="cc-bet-hit">🎯 적중 ('+hitNames.length+'명)</span> '+hitNames.join(' ')+'<br>';
-        if(failNames.length>0)
-          hitLabel+='<span class="cc-bet-miss">💔 빗나감 ('+failNames.length+'명)</span> '+failNames.join(' ');
-        betPicksHtml='<div class="cc-bet-picks">'+hitLabel+'</div>';
+        betPicksHtml='<div class="cc-bet-picks cc-bet-picks-compact">'
+          +(hitNames.length?'<span class="cc-bet-hit">🎯 적중 '+hitNames.length+'명</span> ':'')
+          +(failNames.length?'<span class="cc-bet-miss">💔 빗나감 '+failNames.length+'명</span>':'')
+          +'</div>';
       } else {
-        // 진행 중: A/B 예측 현황 표시
-        var pickHtml=betLabel;
-        pickHtml+='<br><span class="cc-bet-team-a">'+myTeamLabel+' 승 예상</span> '+(aPickNames.length?aPickNames.join(' '):'없음');
-        pickHtml+='<br><span class="cc-bet-team-b">'+oppTeamLabel+' 승 예상</span> '+(bPickNames.length?bPickNames.join(' '):'없음');
-        betPicksHtml='<div class="cc-bet-picks">'+pickHtml+'</div>';
+        betPicksHtml='<div class="cc-bet-picks cc-bet-picks-compact">'
+          +betLabel
+          +' · <span class="cc-bet-team-a">A '+aPickNames.length+'명</span>'
+          +' · <span class="cc-bet-team-b">B '+bPickNames.length+'명</span>'
+          +'</div>';
       }
     }
 
@@ -1679,8 +1627,14 @@ function buildCCard(c){
 
     // ── 액션 버튼 (주요 행동 우선) ──
     var cardActs=_buildChCardActions(c,isOpen,hasBet);
-    var actsHtml='<div class="cc-primary-row">'+cardActs.primary+'</div>'
-      +'<div class="cc-secondary-row">'+cardActs.secondary+'</div>';
+    var actsParts='';
+    if(cardActs.primary)actsParts+='<div class="cc-primary-row">'+cardActs.primary+'</div>';
+    if(cardActs.secondary||cardActs.utility){
+      actsParts+='<div class="cc-secondary-row">'
+        +(cardActs.secondary||'')
+        +(cardActs.utility?'<span class="cc-utility-btns">'+cardActs.utility+'</span>':'')
+        +'</div>';
+    }
 
     // ── 카드 클래스: 오픈 챌린지면 'open' 추가 ──
     const cardClass='cc '+tm.cls+(isOpen?' open':' '+c.status);
@@ -1689,16 +1643,15 @@ function buildCCard(c){
     var vsHtml=vsParts.length===2
       ?vsParts[0]+'<span class="cc-vs-sep">VS</span>'+vsParts[1]
       :vsTitle;
-    var statusPlain=_chStatusPlain(c,isOpen);
+    var statusBadge='<span class="badge '+_chStatusBadge(c,isOpen)+'">'+_chStatusLabel(c,isOpen)+'</span>';
     return `<div class="${cardClass}" data-cid="${c.id}">
-      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
+      <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${statusBadge}${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
       <div class="cc-vs-title">${vsHtml}</div>
-      <div class="cc-status-line"><span class="cc-status-badge">${statusPlain}</span></div>
       ${formatChallengeCreatorHtml(c)}
       ${pills?`<div class="cc-pills">${pills}</div>`:''}
       ${res}
       ${betPicksHtml}
-      <div class="cc-acts">${actsHtml}</div>
+      <div class="cc-acts">${actsParts}</div>
     </div>`;
 }
 

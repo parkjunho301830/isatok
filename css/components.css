@@ -539,11 +539,10 @@ html.is-admin .nav-admin-only{display:flex!important;}
 .page-sub{margin-top:-6px;margin-bottom:12px;font-weight:600;}
 
 /* ══ 대결 카드 액션 중심 ══ */
-.cc-status-line{font-size:13px;font-weight:700;color:var(--t2);margin:10px 0 12px;}
-.cc-status-line em{font-style:normal;color:var(--t3);font-weight:600;}
 .cc-primary-row{margin-bottom:10px;}
 .cc-primary-btn{width:100%;min-height:48px;font-size:15px;font-weight:800;}
 .cc-secondary-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.cc-utility-btns{display:inline-flex;gap:6px;margin-left:auto;flex-shrink:0;}
 
 /* ══ 대결 생성 모드 안내 ══ */
 .ch-mode-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}

@@ -160,11 +160,10 @@ export function formatChallengeCreatorHtml(c) {
   var creator = c.createdByPlayerName || '';
   var at = _fmtCreatedAt(c.createdAt);
   if (!creator && !at) return '';
-  var html = '<div class="cc-creator-meta">';
-  if (creator) html += '<span>등록자 : ' + creator + '</span>';
-  if (at) html += '<span>등록일시 : ' + at + '</span>';
-  html += '</div>';
-  return html;
+  var parts = [];
+  if (creator) parts.push('👤 ' + creator);
+  if (at) parts.push('🕐 ' + at.replace(/^\d{4}-/, ''));
+  return '<div class="cc-meta-row">' + parts.join('<span class="cc-meta-dot">·</span>') + '</div>';
 }
 
 export function isChallengeCreatedByMe(c) {
