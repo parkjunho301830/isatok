@@ -57,7 +57,7 @@ window.installPwa = async function () {
 
 // Firebase 초기화 전에 등록해야 installability 조건을 충족함
 if ('serviceWorker' in navigator && !_isStandalone()) {
-  navigator.serviceWorker.register('/service-worker.js').catch(function () {});
+  navigator.serviceWorker.register('service-worker.js').catch(function () {});
 }
 
 window.addEventListener('beforeinstallprompt', function (e) {
