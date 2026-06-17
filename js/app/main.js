@@ -22,7 +22,7 @@ import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{APP_VERSION,BUILD_TIME}from'./version.js';
 import{
-  initWizard,checkMyPlayerSetup,renderMyRecordHome,renderMyPage,
+  initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
   getWizQuickResult,wizPrefillEdit,requireMyPlayer,isMyPlayerSetupMandatory,
   buildCreatorFields,formatChallengeCreatorHtml,validateMyPlayer,isMyPlayerReady,getMyPlayerId
@@ -205,11 +205,7 @@ function _flushPendingRenders(){
   _pendingRender.sn=false;_pendingRender.h=false;
 }
 function _applyMembersSnapshotRender(){
-  if(!validateMyPlayer()&&MEMBERS.length){
-    checkMyPlayerSetup();
-  }else if(validateMyPlayer()){
-    renderMyRecordHome();
-  }
+  if(MEMBERS.length) checkMyPlayerSetup();
   if(_isScrolling){
     _pendingRender.m=true;
     if(_isBSOpen()){
@@ -673,8 +669,7 @@ function finish(){
     updateChSubmitBtn:_updateChSubmitBtn,
     onMyPlayerChanged:function(){renderMyRecordHome();renderMyPage();}
   });
-  checkMyPlayerSetup();
-  renderMyRecordHome();
+  initMyPlayerOnLoad();
   document.body.classList.toggle('has-fab',_currentPage==='challenge');
 }
 function _initUxDefaults(){

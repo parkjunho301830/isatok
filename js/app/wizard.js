@@ -39,24 +39,58 @@ export function getMyPlayerId() {
   return localStorage.getItem(LS.myPlayerId) || '';
 }
 
+function _migrateLegacyMyPlayerKeys() {
+  if (localStorage.getItem(LS.myPlayerId)) return;
+  var legId = localStorage.getItem('myPlayerId');
+  var legName = localStorage.getItem('myPlayerName');
+  if (legId && legName) {
+    localStorage.setItem(LS.myPlayerId, legId);
+    localStorage.setItem(LS.myPlayerName, legName);
+  }
+}
+
 function _clearMyPlayerStorage() {
   localStorage.removeItem(LS.myPlayerId);
   localStorage.removeItem(LS.myPlayerName);
 }
 
-export function validateMyPlayer() {
+/** LocalStorage에 id+name 모두 있는지 (회원 목록 로드 전 판단용) */
+export function hasMyPlayerStored() {
+  _migrateLegacyMyPlayerKeys();
   var id = localStorage.getItem(LS.myPlayerId);
-  if (!id) {
-    _clearMyPlayerStorage();
+  var name = localStorage.getItem(LS.myPlayerName);
+  return !!(id && name);
+}
+
+function _logMyPlayerState(tag) {
+  var shouldShow = _setupMandatory;
+  console.log('[isatok] myPlayer check (' + (tag || '') + ')');
+  console.log('myPlayerId:', localStorage.getItem(LS.myPlayerId));
+  console.log('myPlayerName:', localStorage.getItem(LS.myPlayerName));
+  console.log('membersLoaded:', members().length);
+  console.log('hasMyPlayerStored:', hasMyPlayerStored());
+  console.log('validateMyPlayer:', !!validateMyPlayer());
+  console.log('showMyPlayerSetupModal:', shouldShow);
+}
+
+export function validateMyPlayer() {
+  _migrateLegacyMyPlayerKeys();
+  var id = localStorage.getItem(LS.myPlayerId);
+  var name = localStorage.getItem(LS.myPlayerName);
+  if (!id || !name) {
+    if (id || name) _clearMyPlayerStorage();
     return null;
   }
-  var m = members().find(function (x) { return x.id === id; });
+  var mems = members();
+  if (!mems.length) {
+    return { id: id, name: name, grade: '', gender: '', status: '활성' };
+  }
+  var m = mems.find(function (x) { return x.id === id; });
   if (!m || m.status === '비활성') {
     _clearMyPlayerStorage();
     return null;
   }
-  var storedName = localStorage.getItem(LS.myPlayerName);
-  if (storedName !== m.name) {
+  if (name !== m.name) {
     localStorage.setItem(LS.myPlayerName, m.name);
   }
   return m;
@@ -72,6 +106,7 @@ export function isMyPlayerSetupMandatory() {
 
 export function requireMyPlayer(message) {
   if (isMyPlayerReady()) return true;
+  if (hasMyPlayerStored() && !members().length) return true;
   toast(message || '서비스 이용을 위해 먼저 내 선수 설정을 진행해주세요.');
   openMyPlayerSetup(true);
   return false;
@@ -94,6 +129,7 @@ function _setMyPlayer(id) {
   localStorage.setItem(LS.myPlayerName, m.name);
   _pendingPlayerId = null;
   _setupMandatory = false;
+  _logMyPlayerState('saved');
   C.onMyPlayerChanged();
   return true;
 }
@@ -510,14 +546,27 @@ export function getWizQuickResult() {
 }
 
 export function checkMyPlayerSetup() {
-  if (validateMyPlayer()) {
+  _logMyPlayerState('checkMyPlayerSetup');
+  if (hasMyPlayerStored()) {
     _setupMandatory = false;
+    if (validateMyPlayer()) renderMyRecordHome();
     return;
   }
   if (!members().length) return;
   _setupMandatory = true;
   _pendingPlayerId = null;
+  console.log('[isatok] showMyPlayerSetupModal:', true);
   setTimeout(function () { openMyPlayerSetup(true); }, 400);
+}
+
+/** 앱 시작 시: LocalStorage만 확인·로그 (팝업은 회원 로드 후 checkMyPlayerSetup) */
+export function initMyPlayerOnLoad() {
+  _migrateLegacyMyPlayerKeys();
+  _logMyPlayerState('init');
+  if (hasMyPlayerStored()) {
+    _setupMandatory = false;
+    renderMyRecordHome();
+  }
 }
 
 function _updateMyPlayerModalUI() {
@@ -545,8 +594,12 @@ function _renderMyPlayerList() {
 }
 
 export function openMyPlayerSetup(firstVisit) {
-  _setupMandatory = !!firstVisit || !isMyPlayerReady();
-  if (!_pendingPlayerId && isMyPlayerReady()) {
+  if (firstVisit === false) {
+    _setupMandatory = false;
+  } else {
+    _setupMandatory = !hasMyPlayerStored();
+  }
+  if (!_pendingPlayerId && hasMyPlayerStored()) {
     _pendingPlayerId = getMyPlayerId();
   }
   var title = g('my-player-title');
@@ -556,6 +609,7 @@ export function openMyPlayerSetup(firstVisit) {
       : '내 선수를 선택하세요.';
   }
   _renderMyPlayerList();
+  console.log('[isatok] showMyPlayerSetupModal:', _setupMandatory, 'manual:', firstVisit === false);
   openMo('mo-my-player');
 }
 
