@@ -21,6 +21,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import{APP_VERSION,BUILD_TIME}from'./version.js';
+import{initPwa}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
@@ -646,6 +647,7 @@ function finish(){
   _initBsPlayerSearchInputs();
   _initVersionUI();
   _initUxDefaults();
+  initPwa();
   initWizard({
     g,
     getMembers:function(){return MEMBERS;},

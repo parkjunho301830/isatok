@@ -604,6 +604,56 @@
   box-shadow:0 -2px 12px rgba(0,0,0,.04);
 }
 
+/* ── PWA install banner ── */
+.pwa-install-banner{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  position:fixed;
+  left:12px;
+  right:12px;
+  bottom:calc(58px + var(--sb, 0px));
+  z-index:480;
+  padding:10px 12px 10px 14px;
+  border-radius:14px;
+  background:rgba(255,255,255,.96);
+  border:1px solid var(--b1);
+  box-shadow:0 4px 20px rgba(0,0,0,.1);
+  backdrop-filter:blur(8px);
+}
+.pwa-install-banner[hidden]{display:none!important;}
+.pwa-install-text{
+  flex:1;
+  min-width:0;
+  margin:0;
+  font-size:12px;
+  font-weight:600;
+  color:var(--t1);
+  line-height:1.45;
+}
+.pwa-install-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-shrink:0;
+}
+.pwa-install-actions .btn-xs{min-height:36px;padding:6px 12px;font-size:12px;}
+.pwa-install-close{
+  width:32px;height:32px;
+  border:none;border-radius:999px;
+  background:var(--c2);
+  color:var(--t3);
+  font-size:14px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+body.has-pwa-banner .toast{
+  bottom:calc(132px + var(--sb, 0px));
+}
+@media(min-width:769px){
+  .pwa-install-banner{display:none!important;}
+}
+
 /* ── Mobile UX ── */
 @media(max-width:768px){
   .btn,.cc-primary-btn{min-height:50px;}
