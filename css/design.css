@@ -175,6 +175,7 @@
   font-size:16px;
   color:var(--t1);
   -webkit-appearance:none;
+  touch-action:manipulation;
 }
 .bs-player-search:focus{
   border-color:var(--a);

@@ -81,6 +81,12 @@ const INSTANT_CREATE_ALLOWED=true;
 let _instantCreate=false;
 let _bsPresetInstant=false;
 let _detailChId=null;
+// 바텀시트 선수 검색: IME 조합·포커스 경쟁 시 DOM 재렌더 방지
+let _bsSearchComposing=false;
+let _bsSearchEditing=false;
+let _bsGridRefreshPending=false;
+let _bsSearchRaf=null;
+let _bsSearchInited=false;
 
 // ── 스크롤 성능: 렌더 조건 분기 + 스크롤 중 DOM 갱신 디바운스 ──
 let _currentPage='challenge';
@@ -129,10 +135,32 @@ function _isBSFocused(){
   var focused=document.activeElement;
   return focused&&g('bs-ch').contains(focused);
 }
+function _isBsPlayerSearchActive(){
+  if(_bsSearchComposing||_bsSearchEditing)return true;
+  var ae=document.activeElement;
+  return ae&&(ae.id==='bs-search-my'||ae.id==='bs-search-opp');
+}
+function _isBsFormInputFocused(){
+  if(!_isBSOpen())return false;
+  var ae=document.activeElement;
+  if(!ae||!g('bs-ch').contains(ae))return false;
+  if(ae.id==='bs-search-my'||ae.id==='bs-search-opp')return false;
+  var tag=ae.tagName;
+  return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+}
+function _deferBsGridRefresh(){
+  _bsGridRefreshPending=true;
+}
+function _flushBsGridIfPending(){
+  if(!_bsGridRefreshPending||!_isBSOpen())return;
+  if(_isBsPlayerSearchActive())return;
+  _bsGridRefreshPending=false;
+  renderGridsBS({force:true});
+}
 function _flushPendingRenders(){
   if(_pendingRender.m&&_currentPage==='members')renderM();
   if(_pendingRender.m&&_currentPage==='ranking')renderR();
-  if(_pendingRender.grids&&_isBSOpen()&&!_isBSFocused())renderGridsBS();
+  if(_pendingRender.grids&&_isBSOpen()&&!_isBsPlayerSearchActive()&&!_isBsFormInputFocused())renderGridsBS({force:true});
   if(_pendingRender.c&&_currentPage==='challenge'&&!_isBSFocused())renderC();
   if(_pendingRender.sn)_applySeasonsSnapshotRender();
   if(_pendingRender.h&&_currentPage==='hall')renderHall();
@@ -142,13 +170,19 @@ function _flushPendingRenders(){
 function _applyMembersSnapshotRender(){
   if(_isScrolling){
     _pendingRender.m=true;
-    if(_isBSOpen()&&!_isBSFocused())_pendingRender.grids=true;
+    if(_isBSOpen()){
+      if(_isBsPlayerSearchActive()||_isBsFormInputFocused())_deferBsGridRefresh();
+      else _pendingRender.grids=true;
+    }
     return;
   }
   if(_currentPage==='members')renderM();
   if(_currentPage==='ranking')renderR();
   if(_currentPage==='hall')renderHall();
-  if(_isBSOpen()&&!_isBSFocused())renderGridsBS();
+  if(_isBSOpen()){
+    if(_isBsPlayerSearchActive()||_isBsFormInputFocused())_deferBsGridRefresh();
+    else renderGridsBS();
+  }
 }
 function _applyChallengesSnapshotRender(){
   if(_isScrolling){_pendingRender.c=true;return;}
@@ -356,7 +390,55 @@ function _clearBsPlayerSearch(){
     var el=g(id);if(el)el.value='';
   });
 }
-window.onBsPlayerSearch=function(){renderGridsBS();};
+function _scheduleBsPlayerSearchRender(){
+  if(_bsSearchComposing)return;
+  if(_bsSearchRaf)cancelAnimationFrame(_bsSearchRaf);
+  _bsSearchRaf=requestAnimationFrame(function(){
+    _bsSearchRaf=null;
+    if(_bsSearchComposing)return;
+    renderGridsBS({fromSearch:true});
+  });
+}
+window.onBsPlayerSearch=function(){
+  _scheduleBsPlayerSearchRender();
+};
+function _initBsPlayerSearchInputs(){
+  if(_bsSearchInited)return;
+  _bsSearchInited=true;
+  ['bs-search-my','bs-search-opp'].forEach(function(id){
+    var el=g(id);
+    if(!el)return;
+    el.addEventListener('compositionstart',function(){
+      _bsSearchComposing=true;
+    });
+    el.addEventListener('compositionupdate',function(){
+      _bsSearchComposing=true;
+    });
+    el.addEventListener('compositionend',function(){
+      _bsSearchComposing=false;
+      _scheduleBsPlayerSearchRender();
+    });
+    el.addEventListener('focus',function(){
+      _bsSearchEditing=true;
+      requestAnimationFrame(function(){
+        try{el.scrollIntoView({block:'center',behavior:'smooth'});}
+        catch(e){el.scrollIntoView(true);}
+      });
+    });
+    el.addEventListener('blur',function(){
+      setTimeout(function(){
+        if(_isBsPlayerSearchActive())return;
+        _bsSearchEditing=false;
+        _flushBsGridIfPending();
+        if(_isBSOpen())renderGridsBS({force:true});
+      },0);
+    });
+    el.addEventListener('input',function(){
+      if(_bsSearchComposing)return;
+      _scheduleBsPlayerSearchRender();
+    });
+  });
+}
 
 // ─────────────────────────────────────────
 // 회원 그리드 diff-patch 공통 헬퍼
@@ -493,6 +575,7 @@ function finish(){
   // 카카오 공유 링크: ?p=challenge&ch=ID (카톡 Feed) 또는 #challenge?… (구버전)
   _applyEntryNavigation();
   _applyAdminUI();
+  _initBsPlayerSearchInputs();
   _initUxDefaults();
 }
 function _initUxDefaults(){
@@ -651,6 +734,7 @@ function _initBSSwipe(){
   function _bindBSDismissMove(el){
     if(!el)return;
     el.addEventListener('touchmove',function(e){
+      if(_isBSInteractive(e.target))return;
       onMove(e.touches[0].clientY,e);
     },{passive:false});
   }
@@ -797,7 +881,7 @@ window.setChCreateMode=function(mode){
   }
   _applyChCreateModeUI();
   _updateChSubmitBtn();
-  renderGridsBS();
+  renderGridsBS({force:true});
 };
 function _applyChCreateModeUI(){
   var isOpen=g('oc-chk')&&g('oc-chk').checked;
@@ -1003,7 +1087,7 @@ window.openEditCh = function(id){
   _bsCreateMode='normal';
   _instantCreate=false;
 
-  renderGridsBS();
+  renderGridsBS({force:true});
   bsStep(1);
   _showBS();
 }
@@ -1013,6 +1097,10 @@ window.closeBS = function(){
   var wasOpen=_isBSOpen();
   _hideBS(function(){
     _editChId = null;
+    _bsSearchEditing=false;
+    _bsSearchComposing=false;
+    _bsGridRefreshPending=false;
+    if(_bsSearchRaf){cancelAnimationFrame(_bsSearchRaf);_bsSearchRaf=null;}
     var submitBtn = g('ch-submit-btn');
     if(submitBtn) submitBtn.textContent = '🏓 도전장 보내기';
     var bsTitleEm = g('bs-ch') && g('bs-ch').querySelector('.bs-title em');
@@ -1538,7 +1626,7 @@ window.toggleOC=function(){
     oppSec.style.display='';
   }
   _updateChSubmitBtn();
-  renderGridsBS();
+  renderGridsBS({force:true});
 }
 
 window.setType=function(tp){
@@ -1558,16 +1646,30 @@ window.setType=function(tp){
   const sing=m.maxM===1;
   g('lbl-my').textContent=m.mix?'내 팀 (남1+여1)':sing?`나 선택 (${m.gM||''} 1명)`:`내 팀 (${m.gM||''} 2명)`;
   g('lbl-opp').textContent=m.mix?'상대 팀 (남1+여1)':sing?`상대 (${m.gO||''} 1명)`:`상대 팀 (${m.gO||''} 2명)`;
-  renderGridsBS();
+  renderGridsBS({force:true});
 }
 // ── renderGridsBS: 바텀시트 내부 회원 그리드 렌더
-// 바텀시트 내부에 포커스가 있으면 (입력 중이면) 차단하여 깜빡임 방지
-function renderGridsBS(){
+function renderGridsBS(opts){
+  opts=opts||{};
+  var fromSearch=!!opts.fromSearch;
+  var force=!!opts.force;
+  if(!fromSearch&&!force){
+    if(_isBsPlayerSearchActive()){
+      _deferBsGridRefresh();
+      return;
+    }
+    if(_isBsFormInputFocused())return;
+  }
   var bsEl=g('bs-ch');
-  if(bsEl&&bsEl.classList.contains('on')){
-    var focused=document.activeElement;
-    if(focused&&bsEl.contains(focused)&&(focused.tagName==='INPUT'||focused.tagName==='TEXTAREA')){
-      if(focused.id!=='bs-search-my'&&focused.id!=='bs-search-opp')return;
+  if(bsEl&&bsEl.classList.contains('on')&&fromSearch){
+    var ae=document.activeElement;
+    if(ae&&ae.id==='bs-search-my'){
+      renderGrid('gmy',_my,_opp,true);
+      return;
+    }
+    if(ae&&ae.id==='bs-search-opp'){
+      renderGrid('gopp',_opp,_my,false);
+      return;
     }
   }
   renderGrid('gmy',_my,_opp,true);
@@ -1627,7 +1729,7 @@ window.tgl=function(gid,name,isMy){
   const i=arr.indexOf(name);
   if(i>-1)arr.splice(i,1);else if(arr.length<max)arr.push(name);
   if(isMy)_my=[...arr];else _opp=[...arr];
-  renderGridsBS();
+  renderGridsBS({force:true});
 }
 // ════ 오픈 챌린지 수락 ════
 
