@@ -3,4 +3,4 @@
  * BUILD_TIME은 scripts/prepare-deploy.mjs 가 자동 갱신합니다.
  */
 export const APP_VERSION='1.0.30';
-export const BUILD_TIME='2026-06-17 10:34';
+export const BUILD_TIME='2026-06-17 13:17';
