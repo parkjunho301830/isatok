@@ -62,9 +62,20 @@ body::before{
 .logo-row{display:flex;align-items:center;gap:12px;}
 .logo-mark{flex-shrink:0;border-radius:10px;box-shadow:0 2px 8px var(--aglow);}
 .logo-text{min-width:0;}
-.logo-t{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--a);line-height:1.05;}
+.logo-title-row{display:flex;align-items:baseline;flex-wrap:nowrap;gap:0;min-width:0;}
+.logo-t{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--a);line-height:1.05;flex-shrink:0;}
 .logo-s{font-size:11px;color:var(--t3);letter-spacing:.4px;margin-top:3px;font-weight:600;}
-.logo-ver{font-size:10px;color:var(--t3);font-weight:500;margin-top:10px;letter-spacing:.02em;padding-left:2px;}
+.mhdr-title-row{display:flex;align-items:baseline;flex-wrap:nowrap;gap:0;min-width:0;}
+.header-ver{
+  display:inline-flex;align-items:baseline;flex-shrink:1;min-width:0;
+  margin:0 0 0 6px;padding:0;border:none;background:none;
+  font:inherit;font-size:10px;font-weight:400;color:#999;
+  line-height:1.2;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+}
+.header-ver:active{opacity:.65;}
+.header-ver-text{pointer-events:none;}
 .nav-g{font-size:11px;letter-spacing:.6px;color:var(--t3);padding:20px 24px 7px;text-transform:uppercase;font-weight:600;}
 .nav-i{
   display:flex;align-items:center;gap:12px;padding:12px 20px;margin:2px 12px;
@@ -407,7 +418,7 @@ tr:last-child td{border-bottom:none;}
 .mhdr-brand{display:flex;align-items:center;gap:10px;min-width:0;height:52px;}
 .mhdr-mark{flex-shrink:0;border-radius:8px;}
 .mhdr-text{display:flex;flex-direction:column;gap:1px;min-width:0;}
-.mhdr-name{font-size:17px;font-weight:800;letter-spacing:-.4px;color:var(--t1);line-height:1.15;}
+.mhdr-name{font-size:17px;font-weight:800;letter-spacing:-.4px;color:var(--t1);line-height:1.15;flex-shrink:0;}
 .mhdr-tag{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.02em;line-height:1.2;}
 .mhdr-r{display:flex;align-items:center;gap:8px;flex-shrink:0;height:52px;}
 .mhdr-status{
@@ -472,6 +483,13 @@ tr:last-child td{border-bottom:none;}
   pointer-events:none;
   box-shadow:var(--shadow-lg);
   max-width:88vw;text-align:center;
+}
+.toast-multiline{
+  white-space:pre-line;
+  font-weight:500;
+  font-size:13px;
+  line-height:1.55;
+  font-variant-numeric:tabular-nums;
 }
 @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 

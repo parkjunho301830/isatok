@@ -690,20 +690,12 @@ function setDb(ok){
 
 function _initVersionUI(){
   var label='v'+APP_VERSION;
-  var tag=g('app-version-tag');
-  var timeEl=g('app-version-time');
-  if(tag)tag.textContent=label;
-  if(timeEl)timeEl.textContent=BUILD_TIME;
-  var logoVer=document.querySelector('.logo-ver');
-  if(logoVer)logoVer.textContent=label;
-  var detailVer=g('ver-detail-version');
-  var detailTime=g('ver-detail-time');
-  if(detailVer)detailVer.textContent=label;
-  if(detailTime)detailTime.textContent=BUILD_TIME;
+  var inline=label+' | '+BUILD_TIME;
+  document.querySelectorAll('.header-ver-text').forEach(function(el){el.textContent=inline;});
 }
 window.openVersionInfo=function(){
-  _initVersionUI();
-  openMo('mo-version');
+  var label='v'+APP_VERSION;
+  toast('버전 : '+label+'\n빌드 : '+BUILD_TIME,{multiline:true,duration:3200});
 };
 
 // ── 모달 헬퍼 ──
@@ -3908,10 +3900,13 @@ function _fallbackCopy(txt){
 
 // ════ 공통 ════
 window.fmtP=function(el){let v=el.value.replace(/\D/g,'');if(v.length<=3)el.value=v;else if(v.length<=7)el.value=v.slice(0,3)+'-'+v.slice(3);else el.value=v.slice(0,3)+'-'+v.slice(3,7)+'-'+v.slice(7,11);}
-window.toast=function(msg){
+window.toast=function(msg,opts){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
-  const t=document.createElement('div');t.className='toast';t.textContent=msg;
-  document.body.appendChild(t);setTimeout(()=>t.remove(),2800);
+  const t=document.createElement('div');
+  t.className='toast'+(opts&&opts.multiline?' toast-multiline':'');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),(opts&&opts.duration)||2800);
 }
 // ════ 내기 참여 ════
 
