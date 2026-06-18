@@ -26,7 +26,7 @@ import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
   getWizQuickResult,wizPrefillEdit,requireMyPlayer,isMyPlayerSetupMandatory,
-  buildCreatorFields,formatChallengeCreatorHtml,validateMyPlayer,isMyPlayerReady,getMyPlayerId
+  buildCreatorFields,formatChallengeCreatorHtml,validateMyPlayer,isMyPlayerReady,getMyPlayerId,getMyPlayer
 }from'./wizard.js';
 
 const FB={
@@ -664,6 +664,9 @@ function finish(){
     isInstantMode:_isInstantCreateMode,
     computeDoublesRecord:_computeDoublesRecord,
     computeSinglesRecord:_computeSinglesRecord,
+    computeCombinedRecord:_computeCombinedRecord,
+    computeMemberBadges:_computeMemberBadges,
+    buildMemberBadgesHtml:_buildMemberBadgesHtml,
     getMemberRankPosition:_getMemberRankPosition,
     nowDateTimeFields:_nowDateTimeFields,
     updateChSubmitBtn:_updateChSubmitBtn,
@@ -2676,6 +2679,82 @@ function _computeTopPartner(name,filterFn){
   });
   return {name:top,count:max};
 }
+function _computeBestWinRatePartner(name,minGames,filterFn){
+  minGames=minGames||5;
+  var matches=_getDoublesMatchesFor(name);
+  if(filterFn)matches=matches.filter(filterFn);
+  var stats={};
+  matches.forEach(function(c){
+    var side=_playerSideInAnyMatch(c,name);
+    var team=side==='a'?(c.myTeam||[]):(c.oppTeam||[]);
+    var won=_playerWonAnyMatch(c,name);
+    team.filter(function(p){return p!==name;}).forEach(function(p){
+      if(!stats[p])stats[p]={wins:0,total:0};
+      stats[p].total++;
+      if(won)stats[p].wins++;
+    });
+  });
+  var best=null,bestRate=-1;
+  Object.keys(stats).forEach(function(p){
+    var s=stats[p];
+    if(s.total<minGames)return;
+    var rate=Math.round(s.wins/s.total*100);
+    if(rate>bestRate||(rate===bestRate&&s.total>(best?best.count:0))){
+      bestRate=rate;
+      best={name:p,count:s.total,wins:s.wins,winRate:rate};
+    }
+  });
+  return best;
+}
+function _computeRatingHistory(name,isDbl){
+  var matches=_getMatchesForMode(name,isDbl).slice().sort(function(a,b){
+    return _matchSortKey(a).localeCompare(_matchSortKey(b));
+  });
+  var pts=DEF_PT;
+  var ptsCfg=isDbl?PT.double:PT.individual;
+  var history=[{date:'',points:pts,label:'시작'}];
+  matches.forEach(function(c){
+    if(_playerWonAnyMatch(c,name))pts+=ptsCfg.win;
+    else pts+=ptsCfg.loss;
+    history.push({date:_fmtStatDate(c),points:pts});
+  });
+  return history;
+}
+function _buildRatingChartSvg(history){
+  if(!history||history.length<2){
+    return '<div class="rating-chart-empty">경기 기록이 부족합니다 (2경기 이상)</div>';
+  }
+  var pts=history.map(function(h){return h.points;});
+  var minPt=Math.min.apply(null,pts);
+  var maxPt=Math.max.apply(null,pts);
+  var pad=Math.max(20,Math.round((maxPt-minPt)*0.1)||20);
+  minPt=Math.max(0,minPt-pad);
+  maxPt=maxPt+pad;
+  var w=320,h=120,px=8,py=12;
+  var plotW=w-px*2,plotH=h-py*2;
+  var coords=history.map(function(item,i){
+    var x=px+(history.length===1?plotW/2:(i/(history.length-1))*plotW);
+    var y=py+plotH-((item.points-minPt)/(maxPt-minPt||1))*plotH;
+    return {x:x,y:y,points:item.points,date:item.date};
+  });
+  var line=coords.map(function(c){return c.x.toFixed(1)+','+c.y.toFixed(1);}).join(' ');
+  var last=coords[coords.length-1];
+  var labels='';
+  if(history.length>=2){
+    labels='<text x="'+px+'" y="'+(h-2)+'" class="rating-chart-label">'+ (history[1].date||'시작') +'</text>'
+      +'<text x="'+(w-px)+'" y="'+(h-2)+'" text-anchor="end" class="rating-chart-label">'+ (last.date||'') +'</text>';
+  }
+  return '<svg class="rating-chart-svg" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="레이팅 변화 추이">'
+    +'<line x1="'+px+'" y1="'+py+'" x2="'+px+'" y2="'+(h-py)+'" class="rating-chart-axis"/>'
+    +'<line x1="'+px+'" y1="'+(h-py)+'" x2="'+(w-px)+'" y2="'+(h-py)+'" class="rating-chart-axis"/>'
+    +'<polyline points="'+line+'" class="rating-chart-line"/>'
+    +coords.map(function(c,i){
+      if(i===0&&!c.date)return '';
+      return '<circle cx="'+c.x+'" cy="'+c.y+'" r="3" class="rating-chart-dot"/>';
+    }).join('')
+    +'<text x="'+(w-px)+'" y="'+(py+4)+'" text-anchor="end" class="rating-chart-pt">'+last.points+'pt</text>'
+    +labels+'</svg>';
+}
 function _formatRecentMatchLine(c,playerName,isDbl){
   var won=isDbl?_playerWonAnyMatch(c,playerName):_playerWonMatch(c,playerName);
   var side=_playerSideInAnyMatch(c,playerName);
@@ -2708,42 +2787,58 @@ function _getMemberRankPosition(m,isDbl,isSeason){
   }
   return null;
 }
-function _computeStreakStats(playerName){
-  var matches=_getSinglesMatchesFor(playerName);
-  var current=0,max=0,run=0;
-  for(var i=0;i<matches.length;i++){
-    if(_playerWonMatch(matches[i],playerName))current++;
-    else break;
-  }
-  var asc=matches.slice().reverse();
-  for(var j=0;j<asc.length;j++){
-    if(_playerWonMatch(asc[j],playerName)){run++;if(run>max)max=run;}
-    else run=0;
-  }
-  var recent=matches.slice(0,12).map(function(c){
-    return _playerWonMatch(c,playerName)?'W':'L';
+function _areOpponentsInMatch(c,nameA,nameB){
+  var sideA=_playerSideInAnyMatch(c,nameA);
+  var sideB=_playerSideInAnyMatch(c,nameB);
+  return sideA&&sideB&&sideA!==sideB;
+}
+function _getHeadToHeadMatches(nameA,nameB){
+  return CHAL.filter(function(c){
+    if(c.status!=='completed')return false;
+    if(_isSinglesMatch(c)||_isDoublesType(c.type))return _areOpponentsInMatch(c,nameA,nameB);
+    return false;
+  }).sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
+}
+function _getAllMatchesFor(playerName,filterFn){
+  var seen={},all=[];
+  _getSinglesMatchesFor(playerName).concat(_getDoublesMatchesFor(playerName)).forEach(function(c){
+    if(seen[c.id])return;
+    seen[c.id]=true;
+    all.push(c);
   });
-  return {currentStreak:current,maxStreak:max,recent:recent,total:matches.length};
+  all.sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
+  if(filterFn)all=all.filter(filterFn);
+  return all;
+}
+function _computeCombinedRecord(name,filterFn){
+  var matches=_getAllMatchesFor(name,filterFn);
+  var wins=0,losses=0;
+  matches.forEach(function(c){
+    if(_playerWonAnyMatch(c,name))wins++;
+    else losses++;
+  });
+  var streak=_computeStreakFromMatches(matches,name,true);
+  var total=wins+losses;
+  var winRate=total?Math.round(wins/total*100):0;
+  return {wins:wins,losses:losses,total:total,winRate:winRate,currentStreak:streak.currentStreak,maxStreak:streak.maxStreak,matches:matches};
 }
 function _computeHeadToHead(nameA,nameB){
-  var matches=CHAL.filter(function(c){
-    if(!_isSinglesMatch(c))return false;
-    var my=(c.myTeam||[])[0],opp=(c.oppTeam||[])[0];
-    return (my===nameA&&opp===nameB)||(my===nameB&&opp===nameA);
-  }).sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
+  var matches=_getHeadToHeadMatches(nameA,nameB);
   var winsA=0,winsB=0;
   matches.forEach(function(c){
-    if(_playerWonMatch(c,nameA))winsA++;
-    else if(_playerWonMatch(c,nameB))winsB++;
+    if(_playerWonAnyMatch(c,nameA))winsA++;
+    else if(_playerWonAnyMatch(c,nameB))winsB++;
   });
   var total=winsA+winsB;
   var rateA=total?Math.round(winsA/total*100):0;
   var rateB=total?Math.round(winsB/total*100):0;
   var recent=matches.slice(0,8).map(function(c){
-    var winnerName=_playerWonMatch(c,nameA)?nameA:nameB;
-    return {date:_fmtStatDate(c),winner:winnerName};
+    var winnerName=_playerWonAnyMatch(c,nameA)?nameA:nameB;
+    var typeLbl=_isSinglesMatch(c)?'단식':'복식';
+    var teams=(c.myTeam||[]).join('·')+' vs '+(c.oppTeam||[]).join('·');
+    return {date:_fmtStatDate(c),winner:winnerName,type:typeLbl,teams:teams,score:c.score||''};
   });
-  return {winsA:winsA,winsB:winsB,rateA:rateA,rateB:rateB,total:total,recent:recent};
+  return {winsA:winsA,winsB:winsB,lossesA:winsB,lossesB:winsA,rateA:rateA,rateB:rateB,total:total,recent:recent};
 }
 
 // ── 시즌 / 배지 / 명예의 전당 (CHAL·seasons 기반 실시간 계산) ──
@@ -2846,22 +2941,24 @@ const BADGE_DEFS=[
   {id:'season_champion',icon:'👑',label:'시즌 챔피언',desc:'시즌 우승',check:function(s,ctx){return ctx.seasonChampions>0;}}
 ];
 function _computeMemberBadges(name){
-  var rec=_computeSinglesRecord(name);
+  var rec=_computeCombinedRecord(name);
   var ctx={tournamentWins:_countTournamentWins(name),seasonChampions:_countSeasonChampionships(name)};
   return BADGE_DEFS.filter(function(b){return b.check(rec,ctx);});
+}
+function _buildMemberBadgesHtml(name){
+  var badges=_computeMemberBadges(name);
+  if(!badges.length){
+    return '<div class="stat-box" style="text-align:center;color:var(--t3);font-size:13px">아직 획득한 배지가 없습니다</div>';
+  }
+  return '<div class="stat-box"><div class="stat-box-t">🏅 보유 배지 '+badges.length+'개</div>'
+    +'<div class="badge-grid">'+badges.map(function(b){
+      return '<div class="member-badge" title="'+b.desc+'"><span class="member-badge-icon">'+b.icon+'</span><span class="member-badge-lbl">'+b.label+'</span></div>';
+    }).join('')+'</div></div>';
 }
 function _renderMemberBadges(name){
   var el=g('prof-badges');
   if(!el)return;
-  var badges=_computeMemberBadges(name);
-  if(!badges.length){
-    el.innerHTML='<div class="stat-box" style="text-align:center;color:var(--t3);font-size:13px">아직 획득한 배지가 없습니다</div>';
-    return;
-  }
-  el.innerHTML='<div class="stat-box"><div class="stat-box-t">🏅 보유 배지 '+badges.length+'개</div>'
-    +'<div class="badge-grid">'+badges.map(function(b){
-      return '<div class="member-badge" title="'+b.desc+'"><span class="member-badge-icon">'+b.icon+'</span><span class="member-badge-lbl">'+b.label+'</span></div>';
-    }).join('')+'</div></div>';
+  el.innerHTML=_buildMemberBadgesHtml(name);
 }
 function _applySeasonsSnapshotRender(){
   if(_isScrolling){_pendingRender.sn=true;return;}
@@ -3012,6 +3109,18 @@ function renderHall(){
   var box=g('hall-content');
   if(!box)return;
   var isDbl=_hallMode==='double';
+  var modeLbl=isDbl?'복식':'단식';
+  var ratingHtml='';
+  var me=getMyPlayer();
+  if(me&&me.name){
+    var hist=_computeRatingHistory(me.name,isDbl);
+    ratingHtml='<div class="card card-p hall-cat rating-chart-card"><div class="hall-cat-t">📈 '+modeLbl+' 레이팅 변화 추이 · '+me.name+'</div>'
+      +'<div class="rating-chart-wrap">'+_buildRatingChartSvg(hist)+'</div>'
+      +'<div class="rating-chart-note">경기 완료 순으로 포인트를 재계산한 추정치입니다 (시작 '+DEF_PT+'pt)</div></div>';
+  }else{
+    ratingHtml='<div class="card card-p hall-cat rating-chart-card"><div class="hall-cat-t">📈 레이팅 변화 추이</div>'
+      +'<div class="rating-chart-empty">마이페이지에서 내 선수를 설정하면 그래프가 표시됩니다.</div></div>';
+  }
   var winsRows=_buildHallMemberRows(function(m){
     var r=isDbl?_computeDoublesRecord(m.name):_computeSinglesRecord(m.name);
     return {name:m.name,value:r.wins};
@@ -3035,7 +3144,23 @@ function renderHall(){
     if(!p.name)return null;
     return {name:m.name+' / '+p.name,value:p.count,extra:m.name+' 기준'};
   });
-  var modeLbl=isDbl?'복식':'단식';
+  var bestPartnerRows=_buildHallMemberRows(function(m){
+    if(!isDbl)return null;
+    var p=_computeBestWinRatePartner(m.name,5);
+    if(!p)return null;
+    return {name:m.name+' / '+p.name,value:p.winRate,extra:p.count+'경기'};
+  });
+  var tourRows=_buildHallMemberRows(function(m){
+    var n=_countTournamentWins(m.name);
+    return {name:m.name,value:n};
+  });
+  var seasonRows={};
+  SEASONS.filter(function(s){return s.status==='ended'&&s.champion&&s.champion.name;}).forEach(function(s){
+    var nm=s.champion.name;
+    seasonRows[nm]=(seasonRows[nm]||0)+1;
+  });
+  var seasonList=Object.keys(seasonRows).map(function(nm){return {name:nm,value:seasonRows[nm]};})
+    .sort(function(a,b){return b.value-a.value||a.name.localeCompare(b.name);});
   var cats=[
     {title:'🏆 '+modeLbl+' 최다승 TOP10',rows:winsRows,fn:function(x){return x.value+'승';}},
     {title:'🏆 '+modeLbl+' 최고승률 TOP10',rows:rateRows,fn:function(x){return x.value+'%'+(x.extra?' · '+x.extra:'');}},
@@ -3044,23 +3169,13 @@ function renderHall(){
   ];
   if(isDbl){
     cats.push({title:'🤝 복식 최다 파트너 TOP10',rows:partnerRows,fn:function(x){return x.value+'경기';}});
-  }else{
-    var tourRows=_buildHallMemberRows(function(m){
-      var n=_countTournamentWins(m.name);
-      return {name:m.name,value:n};
-    });
-    var seasonRows={};
-    SEASONS.filter(function(s){return s.status==='ended'&&s.champion&&s.champion.name;}).forEach(function(s){
-      var nm=s.champion.name;
-      seasonRows[nm]=(seasonRows[nm]||0)+1;
-    });
-    var seasonList=Object.keys(seasonRows).map(function(nm){return {name:nm,value:seasonRows[nm]};})
-      .sort(function(a,b){return b.value-a.value||a.name.localeCompare(b.name);});
-    cats.push({title:'🏆 토너먼트 우승 TOP10',rows:tourRows,fn:function(x){return x.value+'회';}});
-    cats.push({title:'👑 시즌 우승 TOP10',rows:seasonList,fn:function(x){return x.value+'회';}});
+    cats.push({title:'🤝 복식 최고 승률 파트너 TOP10',rows:bestPartnerRows,fn:function(x){return x.value+'%'+(x.extra?' · '+x.extra:'');},note:'최소 5경기'});
   }
-  box.innerHTML=cats.map(function(cat){
-    return '<div class="card card-p hall-cat"><div class="hall-cat-t">'+cat.title+'</div>'
+  cats.push({title:'🏆 토너먼트 우승 TOP10',rows:tourRows,fn:function(x){return x.value+'회';}});
+  cats.push({title:'👑 시즌 우승 TOP10',rows:seasonList,fn:function(x){return x.value+'회';}});
+  box.innerHTML=ratingHtml+cats.map(function(cat){
+    var noteHtml=cat.note?('<div style="font-size:11px;color:var(--t3);margin:-4px 0 8px">'+cat.note+'</div>'):'';
+    return '<div class="card card-p hall-cat"><div class="hall-cat-t">'+cat.title+'</div>'+noteHtml
       +_hallTop10(cat.rows,cat.fn)+'</div>';
   }).join('');
 }
@@ -3090,11 +3205,14 @@ function _renderHallOfFame(){
     return '<div class="hall-row"><span class="hall-rank">'+(i+1)+'위</span><span class="hall-name">'+x.name+'</span><span class="hall-streak">'+x.max+'연승'+(x.cur>0?' · 🔥 '+x.cur:'')+'</span></div>';
   }).join('');
 }
-function _buildProfileModeBlock(title,rec,rank,partner,isDbl){
+function _buildProfileModeBlock(title,rec,rank,partner,isDbl,bestPartner){
   var rankHtml=rank?(' · <span class="prof-rank">'+rank+'위</span>'):'';
   var partnerHtml='';
   if(isDbl&&partner&&partner.name){
     partnerHtml='<div class="prof-meta-row"><span>최다 파트너</span><strong>'+partner.name+' ('+partner.count+'경기)</strong></div>';
+    if(bestPartner&&bestPartner.name){
+      partnerHtml+='<div class="prof-meta-row"><span>최고 승률 파트너</span><strong>'+bestPartner.name+' · '+bestPartner.count+'경기 · '+bestPartner.winRate+'%</strong></div>';
+    }
   }
   var recentHtml='';
   if(rec.matches&&rec.matches.length){
@@ -3127,6 +3245,7 @@ function _renderProfileModal(){
   var dblGr=_calcGrade(_memberPt(m,true));
   var indGr=_calcGrade(_memberPt(m,false));
   var partner=_computeTopPartner(m.name);
+  var bestPartner=_computeBestWinRatePartner(m.name,5);
   var hdr=g('prof-header');
   if(hdr){
     hdr.innerHTML='<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
@@ -3137,12 +3256,12 @@ function _renderProfileModal(){
   var dblEl=g('prof-doubles');
   if(dblEl){
     dblRec.matches=_getDoublesMatchesFor(m.name);
-    dblEl.innerHTML=_buildProfileModeBlock('🤝 복식',dblRec,dblRank,partner,true);
+    dblEl.innerHTML=_buildProfileModeBlock('🤝 복식',dblRec,dblRank,partner,true,bestPartner);
   }
   var indEl=g('prof-singles');
   if(indEl){
     indRec.matches=_getSinglesMatchesFor(m.name);
-    indEl.innerHTML=_buildProfileModeBlock('🏓 단식',indRec,indRank,null,false);
+    indEl.innerHTML=_buildProfileModeBlock('🏓 단식',indRec,indRank,null,false,null);
   }
   var streakEl=g('prof-streak');if(streakEl)streakEl.innerHTML='';
   var recentEl=g('prof-recent');if(recentEl)recentEl.innerHTML='';
@@ -3163,6 +3282,11 @@ window.openMemberProfile=function(id){
   _renderProfileModal();
   openMo('mo-profile');
 };
+window.openMyMemberProfile=function(){
+  var id=getMyPlayerId();
+  if(!id){toast('⚠️ 내 선수를 먼저 설정해주세요');return;}
+  openMemberProfile(id);
+};
 window.renderProfileH2H=function(){
   var m=MEMBERS.find(function(x){return x.id===_profileMemberId;});
   var box=g('prof-h2h'),sel=g('prof-opp');
@@ -3174,17 +3298,19 @@ window.renderProfileH2H=function(){
   }
   var h2h=_computeHeadToHead(m.name,opp);
   if(!h2h.total){
-    box.innerHTML='<div class="stat-box" style="text-align:center;color:var(--t3);font-size:13px">두 회원 간 개인전 기록이 없습니다</div>';
+    box.innerHTML='<div class="stat-box" style="text-align:center;color:var(--t3);font-size:13px">두 회원 간 맞대결 기록이 없습니다</div>';
     return;
   }
   var recentHtml=h2h.recent.length?('<div class="stat-box-t" style="margin:12px 0 8px">최근 맞대결</div><div class="h2h-list">'
     +h2h.recent.map(function(r){
-      return '<div class="h2h-item"><span style="color:var(--t3)">'+r.date+'</span><span style="font-weight:700;color:var(--t1)">'+r.winner+' 승</span></div>';
+      var meta=r.type+(r.score?(' · '+r.score):'');
+      return '<div class="h2h-item"><span style="color:var(--t3)">'+r.date+' · '+meta+'</span><span style="font-weight:700;color:var(--t1)">'+r.winner+' 승</span></div>';
     }).join('')+'</div>'):'';
-  box.innerHTML='<div class="h2h-summary"><div style="font-size:15px;font-weight:800;margin-bottom:10px">'+m.name+' VS '+opp+'</div>'
-    +'<div class="h2h-scores"><span><span style="color:var(--a)">'+m.name+'</span> '+h2h.winsA+'승</span>'
-    +'<span style="color:var(--t3)">|</span><span><span style="color:var(--blue)">'+opp+'</span> '+h2h.winsB+'승</span></div>'
-    +'<div style="font-size:12px;color:var(--t3);margin-top:8px">승률 '+m.name+' '+h2h.rateA+'% · '+opp+' '+h2h.rateB+'%</div></div>'
+  box.innerHTML='<div class="h2h-summary"><div style="font-size:15px;font-weight:800;margin-bottom:10px">상대전적 · '+m.name+' VS '+opp+'</div>'
+    +'<div style="font-size:13px;color:var(--t2);margin-bottom:8px">총 '+h2h.total+'경기 (단식·복식 통합)</div>'
+    +'<div class="h2h-scores"><span><span style="color:var(--a)">'+m.name+'</span> '+h2h.winsA+'승 '+h2h.lossesA+'패</span>'
+    +'<span style="color:var(--t3)">|</span><span><span style="color:var(--blue)">'+opp+'</span> '+h2h.winsB+'승 '+h2h.lossesB+'패</span></div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--t1);margin-top:10px">승률 '+h2h.rateA+'%</div>'
     +recentHtml;
 };
 

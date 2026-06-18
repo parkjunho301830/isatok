@@ -801,6 +801,18 @@ body.has-pwa-banner .toast{
 .my-stat-item--wide{grid-column:1/-1;}
 .my-stat-val{display:block;font-size:20px;font-weight:900;color:var(--t1);}
 .my-stat-lbl{display:block;font-size:11px;color:var(--t3);font-weight:600;margin-top:4px;}
+.my-badges-section{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--c3);}
+.my-badges-section .badge-grid{margin-top:8px;}
+.rating-chart-card{margin-bottom:16px;}
+.rating-chart-wrap{overflow-x:auto;padding:4px 0;}
+.rating-chart-svg{width:100%;max-width:360px;height:auto;display:block;margin:0 auto;}
+.rating-chart-line{fill:none;stroke:var(--a);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;}
+.rating-chart-dot{fill:var(--a);}
+.rating-chart-axis{stroke:var(--c3);stroke-width:1;}
+.rating-chart-label{font-size:9px;fill:var(--t3);}
+.rating-chart-pt{font-size:11px;font-weight:700;fill:var(--t1);}
+.rating-chart-empty,.rating-chart-note{text-align:center;font-size:12px;color:var(--t3);padding:12px 0;}
+.rating-chart-note{padding-top:0;margin-top:-4px;}
 
 @media(max-width:768px){
   .wiz-pick{min-height:58px;}

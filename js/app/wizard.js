@@ -625,6 +625,18 @@ function _statBlock(title, rank, rec) {
     + '</div></div>';
 }
 
+function _renderMyBadgesHtml() {
+  var me = getMyPlayer();
+  if (!me || !C.computeMemberBadges) return '';
+  var badges = C.computeMemberBadges(me.name);
+  var grid = badges.length
+    ? badges.map(function (b) {
+      return '<div class="member-badge" title="' + b.desc + '"><span class="member-badge-icon">' + b.icon + '</span><span class="member-badge-lbl">' + b.label + '</span></div>';
+    }).join('')
+    : '<div class="wiz-empty" style="padding:12px 0;font-size:13px">아직 획득한 배지가 없습니다</div>';
+  return '<div class="my-badges-section"><div class="my-stat-head">내 배지</div><div class="badge-grid">' + grid + '</div></div>';
+}
+
 function _renderMyStatsHtml(compact) {
   var me = getMyPlayer();
   if (!me) {
@@ -670,12 +682,13 @@ export function renderMyPage() {
   }
   var stats = g('my-page-stats');
   var setting = g('my-page-setting');
-  if (stats) stats.innerHTML = _renderMyStatsHtml(false);
+  if (stats) stats.innerHTML = _renderMyBadgesHtml() + _renderMyStatsHtml(false);
   if (setting) {
     var me = getMyPlayer();
     setting.innerHTML = '<div class="my-setting-head">설정</div>'
       + '<div class="my-setting-row"><span>내 선수</span><strong>' + me.name + '</strong></div>'
-      + '<button type="button" class="btn btn-g" style="width:100%;margin-top:12px" onclick="openMyPlayerSetup(false)">내 선수 변경</button>';
+      + '<button type="button" class="btn btn-p" style="width:100%;margin-top:12px" onclick="openMyMemberProfile()">내 프로필 자세히 보기</button>'
+      + '<button type="button" class="btn btn-g" style="width:100%;margin-top:8px" onclick="openMyPlayerSetup(false)">내 선수 변경</button>';
   }
 }
 
