@@ -25,7 +25,7 @@ import{initPwa}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
-  getWizQuickResult,wizPrefillEdit,requireMyPlayer,isMyPlayerSetupMandatory,
+  wizPrefillEdit,requireMyPlayer,isMyPlayerSetupMandatory,
   buildCreatorFields,formatChallengeCreatorHtml,validateMyPlayer,isMyPlayerReady,getMyPlayerId,getMyPlayer
 }from'./wizard.js';
 
@@ -662,6 +662,10 @@ function finish(){
     setType:function(tp){_type=tp;},
     getEditId:function(){return _editChId;},
     isInstantMode:_isInstantCreateMode,
+    mountInstantResultForm:_mountInstantResultForm,
+    unmountInstantResultForm:_unmountInstantResultForm,
+    initResultForm:_initResultForm,
+    getBsGameMode:function(){return _bsGameMode;},
     computeDoublesRecord:_computeDoublesRecord,
     computeSinglesRecord:_computeSinglesRecord,
     computeCombinedRecord:_computeCombinedRecord,
@@ -1158,6 +1162,7 @@ window.openEditCh = function(id){
 window.closeBS = function(){
   var wasOpen=_isBSOpen();
   _hideBS(function(){
+    _unmountInstantResultForm();
     _editChId = null;
     _bsSearchComposing=false;
     _bsGridRefreshPending=false;
@@ -1278,8 +1283,12 @@ window.submitChBS = async function(){
       toast('⚠️ 즉시 생성은 상대 팀 선택이 필요합니다');
       return;
     }
+    if(!_rw){
+      toast('⚠️ 승리 팀을 선택해주세요');
+      return;
+    }
   }
-  var autoOpenRes=instantMode;
+  var pendingResult=instantMode?_collectPendingResult():null;
   var fields = {
     type: _type,
     myTeam: [..._my],
@@ -1289,7 +1298,7 @@ window.submitChBS = async function(){
     place: '',
     bet: _bet,
     isOpen: !!isOpenMode,
-    gameMode: _bsGameMode
+    gameMode: pendingResult?pendingResult.gameMode:(_gameMode||_bsGameMode||'bo1')
   };
   closeBS();
   try {
@@ -1332,22 +1341,22 @@ window.submitChBS = async function(){
       acceptedAt:saved.acceptedAt||null
     });
     _debugCardActions(saved);
+    if(instantMode&&pendingResult&&pendingResult.winner){
+      try{
+        if(db){
+          await updateDoc(doc(db,'challenges',newId),{status:'completed',winner:pendingResult.winner,score:pendingResult.score});
+        }
+        saved.status='completed';saved.winner=pendingResult.winner;saved.score=pendingResult.score;
+        saved.gameMode=pendingResult.gameMode;
+        if(!db){var loc=CHAL.find(function(c){return c.id===newId;});if(loc)Object.assign(loc,saved);renderC();}
+        await _updateMatchPoints(saved,pendingResult.winner,1);
+        toast(pendingResult.score?'🏆 대결 생성 및 결과 저장!':'🏆 대결 생성 · 승자 기록!');
+        if(_currentPage==='ranking')renderR();
+        renderMyRecordHome();renderMyPage();
+        return;
+      }catch(e2){toast('⚠️ 결과 저장 실패 — 결과 입력에서 다시 시도해주세요');}
+    }
     if(instantMode){
-      var qr=getWizQuickResult();
-      if(qr.winner){
-        try{
-          if(db){
-            await updateDoc(doc(db,'challenges',newId),{status:'completed',winner:qr.winner,score:qr.score});
-          }
-          saved.status='completed';saved.winner=qr.winner;saved.score=qr.score;
-          if(!db){var loc=CHAL.find(function(c){return c.id===newId;});if(loc)Object.assign(loc,saved);renderC();}
-          await _updateMatchPoints(saved,qr.winner,1);
-          toast(qr.score?'🏆 대결 생성 및 결과 저장!':'🏆 대결 생성 · 승자 기록!');
-          if(_currentPage==='ranking')renderR();
-          renderMyRecordHome();renderMyPage();
-          return;
-        }catch(e2){toast('⚠️ 결과 저장 실패 — 결과 입력에서 다시 시도해주세요');}
-      }
       toast('✅ 대결 생성! 결과를 입력해 주세요.');
       setTimeout(function(){ openRes(newId); }, 450);
     }else{
@@ -2250,37 +2259,57 @@ function _buildResultScore(){
   return null;
 }
 
-window.openRes=function(id){
-  try{
-  if(!requireMyPlayer())return;
-  const c=CHAL.find(c=>c.id===id);if(!c)return;
-  if(c.status==='completed'&&!_isAdmin()){
-    _requireAdmin(function(){openRes(id);});
-    return;
-  }
-  _rid=id;
-  _resEditMode=c.status==='completed';
-  _rw=null;
+let _resultFormMountedInWizard=false;
+
+function _mountInstantResultForm(){
+  var slot=g('wiz-instant-res-root');
+  var mo=g('mo-result');
+  var mb=mo&&mo.querySelector('.mb');
+  if(!slot||!mb||_resultFormMountedInWizard)return;
+  slot.appendChild(mb);
+  _resultFormMountedInWizard=true;
+}
+
+function _unmountInstantResultForm(){
+  if(!_resultFormMountedInWizard)return;
+  var mo=g('mo-result');
+  var mw=mo&&mo.querySelector('.mw');
+  var mb=mo&&mo.querySelector('.mb');
+  var mf=mw&&mw.querySelector('.mf');
+  if(mb&&mw&&mf)mw.insertBefore(mb,mf);
+  _resultFormMountedInWizard=false;
+}
+
+function _initResultForm(opts){
+  opts=opts||{};
+  var myTeam=opts.myTeam||[];
+  var oppTeam=opts.oppTeam||[];
+  _resEditMode=!!opts.editMode;
+  _rw=opts.winner||null;
   _resInputMode='winner';
   _setWinsA=0;_setWinsB=0;
   _sets=[];
-  var chGm=c.gameMode&&GM[c.gameMode]?c.gameMode:'bo5';
+  var chGm=opts.gameMode&&GM[opts.gameMode]?opts.gameMode:'bo1';
   _applyGameModeUI(chGm);
+  _bsGameMode=chGm;
   _setRowCount=_gmInfo(chGm).max;
   _initSetWinPick(_gmInfo(chGm).max);
 
-  var myNames=(c.myTeam||[]).join(' · ');
-  var opNames=(c.oppTeam||[]).join(' · ');
+  var myNames=myTeam.join(' · ')||'A팀';
+  var opNames=oppTeam.join(' · ')||'B팀';
   var riEl=g('ri');
-  if(riEl)riEl.innerHTML=`<strong>${myNames}</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>${opNames}</strong>`;
+  if(riEl)riEl.innerHTML='<strong>'+myNames+'</strong><span style="color:var(--t3);margin:0 10px">VS</span><strong>'+opNames+'</strong>';
 
   var wanEl=g('wan'),wbnEl=g('wbn');
   if(wanEl)wanEl.textContent=myNames+' 팀 승리';
   if(wbnEl)wbnEl.textContent=opNames+' 팀 승리';
-  ['wa','wb'].forEach(x=>{var el=g(x);if(el){el.style.borderColor='var(--b2)';el.style.background='transparent';}});
+  ['wa','wb'].forEach(function(x){
+    var el=g(x);
+    if(el){el.style.borderColor='var(--b2)';el.style.background='transparent';}
+  });
 
-  var lblA=(c.myTeam||[])[0]||'A팀';
-  var lblB=(c.oppTeam||[])[0]||'B팀';
+  var lblA=myTeam[0]||'A팀';
+  var lblB=oppTeam[0]||'B팀';
   _scLblA=lblA;
   _scLblB=lblB;
 
@@ -2289,30 +2318,58 @@ window.openRes=function(id){
   var swPrevEl=g('sc-setwins-preview');
   if(swPrevEl)swPrevEl.style.display='none';
 
-  if(_resEditMode){
-    if(c.winner)setW(c.winner);
-    if(c.score&&_isSetWinsScore(c.score)){
-      var ab=c.score.split(':');
-      _setWinsA=parseInt(ab[0],10);_setWinsB=parseInt(ab[1],10);
-      _inferSetWinPickFromAggregate(_setWinsA,_setWinsB);
-      setResMode('sets');
-    }else{
-      var parsed=_parseScoreToSets(c.score);
-      if(parsed.length){
-        _sets=parsed;
-        _setRowCount=Math.max(3,parsed.length);
-        setResMode('detail');
-        renderSetInputRows();
-        onSetScoreInput();
-      }else if(!c.score){
-        setResMode('winner');
-      }
+  if(_resEditMode&&opts.score&&_isSetWinsScore(opts.score)){
+    var ab=opts.score.split(':');
+    _setWinsA=parseInt(ab[0],10);_setWinsB=parseInt(ab[1],10);
+    _inferSetWinPickFromAggregate(_setWinsA,_setWinsB);
+    setResMode('sets');
+  }else if(_resEditMode&&opts.score){
+    var parsed=_parseScoreToSets(opts.score);
+    if(parsed.length){
+      _sets=parsed;
+      _setRowCount=Math.max(3,parsed.length);
+      setResMode('detail');
+      renderSetInputRows();
+      onSetScoreInput();
+    }else if(!opts.score){
+      setResMode('winner');
     }
   }else{
     setResMode('winner');
     renderSetWinPickRows();
     renderSetInputRows();
   }
+  if(_rw)setW(_rw);
+  _updateResPreviewVisibility();
+}
+
+function _collectPendingResult(){
+  return {
+    winner:_rw,
+    score:_buildResultScore(),
+    gameMode:_gameMode||_bsGameMode||'bo1'
+  };
+}
+
+window.openRes=function(id){
+  try{
+  if(!requireMyPlayer())return;
+  const c=CHAL.find(c=>c.id===id);if(!c)return;
+  if(c.status==='completed'&&!_isAdmin()){
+    _requireAdmin(function(){openRes(id);});
+    return;
+  }
+  _unmountInstantResultForm();
+  _rid=id;
+  var chGm=c.gameMode&&GM[c.gameMode]?c.gameMode:'bo5';
+  _initResultForm({
+    myTeam:c.myTeam||[],
+    oppTeam:c.oppTeam||[],
+    gameMode:chGm,
+    winner:c.status==='completed'?c.winner:null,
+    score:c.score||null,
+    editMode:c.status==='completed'
+  });
 
   var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
   if(mtEm)mtEm.textContent=_resEditMode?'수정':'입력';

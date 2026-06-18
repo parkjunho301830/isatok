@@ -418,49 +418,55 @@ function _renderStep4() {
   var opp = st._opp || [];
   var isOpen = g('oc-chk') && g('oc-chk').checked;
   var instant = C.isInstantMode();
-  var myLbl = my.join(' + ') || '—';
-  var oppLbl = isOpen ? '오픈 (누구나)' : (opp.join(' + ') || '—');
-
-  var html = '<div class="wiz-vs-banner">'
-    + '<div class="wiz-vs-team">' + myLbl + '</div>'
-    + '<div class="wiz-vs-sep">VS</div>'
-    + '<div class="wiz-vs-team">' + oppLbl + '</div>'
-    + '</div>';
+  var html = '';
 
   if (instant && !C.getEditId()) {
     var now = C.nowDateTimeFields();
     html += '<input type="date" id="ch-date" value="' + now.date + '" tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none">';
     html += '<input type="time" id="ch-time" value="' + now.time + '" tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none">';
-    html += '<div class="wiz-result-quick">';
-    html += '<div class="fg"><label>승리 팀 <span style="color:var(--t3);font-weight:400">(선택)</span></label>';
-    html += '<div class="wiz-win-btns">';
-    html += '<button type="button" class="wiz-win' + (_quickWinner === 'a' ? ' on' : '') + '" onclick="wizSetWinner(\'a\')">' + myLbl + ' 승</button>';
-    html += '<button type="button" class="wiz-win' + (_quickWinner === 'b' ? ' on' : '') + '" onclick="wizSetWinner(\'b\')">' + oppLbl + ' 승</button>';
-    html += '</div></div>';
-    html += '<div class="fg"><label>스코어 <span style="color:var(--t3);font-weight:400">(선택)</span></label>';
-    html += '<input type="text" class="wiz-score-inp" id="wiz-quick-score" placeholder="예: 3:1" value="' + (_quickScore || '') + '" oninput="wizSetScore(this.value)"></div>';
-    html += '</div>';
+    html += '<div id="wiz-instant-res-root" class="wiz-instant-res"></div>';
+    box.innerHTML = html;
+    if (C.unmountInstantResultForm) C.unmountInstantResultForm();
+    if (C.mountInstantResultForm) C.mountInstantResultForm();
+    if (C.initResultForm) {
+      C.initResultForm({
+        myTeam: my,
+        oppTeam: isOpen ? [] : opp,
+        gameMode: C.getBsGameMode ? C.getBsGameMode() : 'bo1'
+      });
+    }
+    C.updateChSubmitBtn();
+    return;
   }
 
-  if (!instant || C.getEditId()) {
-    html += '<div id="wiz-normal-fields">';
-    html += '<div class="fr" style="margin-bottom:14px">';
-    html += '<div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>';
-    html += '<div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>';
-    html += '</div>';
-    html += '<div class="fg" style="margin-bottom:0"><label>내기 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>';
-    html += '<div class="msg-chips" id="bet-chips">';
-    html += '<button class="msg-chip none-chip' + (!st._bet ? ' on' : '') + '" data-bet="" onclick="selectBet(this)">없음</button>';
-    html += '<button class="msg-chip' + (st._bet === 'coffee' ? ' on' : '') + '" data-bet="coffee" onclick="selectBet(this)">☕ 커피</button>';
-    html += '<button class="msg-chip' + (st._bet === 'jjajang' ? ' on' : '') + '" data-bet="jjajang" onclick="selectBet(this)">🍜 짜장면</button>';
-    html += '</div></div></div>';
-  }
+  if (C.unmountInstantResultForm) C.unmountInstantResultForm();
+
+  var myLbl = my.join(' + ') || '—';
+  var oppLbl = isOpen ? '오픈 (누구나)' : (opp.join(' + ') || '—');
+  html += '<div class="wiz-vs-banner">'
+    + '<div class="wiz-vs-team">' + myLbl + '</div>'
+    + '<div class="wiz-vs-sep">VS</div>'
+    + '<div class="wiz-vs-team">' + oppLbl + '</div>'
+    + '</div>';
+
+  html += '<div id="wiz-normal-fields">';
+  html += '<div class="fr" style="margin-bottom:14px">';
+  html += '<div class="fg" style="margin:0"><label>날짜</label><input type="date" id="ch-date"></div>';
+  html += '<div class="fg" style="margin:0"><label>시간</label><input type="time" id="ch-time" value="10:00"></div>';
+  html += '</div>';
+  html += '<div class="fg" style="margin-bottom:0"><label>내기 <span style="color:var(--t3);font-size:12px;font-weight:400">(선택)</span></label>';
+  html += '<div class="msg-chips" id="bet-chips">';
+  html += '<button class="msg-chip none-chip' + (!st._bet ? ' on' : '') + '" data-bet="" onclick="selectBet(this)">없음</button>';
+  html += '<button class="msg-chip' + (st._bet === 'coffee' ? ' on' : '') + '" data-bet="coffee" onclick="selectBet(this)">☕ 커피</button>';
+  html += '<button class="msg-chip' + (st._bet === 'jjajang' ? ' on' : '') + '" data-bet="jjajang" onclick="selectBet(this)">🍜 짜장면</button>';
+  html += '</div></div></div>';
 
   box.innerHTML = html;
   C.updateChSubmitBtn();
 }
 
 export function wizRenderStep(n) {
+  if (n !== 4 && C.unmountInstantResultForm) C.unmountInstantResultForm();
   _updateProgress(n);
   if (n === 1) _renderStep1();
   else if (n === 2) _renderStep2();

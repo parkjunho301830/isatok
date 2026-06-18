@@ -814,6 +814,10 @@ body.has-pwa-banner .toast{
 .rating-chart-empty,.rating-chart-note{text-align:center;font-size:12px;color:var(--t3);padding:12px 0;}
 .rating-chart-note{padding-top:0;margin-top:-4px;}
 
+.wiz-instant-res{margin-top:4px;}
+.wiz-instant-res .mb{padding:0;}
+.wiz-instant-res #ri{margin-bottom:14px;font-size:15px;}
+
 @media(max-width:768px){
   .wiz-pick{min-height:58px;}
   .wiz-combo{min-height:56px;}
