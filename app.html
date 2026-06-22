@@ -1,0 +1,760 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#007AFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="이사탁">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json?v=2026.06.22.10">
+<script type="module" src="js/app/pwa.js?v=2026.06.22.10"></script>
+<meta property="og:title" content="이사탁">
+<meta property="og:description" content="이사탁 탁구 동호회 — 대결 신청, 랭킹, 통계">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://isatok.web.app/">
+<meta property="og:image" content="https://isatok.web.app/assets/share-kakao.jpg">
+<meta property="og:site_name" content="이사탁">
+<title>이사탁</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<!-- 카카오 JavaScript SDK (채팅방 선택 후 직접 전송 기능) -->
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+  integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+  crossorigin="anonymous"></script>
+<link rel="stylesheet" href="css/style.css?v=2026.06.22.10">
+<link rel="stylesheet" href="css/components.css?v=2026.06.22.10">
+<link rel="stylesheet" href="css/design.css?v=2026.06.22.10">
+</head>
+<body>
+
+<!-- 카카오톡 인앱 브라우저 안내 (모바일·하루 1회) -->
+<div id="kakao-inapp-banner" class="kakao-inapp-banner" hidden>
+  <div class="kakao-inapp-copy">
+    <p class="kakao-inapp-line" id="kakao-inapp-line1"></p>
+    <p class="kakao-inapp-line kakao-inapp-line--sub" id="kakao-inapp-line2"></p>
+  </div>
+  <div class="kakao-inapp-actions">
+    <button type="button" class="btn btn-p btn-xs" id="kakao-open-browser-btn" onclick="openInExternalBrowser()" hidden>Chrome에서 열기</button>
+    <button type="button" class="kakao-inapp-close" onclick="dismissKakaoInAppBanner()" aria-label="닫기">✕</button>
+  </div>
+</div>
+
+<!-- 로딩 -->
+<div class="ls" id="ls">
+  <img src="assets/favicon.svg" alt="" class="ls-mark" width="56" height="56">
+  <div class="ls-brand">이사탁</div>
+  <div class="sp"></div>
+  <div class="ls-msg">Firebase 연결 중...</div>
+</div>
+
+<div class="app-layout">
+
+  <!-- PC 전용 사이드바 -->
+  <nav class="sidebar" id="sidebar" style="display:none">
+    <div class="logo">
+      <div class="logo-row">
+        <img src="assets/favicon.svg" alt="" class="logo-mark" width="42" height="42">
+        <div class="logo-text">
+          <div class="logo-title-row">
+            <div class="logo-t">이사탁</div>
+            <button type="button" class="header-ver" onclick="openVersionInfo()" aria-label="버전 정보"><span class="header-ver-text"></span></button>
+          </div>
+          <div class="logo-s">탁구 동호회</div>
+        </div>
+      </div>
+    </div>
+    <span class="nav-g">메뉴</span>
+    <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결</div>
+    <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>랭킹</div>
+    <div class="nav-i"     data-page="my"       onclick="nav('my')"><span class="ni-icon">👤</span>마이</div>
+    <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">📈</span>통계</div>
+    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">📋</span>회원</div>
+    <div class="nav-i nav-admin-only admin-only" data-page="admin" onclick="nav('admin')"><span class="ni-icon">⚙️</span>관리자</div>
+    <div class="admin-bar" id="admin-bar">
+      <button class="btn btn-g btn-sm" id="btn-admin" type="button" onclick="toggleAdmin()" style="width:100%;min-height:40px">🔐 관리자</button>
+    </div>
+    <div class="db-w"><div id="dbs" style="font-size:12px;color:var(--t3)">● 연결 확인 중...</div></div>
+  </nav>
+
+  <!-- 콘텐츠 영역 -->
+  <div class="app-wrap" id="app" style="display:none">
+
+  <!-- 모바일 헤더 -->
+  <header class="mhdr">
+    <div class="mhdr-brand">
+      <img src="assets/favicon.svg" alt="" class="mhdr-mark" width="30" height="30">
+      <div class="mhdr-text">
+        <div class="mhdr-title-row">
+          <span class="mhdr-name">이사탁</span>
+          <button type="button" class="header-ver" onclick="openVersionInfo()" aria-label="버전 정보"><span class="header-ver-text"></span></button>
+        </div>
+        <span class="mhdr-tag">탁구 동호회</span>
+      </div>
+    </div>
+    <div class="mhdr-r">
+      <button class="btn btn-g btn-xs admin-mhdr-btn" id="btn-admin-m" type="button" onclick="toggleAdmin()" title="관리자">🔐</button>
+      <button type="button" class="mhdr-install-btn" id="pwa-header-install-btn" onclick="onHeaderInstallClick()" hidden aria-label="앱 설치" title="앱 설치"><span class="mhdr-install-icon" aria-hidden="true">📲</span><span class="mhdr-install-label">앱 설치</span></button>
+      <span class="mhdr-status" id="dbm" title="연결 상태">🟢</span>
+    </div>
+  </header>
+
+  <!-- FAB (모바일 즉시 대결) -->
+  <button class="fab fab-instant" onclick="openInstantBS()">⚡ 즉시 대결</button>
+
+  <main class="main">
+
+    <!-- ══ 대결 (홈) ══ -->
+    <div class="page on" id="page-challenge">
+      <section class="brand-hero" aria-label="이사탁 소개">
+        <div class="brand-hero-bg" aria-hidden="true"></div>
+        <div class="brand-hero-inner">
+          <img src="assets/favicon.svg" alt="" class="brand-mark" width="52" height="52">
+          <div class="brand-hero-copy">
+            <h1 class="brand-name">이사탁</h1>
+            <p class="brand-tagline">탁구 동호회 · 대결 · 랭킹 · 통계</p>
+          </div>
+          <button class="btn btn-p btn-sm brand-hero-cta pc-only" type="button" onclick="openInstantBS()">⚡ 즉시 대결</button>
+        </div>
+      </section>
+      <div id="my-record-home" style="display:none"></div>
+      <div class="quick-actions">
+        <button class="qa-card qa-instant qa-primary" type="button" onclick="openInstantBS()">
+          <span class="qa-icon">⚡</span>
+          <span class="qa-label">즉시 대결</span>
+          <span class="qa-desc">수락 없이 바로</span>
+        </button>
+        <button class="qa-card qa-secondary" type="button" onclick="openBS()">
+          <span class="qa-icon">🏓</span>
+          <span class="qa-label">대결 신청</span>
+          <span class="qa-desc">일반 · 수락 필요</span>
+        </button>
+        <button class="qa-card" type="button" onclick="openResultPicker()">
+          <span class="qa-icon">📝</span>
+          <span class="qa-label">결과 입력</span>
+          <span class="qa-desc">진행중 대결</span>
+        </button>
+        <button class="qa-card" type="button" onclick="nav('ranking')">
+          <span class="qa-icon">🏆</span>
+          <span class="qa-label">랭킹 보기</span>
+          <span class="qa-desc">순위 확인</span>
+        </button>
+      </div>
+      <div class="section-label">대결 목록</div>
+      <div class="fscroll">
+        <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
+        <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈 챌린지</button>
+        <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기중</button>
+        <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 수락됨</button>
+        <button class="fc"    id="f-md"         onclick="setF('md')">🏓 남복식</button>
+        <button class="fc"    id="f-fd"         onclick="setF('fd')">🎀 여복식</button>
+        <button class="fc"    id="f-mx"         onclick="setF('mx')">🤝 혼합복식</button>
+        <button class="fc"    id="f-ms"         onclick="setF('ms')">🏓 남단식</button>
+        <button class="fc"    id="f-fs"         onclick="setF('fs')">🎀 여단식</button>
+        <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
+      </div>
+      <div id="ch-empty" style="display:none;text-align:center;padding:64px 20px;color:var(--t3)">
+        <div style="font-size:56px;margin-bottom:18px">🏓</div>
+        <div style="font-size:18px;font-weight:800;color:var(--t2);margin-bottom:10px">대결 신청이 없어요</div>
+        <div style="font-size:14px;color:var(--t3);line-height:1.6">도전장을 내밀어보세요!<br>상대방도 기다리고 있을지 몰라요 😄</div>
+      </div>
+      <div id="ch-list"></div>
+    </div>
+
+    <!-- ══ 회원 랭킹 ══ -->
+    <div class="page" id="page-ranking">
+      <div class="ph">
+        <div class="ph-t">회원 <em>랭킹</em></div>
+        <button class="btn btn-g btn-sm" onclick="nav('hall')">📈 통계 보기</button>
+      </div>
+      <div class="fscroll">
+        <button class="fc" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
+        <button class="fc on" id="rk-scope-season" type="button" onclick="setRkScope('season')">시즌 랭킹</button>
+      </div>
+      <div id="rk-season-info" class="season-info-bar" style="display:none"></div>
+      <div class="fscroll">
+        <button class="fc" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
+        <button class="fc on" id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
+      </div>
+      <div class="card card-p">
+        <table class="tm">
+          <thead><tr><th>순위</th><th>이름</th><th>등급</th><th id="rk-pt-h">포인트</th></tr></thead>
+          <tbody id="rtb"></tbody>
+        </table>
+      </div>
+      <div class="card card-p" id="rk-hall-wrap" style="margin-top:16px;display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:18px;font-weight:800;color:var(--t1)">🔥 연승 하이라이트</div>
+          <button class="btn btn-g btn-sm" onclick="nav('hall')">통계 보기 →</button>
+        </div>
+        <div id="rk-hall"></div>
+      </div>
+    </div>
+
+    <!-- ══ 마이 (내 기록) ══ -->
+    <div class="page" id="page-my">
+      <div class="ph">
+        <div class="ph-t">👤 <em>마이</em></div>
+      </div>
+      <p class="page-sub">내 선수 · 통계 · 배지</p>
+      <div class="card card-p" id="my-page-setting"></div>
+      <div class="card card-p" id="my-page-stats" style="margin-top:16px"></div>
+    </div>
+
+    <!-- ══ 통계 (명예의 전당) ══ -->
+    <div class="page" id="page-hall">
+      <div class="ph">
+        <div class="ph-t">📈 <em>통계</em></div>
+        <button class="btn btn-g btn-sm" onclick="nav('ranking')">← 랭킹</button>
+      </div>
+      <p class="page-sub">명예의 전당 · TOP10 기록</p>
+      <div class="fscroll">
+        <button class="fc on" id="hall-dbl" type="button" onclick="setHallMode('double')">🤝 복식</button>
+        <button class="fc" id="hall-ind" type="button" onclick="setHallMode('individual')">🏓 단식</button>
+      </div>
+      <div id="hall-content"></div>
+    </div>
+
+    <!-- ══ 회원 ══ -->
+    <div class="page" id="page-members">
+      <div class="ph">
+        <div class="ph-t">👤 <em>회원</em></div>
+        <button class="btn btn-p btn-sm admin-only" onclick="openAddModal()">+ 신규 등록</button>
+      </div>
+      <div class="card card-p">
+        <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+          <input type="text" placeholder="🔍 이름 검색 (초성·부분 검색)" style="max-width:100%;flex:1;min-height:48px" oninput="filterM(this.value)" id="ms" autocomplete="off" inputmode="search" enterkeyhint="search">
+          <select style="max-width:150px;min-height:44px" onchange="filterG(this.value)">
+            <option value="">전체 등급</option><option>마스터</option><option>고수</option><option>상급</option><option>중급</option><option>초급</option><option>입문</option>
+          </select>
+        </div>
+        <table class="tm">
+          <thead><tr><th>이름</th><th>등급</th><th>성별</th><th>상태</th><th></th></tr></thead>
+          <tbody id="mtb"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ 관리자 ══ -->
+    <div class="page admin-only" id="page-admin">
+      <div class="ph">
+        <div class="ph-t">⚙️ <em>관리자</em></div>
+        <button class="btn btn-g btn-sm" onclick="toggleAdmin()">🔓 종료</button>
+      </div>
+      <p class="page-sub">관리자 전용 기능</p>
+      <div class="admin-hub" id="admin-hub"></div>
+    </div>
+
+  </main>
+</div><!-- /app-wrap -->
+</div><!-- /app-layout -->
+
+<!-- 하단 탭바 -->
+<div id="pwa-install-banner" class="pwa-install-banner" hidden>
+  <p class="pwa-install-text">🏓 이사탁을 홈 화면에 추가해 보세요.</p>
+  <div class="pwa-install-actions">
+    <button type="button" class="btn btn-p btn-sm pwa-install-btn" id="pwa-install-btn" onclick="installPwa()" hidden>📲 앱 설치</button>
+    <button type="button" class="pwa-install-close" onclick="dismissPwaInstall()" aria-label="닫기">✕</button>
+  </div>
+</div>
+<nav class="bnav">
+  <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
+  <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
+  <div class="bni"    onclick="nav('my')"        data-p="my"><span class="bi">👤</span><span>마이</span></div>
+  <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">📈</span><span>통계</span></div>
+  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">📋</span><span>회원</span></div>
+  <div class="bni nav-admin-only admin-only" onclick="nav('admin')" data-p="admin"><span class="bi">⚙️</span><span>관리</span></div>
+</nav>
+
+<!-- ══ 대결 신청 Bottom Sheet ══ -->
+<!-- 기존 중앙 오버레이 모달(mo-ch) 제거 → position:fixed;bottom:0 바텀시트로 교체 -->
+<!-- 이유: 모바일 키보드 팝업 시 뷰포트/scroll 변동으로 인한 깜빡임 근본 제거 -->
+<div class="bs-overlay" id="bs-overlay" onclick="closeBS()"></div>
+<div class="bs-ch" id="bs-ch">
+  <!-- 드래그 핸들 + 헤더 (전체 시트 스와이프 dismiss 지원) -->
+  <div class="bs-drag-zone" id="bs-drag-zone">
+    <div class="bs-handle"></div>
+    <div class="bs-hdr">
+      <div class="bs-title">🏓 대결 <em>신청</em></div>
+      <button class="mc-btn" onclick="closeBS()">✕</button>
+    </div>
+  </div>
+
+  <!-- ── Wizard 진행 표시 ── -->
+  <div class="wiz-bar" id="wiz-bar">
+    <div class="wiz-bar-item on" id="wiz-bar-1"><span>경기유형</span></div>
+    <div class="wiz-bar-sep">→</div>
+    <div class="wiz-bar-item" id="wiz-bar-2"><span>내팀</span></div>
+    <div class="wiz-bar-sep">→</div>
+    <div class="wiz-bar-item" id="wiz-bar-3"><span>상대팀</span></div>
+    <div class="wiz-bar-sep">→</div>
+    <div class="wiz-bar-item" id="wiz-bar-4"><span>결과입력</span></div>
+  </div>
+
+  <!-- ══ STEP 1: 경기 유형 ══ -->
+  <div class="bs-body" id="bs-step1">
+    <div id="wiz-panel-1"></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot1">
+    <button class="btn btn-g" onclick="closeBS()">취소</button>
+    <button class="btn btn-p" onclick="bsStep(2)">다음 →</button>
+  </div>
+
+  <!-- ══ STEP 2: 내팀 ══ -->
+  <div class="bs-body" id="bs-step2" style="display:none">
+    <div id="wiz-panel-2"></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot2" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
+    <button class="btn btn-p" onclick="bsStep(3)">다음 →</button>
+  </div>
+
+  <!-- ══ STEP 3: 상대팀 ══ -->
+  <div class="bs-body" id="bs-step3" style="display:none">
+    <label class="oc-toggle-wrap" id="oc-toggle-wrap" onclick="toggleOC()">
+      <div class="oc-toggle-label">
+        <span class="oc-icon">🔥</span>
+        <div>
+          <div class="oc-text">오픈 챌린지</div>
+          <div class="oc-desc">상대 미지정 — 누구나 수락</div>
+        </div>
+      </div>
+      <div class="sw">
+        <input type="checkbox" id="oc-chk" onchange="toggleOC()">
+        <span class="sw-track"></span>
+      </div>
+    </label>
+    <div id="wiz-panel-3"></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot3" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(2)">← 이전</button>
+    <button class="btn btn-p" onclick="bsStep(4)">다음 →</button>
+  </div>
+
+  <!-- ══ STEP 4: 결과 · 생성 ══ -->
+  <div class="bs-body" id="bs-step4" style="display:none">
+    <div id="wiz-panel-4"></div>
+    <div style="height:8px"></div>
+  </div>
+  <div class="bs-foot" id="bs-foot4" style="display:none">
+    <button class="btn btn-g" onclick="bsStep(3)">← 이전</button>
+    <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
+  </div>
+
+  <!-- 레거시 그리드 (숨김 — 오픈 수락 등) -->
+  <div style="display:none" aria-hidden="true">
+    <div id="gmy"></div><div id="gopp"></div>
+    <div id="t-md"></div><div id="t-fd"></div><div id="t-mx"></div><div id="t-ms"></div><div id="t-fs"></div>
+    <label id="lbl-my"></label><label id="lbl-opp"></label>
+    <div id="opp-section"></div><div id="e-my"></div><div id="e-opp"></div>
+    <div id="bs-summary"></div>
+    <button id="bs-gm-bo1"></button><button id="bs-gm-bo3"></button><button id="bs-gm-bo5"></button><button id="bs-gm-bo7"></button>
+    <button id="ch-mode-normal"></button><button id="ch-mode-instant"></button>
+    <p id="ch-mode-open-note"></p>
+  </div>
+</div>
+
+<!-- ══ 결과 입력 모달 ══ -->
+<div class="mo" id="mo-result">
+  <div class="mw">
+    <div class="mh"><div class="mt">🏆 결과 <em>입력</em></div><button class="mc-btn" onclick="closeMo('mo-result')">✕</button></div>
+    <div class="mb">
+
+      <!-- 대결 정보 배너 -->
+      <div id="ri" style="background:var(--c2);border-radius:14px;padding:14px 18px;margin-bottom:16px;text-align:center;font-size:16px;font-weight:700;color:var(--t2)"></div>
+
+      <!-- 승리 팀 선택 -->
+      <div class="fg">
+        <label>승리 팀 선택</label>
+        <div style="display:flex;gap:10px">
+          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
+            <div id="wan" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승리</div>
+          </div>
+          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
+            <div id="wbn" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승리</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 경기 방식 (대결 신청 시 설정 · 변경 가능) ── -->
+      <div class="fg">
+        <label>경기 방식</label>
+        <div class="gm-grid gm-grid-res" id="res-gm-grid">
+          <button type="button" id="gm-bo1" class="gm-card gm-card-sm" onclick="setGameMode('bo1')">
+            <span class="gm-card-t">단판</span><span class="gm-card-d">1선승</span>
+          </button>
+          <button type="button" id="gm-bo3" class="gm-card gm-card-sm" onclick="setGameMode('bo3')">
+            <span class="gm-card-t">3판2선</span><span class="gm-card-d">최대 3세트</span>
+          </button>
+          <button type="button" id="gm-bo5" class="gm-card gm-card-sm" onclick="setGameMode('bo5')">
+            <span class="gm-card-t">5판3선</span><span class="gm-card-d">최대 5세트</span>
+          </button>
+          <button type="button" id="gm-bo7" class="gm-card gm-card-sm" onclick="setGameMode('bo7')">
+            <span class="gm-card-t">7판4선</span><span class="gm-card-d">최대 7세트</span>
+          </button>
+        </div>
+        <div id="gm-hint" class="gm-hint">방식 미선택 — 점수만 기록합니다</div>
+      </div>
+
+      <!-- ── 결과 입력 방식 ── -->
+      <div class="fg">
+        <label>입력 방식</label>
+        <div class="res-mode-tabs" id="res-mode-chips">
+          <button class="res-mode-tab on" id="rm-winner" type="button" onclick="setResMode('winner')">
+            <span class="res-mode-tab-t">승자만 입력</span>
+            <span class="res-mode-tab-d">승패만 기록</span>
+          </button>
+          <button class="res-mode-tab" id="rm-sets" type="button" onclick="setResMode('sets')">
+            <span class="res-mode-tab-t">세트 승패</span>
+            <span class="res-mode-tab-d">3:1, 3:2 형태 기록</span>
+          </button>
+          <button class="res-mode-tab" id="rm-detail" type="button" onclick="setResMode('detail')">
+            <span class="res-mode-tab-t">세트 점수</span>
+            <span class="res-mode-tab-d">11:8, 9:11 상세 기록</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── 승자만 입력 ── -->
+      <div class="fg res-mode-panel" id="res-panel-winner" style="margin-bottom:0">
+        <div class="res-winner-hint">위에서 <strong>승리 팀</strong>만 선택하고 저장하세요.</div>
+      </div>
+
+      <!-- ── 세트 승패 입력 (세트별 승자 선택) ── -->
+      <div class="fg res-mode-panel" id="res-panel-sets" style="display:none;margin-bottom:0">
+        <label>세트 승패 <span style="color:var(--t3);font-size:12px;font-weight:400">(각 세트 승자 선택)</span></label>
+        <div id="sc-setwin-rows"></div>
+        <div class="res-preset-grid" id="sc-setwin-presets"></div>
+      </div>
+
+      <!-- ── 세트별 스코어: 숫자 직접 입력 ── -->
+      <div class="fg res-mode-panel" id="res-panel-detail" style="display:none;margin-bottom:0">
+        <label>세트별 스코어 <span style="color:var(--t3);font-size:12px;font-weight:400">(각 세트 점수 입력)</span></label>
+        <div id="sc-input-rows"></div>
+      </div>
+
+      <!-- 공통: 세트 승패 요약 -->
+      <div class="fg" id="res-preview-wrap" style="margin-bottom:0">
+        <div id="sc-summary" style="display:none;margin-top:10px;padding:10px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:13px;font-weight:600;color:var(--t2)"></div>
+        <div id="sc-setwins-preview" style="display:none;margin-top:10px;padding:12px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:15px;font-weight:700;color:var(--t2)"></div>
+      </div>
+
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-result')">취소</button>
+      <button class="btn btn-p" onclick="submitResult()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 내기 참여 모달 ══ -->
+<!-- 내기가 있는 대결(커피/짜장면)에서 비참여 회원이 승리 팀을 예측하는 모달 -->
+<div class="mo" id="mo-bet">
+  <div class="mw">
+    <div class="mh">
+      <div class="mt" id="bet-mo-title">☕ 커피 <em>내기</em></div>
+      <button class="mc-btn" onclick="closeMo('mo-bet')">✕</button>
+    </div>
+    <div class="mb">
+      <div id="bet-info" class="bet-info-box"></div>
+      <div id="bet-my-info" class="bet-my-info"></div>
+      <div class="fg bet-pick-fg">
+        <label>예상 승리팀 선택</label>
+        <p class="bet-pick-hint">응원할 팀을 선택해주세요.</p>
+        <div class="bet-pick-row">
+          <div id="bet-pick-a" class="bet-pick-card" onclick="setBetPick('a')" role="button" tabindex="0">
+            <div id="bet-pick-a-lbl" class="bet-pick-lbl">A팀</div>
+          </div>
+          <div id="bet-pick-b" class="bet-pick-card" onclick="setBetPick('b')" role="button" tabindex="0">
+            <div id="bet-pick-b-lbl" class="bet-pick-lbl">B팀</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-bet')">취소</button>
+      <button class="btn btn-p" onclick="submitBetPick()">🎯 참여하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 카카오톡 공유 모달 ══ -->
+<div class="mo" id="mo-kakao">
+  <div class="mw">
+    <div class="mh">
+      <div class="mt">💬 카카오톡 <em>공유</em></div>
+      <button class="mc-btn" onclick="closeMo('mo-kakao')">✕</button>
+    </div>
+    <div class="mb">
+      <div class="share-box">
+        <div class="share-box-t" id="share-box-t">📣 도전장이 등록됐어요!</div>
+        <div class="share-box-p" id="share-box-p">아래 버튼을 눌러 카카오톡으로 상대방에게 바로 전달하세요!</div>
+        <div class="fscroll" style="margin-bottom:12px" id="share-templates">
+          <button class="fc on" id="st-detail" type="button" onclick="setShareTemplate('detail')">상세</button>
+          <button class="fc" id="st-short" type="button" onclick="setShareTemplate('short')">짧게</button>
+          <button class="fc" id="st-open" type="button" onclick="setShareTemplate('open')" style="display:none">오픈용</button>
+        </div>
+        <!-- 공유 메시지 미리보기 -->
+        <div class="share-preview" id="kakao-preview"></div>
+        <!-- 버튼 영역: 카카오톡 직접 열기 + 복사 -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-kakao" style="flex:1" onclick="doKakaoShare()">
+            <span class="kt-icon">💬</span> 카카오톡으로 공유
+          </button>
+          <button class="btn btn-g" style="min-height:44px;padding:10px 16px;font-size:14px" onclick="copyShareMsg()" title="클립보드에 복사">
+            📋 복사
+          </button>
+          <button class="btn btn-g" id="btn-native-share" style="display:none;min-height:44px;padding:10px 16px;font-size:14px" onclick="doNativeShare()" title="다른 앱으로 공유">
+            📤 더 공유
+          </button>
+        </div>
+      </div>
+      <!-- 환경별 안내 문구 (JS로 동적 표시) -->
+      <div id="share-hint" style="font-size:12px;color:var(--t3);text-align:center;margin-top:10px;line-height:1.6"></div>
+      <div id="share-origin-info" style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px;opacity:.75"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-kakao')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 오픈 챌린지 수락 모달 ══ -->
+<!-- 오픈 챌린지 수락 시: 수락자가 자신의 팀을 구성하는 모달 -->
+<div class="mo" id="mo-accept-open">
+  <div class="mw">
+    <div class="mh">
+      <div class="mt">🔥 오픈 챌린지 <em>수락</em></div>
+      <button class="mc-btn" onclick="closeMo('mo-accept-open')">✕</button>
+    </div>
+    <div class="mb">
+      <!-- 도전자 정보 표시 배너 -->
+      <div class="oc-banner">
+        <span>🏓</span>
+        <div id="oc-challenger-info">챌린저 정보 로딩 중...</div>
+      </div>
+      <!-- 수락팀 선택 -->
+      <div class="fg">
+        <label id="lbl-accept-team">내 팀 선택</label>
+        <div class="msg" id="g-accept"></div>
+        <div class="emsg" id="e-accept">선택해주세요</div>
+      </div>
+      <!-- 수락자 한마디 -->
+      <div class="fg" style="margin-bottom:0">
+        <label>한마디 (선택)</label>
+        <input type="text" id="accept-msg" placeholder="💬 좋아요, 한번 붙어봅시다!">
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-accept-open')">취소</button>
+      <button class="btn btn-p" onclick="submitAcceptOpen()">✅ 수락 확정</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 회원 등록 모달 ══ -->
+<div class="mo" id="mo-add">
+  <div class="mw">
+    <div id="af">
+      <div class="mh"><div class="mt">신규 회원 <em>등록</em></div><button class="mc-btn" onclick="closeMo('mo-add')">✕</button></div>
+      <div class="mb">
+        <div class="fr" style="margin-bottom:18px">
+          <div class="fg" style="margin:0"><label>이름 <span class="req">*</span></label><input type="text" id="rn" placeholder="홍길동" autocomplete="name"><div class="emsg" id="e-rn">필수 입력</div></div>
+          <div class="fg" style="margin:0"><label>연락처</label><input type="tel" id="rp" placeholder="010-0000-0000" oninput="fmtP(this)" autocomplete="tel"></div>
+        </div>
+        <div class="fr" style="margin-bottom:18px">
+          <div class="fg" style="margin:0"><label>성별</label><select id="rg"><option value="">선택</option><option value="남성">남성</option><option value="여성">여성</option></select></div>
+          <div class="fg" style="margin:0"><label>등급</label><div class="elo">🌱 개인 포인트에 따라 자동 부여 (신규 1000pt → 입문)</div></div>
+        </div>
+        <div class="fg" style="margin-bottom:0"><label>메모</label><textarea id="rmemo" placeholder="특이사항, 라켓 종류 등..."></textarea></div>
+      </div>
+      <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-add')">취소</button><button class="btn btn-p" onclick="submitM()">등록 완료</button></div>
+    </div>
+    <div id="as" style="display:none;text-align:center;padding:48px 24px">
+      <div style="font-size:56px;margin-bottom:16px">🎉</div>
+      <div id="asn" style="font-size:20px;font-weight:800;color:var(--a);margin-bottom:8px"></div>
+      <div style="font-size:14px;color:var(--t2);margin-bottom:28px;line-height:1.6">Firebase에 저장 완료!<br>회원 목록에서 확인할 수 있어요.</div>
+      <div style="display:flex;gap:12px;justify-content:center"><button class="btn btn-g" onclick="closeMo('mo-add')">닫기</button><button class="btn btn-p" onclick="openAddModal()">+ 추가 등록</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 회원 상세 / 상대 전적 모달 ══ -->
+<div class="mo write-mo" id="mo-profile">
+  <div class="mw">
+    <div class="mh"><div class="mt">회원 <em>상세</em></div><button class="mc-btn" onclick="closeMo('mo-profile')">✕</button></div>
+    <div class="mb">
+      <div id="prof-header"></div>
+      <div id="prof-doubles"></div>
+      <div id="prof-singles"></div>
+      <div id="prof-streak" style="display:none"></div>
+      <div id="prof-recent" style="display:none"></div>
+      <div id="prof-badges"></div>
+      <div class="fg" style="margin-top:18px;margin-bottom:0">
+        <label>상대 전적 조회 <span style="color:var(--t3);font-size:12px;font-weight:400">(단식·복식 통합)</span></label>
+        <select id="prof-opp" onchange="renderProfileH2H()" style="min-height:44px;width:100%"></select>
+      </div>
+      <div id="prof-h2h" style="margin-top:12px"></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-profile')">닫기</button></div>
+  </div>
+</div>
+
+
+<!-- ══ 관리자 PIN 모달 ══ -->
+<div class="mo" id="mo-admin-pin">
+  <div class="mw" style="max-width:360px">
+    <div class="mh"><div class="mt">🔐 관리자 <em>인증</em></div><button class="mc-btn" onclick="closeMo('mo-admin-pin')">✕</button></div>
+    <div class="mb">
+      <div class="fg" style="margin-bottom:0">
+        <label>4자리 PIN</label>
+        <input type="password" id="admin-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••" style="text-align:center;font-size:24px;letter-spacing:.35em;font-weight:800" onkeydown="if(event.key==='Enter')submitAdminPin()">
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-admin-pin')">취소</button><button class="btn btn-p" onclick="submitAdminPin()">확인</button></div>
+  </div>
+</div>
+
+<!-- ══ 시즌 관리 모달 ══ -->
+<div class="mo write-mo" id="mo-season">
+  <div class="mw">
+    <div class="mh"><div class="mt">📅 시즌 <em>관리</em></div><button class="mc-btn" onclick="closeMo('mo-season')">✕</button></div>
+    <div class="mb">
+      <div class="fg admin-only">
+        <label>새 시즌 만들기</label>
+        <input type="text" id="sn-name" placeholder="2026 시즌">
+      </div>
+      <div class="fg admin-only">
+        <label>시작일</label>
+        <input type="date" id="sn-start">
+      </div>
+      <button class="btn btn-p admin-only" style="width:100%;min-height:44px;margin-bottom:18px" onclick="createSeason()">＋ 시즌 생성 및 현재 시즌으로 지정</button>
+      <div class="fg" style="margin-bottom:0">
+        <label>시즌 목록</label>
+        <div id="sn-list"></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-season')">닫기</button></div>
+  </div>
+</div>
+
+<!-- ══ 회원 수정 모달 ══ -->
+<div class="mo" id="mo-edit">
+  <div class="mw">
+    <div class="mh"><div class="mt">회원 <em>수정</em></div><button class="mc-btn" onclick="closeMo('mo-edit')">✕</button></div>
+    <div class="mb">
+      <input type="hidden" id="eid">
+      <div class="fr" style="margin-bottom:18px">
+        <div class="fg" style="margin:0"><label>이름 <span class="req">*</span></label><input type="text" id="en"><div class="emsg" id="e-en">필수 입력</div></div>
+        <div class="fg" style="margin:0"><label>연락처</label><input type="tel" id="ep" oninput="fmtP(this)"></div>
+      </div>
+      <div class="fr" style="margin-bottom:18px">
+        <div class="fg" style="margin:0"><label>성별</label><select id="eg"><option value="">선택</option><option value="남성">남성</option><option value="여성">여성</option></select></div>
+        <div class="fg" style="margin:0"><label>등급</label><div class="elo" id="egr-disp">—</div></div>
+      </div>
+      <div class="fr" style="margin-bottom:18px">
+        <div class="fg" style="margin:0"><label>개인 포인트</label><div class="elo" id="ept-disp">—</div></div>
+        <div class="fg" style="margin:0"><label>상태</label><select id="est"><option value="활성">활성</option><option value="비활성">비활성</option></select></div>
+      </div>
+      <div class="fg" style="margin-bottom:0"><label>메모</label><textarea id="ememo"></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-edit')">취소</button><button class="btn btn-p" onclick="saveEdit()">저장</button></div>
+  </div>
+</div>
+
+<!-- ══ 삭제 확인 모달 ══ -->
+<div class="mo" id="mo-del">
+  <div class="mw">
+    <div class="mh"><div class="mt" style="color:var(--red)">회원 삭제</div><button class="mc-btn" onclick="closeMo('mo-del')">✕</button></div>
+    <div class="mb" style="text-align:center;padding:24px 24px 8px">
+      <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+      <div id="dm" style="font-size:17px;font-weight:800;margin-bottom:10px;color:var(--t1)"></div>
+      <div style="font-size:14px;color:var(--t2);line-height:1.65">Firebase에서 영구 삭제됩니다.<br>이 작업은 되돌릴 수 없습니다.</div>
+    </div>
+    <div class="mf" style="justify-content:center;gap:14px">
+      <button class="btn btn-g" onclick="closeMo('mo-del')">취소</button>
+      <button class="btn btn-d" onclick="confirmDel()">삭제 확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 공지 작성 모달 ══ -->
+<div class="mo write-mo" id="mo-notice">
+  <div class="mw">
+    <div class="mh"><div class="mt">공지 <em>작성</em></div><button class="mc-btn" onclick="closeMo('mo-notice')">✕</button></div>
+    <div class="mb">
+      <div class="fg"><label>분류</label><select id="ntype"><option>일반</option><option>필독</option><option>일정</option><option>안내</option></select></div>
+      <div class="fg"><label>제목 <span class="req">*</span></label><input type="text" id="ntitle" placeholder="공지 제목"><div class="emsg" id="e-nt">필수 입력</div></div>
+      <div class="fg" style="margin-bottom:0"><label>내용</label><textarea id="nbody" placeholder="공지 내용을 입력하세요..."></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-notice')">취소</button><button class="btn btn-p" onclick="submitNotice()">등록</button></div>
+  </div>
+</div>
+
+<!-- ══ 공지 수정 모달 ══ -->
+<div class="mo write-mo" id="mo-nedit">
+  <div class="mw">
+    <div class="mh"><div class="mt">공지 <em>수정</em></div><button class="mc-btn" onclick="closeMo('mo-nedit')">✕</button></div>
+    <div class="mb">
+      <input type="hidden" id="neid">
+      <div class="fg"><label>분류</label><select id="netype"><option>일반</option><option>필독</option><option>일정</option><option>안내</option></select></div>
+      <div class="fg"><label>제목 <span class="req">*</span></label><input type="text" id="netitle"><div class="emsg" id="e-net">필수 입력</div></div>
+      <div class="fg" style="margin-bottom:0"><label>내용</label><textarea id="nebody"></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-nedit')">취소</button><button class="btn btn-p" onclick="saveNoticeEdit()">저장</button></div>
+  </div>
+</div>
+
+<!-- ══ 게시글 작성 모달 ══ -->
+<div class="mo write-mo" id="mo-board">
+  <div class="mw">
+    <div class="mh"><div class="mt">게시글 <em>작성</em></div><button class="mc-btn" onclick="closeMo('mo-board')">✕</button></div>
+    <div class="mb">
+      <div class="fg"><label>작성자 <span class="req">*</span></label><input type="text" id="bauthor" placeholder="이름"><div class="emsg" id="e-ba">필수 입력</div></div>
+      <div class="fg"><label>제목 <span class="req">*</span></label><input type="text" id="btitle" placeholder="제목"><div class="emsg" id="e-bt">필수 입력</div></div>
+      <div class="fg" style="margin-bottom:0"><label>내용</label><textarea id="bbody" placeholder="내용을 입력하세요..."></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-board')">취소</button><button class="btn btn-p" onclick="submitBoard()">등록</button></div>
+  </div>
+</div>
+
+<!-- ══ 게시글 수정 모달 ══ -->
+<div class="mo write-mo" id="mo-bedit">
+  <div class="mw">
+    <div class="mh"><div class="mt">게시글 <em>수정</em></div><button class="mc-btn" onclick="closeMo('mo-bedit')">✕</button></div>
+    <div class="mb">
+      <input type="hidden" id="beid">
+      <div class="fg"><label>작성자</label><input type="text" id="beauthor"></div>
+      <div class="fg"><label>제목 <span class="req">*</span></label><input type="text" id="betitle"><div class="emsg" id="e-bet">필수 입력</div></div>
+      <div class="fg" style="margin-bottom:0"><label>내용</label><textarea id="bebody"></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-bedit')">취소</button><button class="btn btn-p" onclick="saveBoardEdit()">저장</button></div>
+  </div>
+</div>
+
+
+<!-- ══ 내 선수 설정 모달 ══ -->
+<div class="mo" id="mo-my-player">
+  <div class="mw" style="max-width:400px">
+    <div class="mh"><div class="mt">🏓 내 선수 <em>설정</em></div><button class="mc-btn" id="my-player-close" onclick="closeMo('mo-my-player')">✕</button></div>
+    <div class="mb">
+      <p class="wiz-setup-desc" id="my-player-title">본인을 선택해주세요.</p>
+      <div class="wiz-pick-grid" id="my-player-list"></div>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-p" id="my-player-confirm" onclick="confirmMyPlayer()" disabled>확인</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app/main.js?v=2026.06.22.10"></script>
+</body>
+</html>

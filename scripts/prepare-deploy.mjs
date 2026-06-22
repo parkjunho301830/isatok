@@ -11,7 +11,7 @@ const root = path.join(__dirname, '..');
 const versionFile = path.join(root, 'js', 'app', 'version.js');
 const versionJsonFile = path.join(root, 'version.json');
 const swFile = path.join(root, 'service-worker.js');
-const indexFile = path.join(root, 'index.html');
+const appHtmlFile = path.join(root, 'app.html');
 const mainFile = path.join(root, 'js', 'app', 'main.js');
 const manifestFile = path.join(root, 'manifest.json');
 
@@ -89,8 +89,8 @@ if (nextSw === swContent) {
 }
 fs.writeFileSync(swFile, nextSw, 'utf8');
 
-var indexContent = fs.readFileSync(indexFile, 'utf8');
-fs.writeFileSync(indexFile, bumpAssetQuery(indexContent, appVersion), 'utf8');
+var appHtmlContent = fs.readFileSync(appHtmlFile, 'utf8');
+fs.writeFileSync(appHtmlFile, bumpAssetQuery(appHtmlContent, appVersion), 'utf8');
 
 var mainContent = fs.readFileSync(mainFile, 'utf8');
 var nextMain = mainContent.replace(

@@ -20,7 +20,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,SITE_ORIGIN}from'./version.js?v=2026.06.22.07';
+import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.22.10';
 import{initPwa,ensureLatestVersion}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
@@ -3740,12 +3740,39 @@ var _SHARE_IMG_VER='6';
 function _shareOgImageUrl(){
   return _siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
 }
+function _kakaoFeedImageUrl(){
+  return _siteBase()+'assets/share-kakao.jpg';
+}
+function _kakaoClamp(s,max){
+  s=String(s||'').trim();
+  if(s.length<=max)return s;
+  return s.slice(0,max-1)+'…';
+}
+function _kakaoCallerOrigin(){
+  return window.location.origin.replace(/\/$/,'');
+}
+function _kakaoCallerAllowed(){
+  var origin=_kakaoCallerOrigin();
+  var canonical=SITE_ORIGIN.replace(/\/$/,'');
+  if(origin===canonical)return true;
+  if(origin==='https://isatok-ef06a.web.app')return true;
+  return false;
+}
+function _ensureKakaoCallerDomain(){
+  if(_kakaoCallerAllowed())return true;
+  var canonical=SITE_ORIGIN.replace(/\/$/,'');
+  toast(
+    '카카오 공유는 공식 주소에서만 가능합니다.\n'+canonical+' 로 접속해주세요.\n(현재: '+_kakaoCallerOrigin()+')',
+    {multiline:true,duration:4500}
+  );
+  return false;
+}
 function _sendKakaoFeed(c,meta,url,imageUrl){
   Kakao.Share.sendDefault({
     objectType:'feed',
     content:{
-      title:meta.title,
-      description:meta.description,
+      title:_kakaoClamp(meta.title,200),
+      description:_kakaoClamp(meta.description,200),
       imageUrl:imageUrl,
       link:{mobileWebUrl:url,webUrl:url}
     },
@@ -3890,16 +3917,23 @@ function _isKakaoInApp(){
 // ── 환경에 따라 공유 모달 하단 힌트 텍스트를 동적으로 세팅
 function _setShareHint(){
   var hint=g('share-hint');
-  if(!hint)return;
+  var originInfo=g('share-origin-info');
+  var kakaoBtn=document.querySelector('#mo-kakao .btn-kakao');
+  if(originInfo){
+    originInfo.textContent='접속 주소: '+_kakaoCallerOrigin();
+  }
   if(_isKakaoInApp()){
-    // 카카오톡 인앱 브라우저: SDK 공유 피커가 바로 열릴 수 있음
-    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방 선택 화면이 열립니다.';
-  } else if(_isMobile()){
-    // 모바일: SDK가 카카오톡 채팅방 선택 피커를 직접 오픈
-    hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방을 선택해서 바로 전송할 수 있어요!';
-  } else {
-    // PC 환경: SDK가 카카오톡 공유 창 오픈 (카카오 계정 로그인 필요할 수 있음)
-    hint.innerHTML='💻 [카카오톡으로 공유] 버튼을 누르면<br>카카오톡 공유 창이 열립니다.<br>또는 📋 복사 후 카카오톡에 붙여넣기 하세요.';
+    if(kakaoBtn)kakaoBtn.innerHTML='<span class="kt-icon">📋</span> 복사 후 채팅에 붙여넣기';
+    if(hint)hint.innerHTML='💡 카카오톡 안에서는 <b>복사 후 붙여넣기</b>가 가장 안정적입니다.<br>Chrome·Safari에서 열면 채팅방 선택 공유도 가능해요.';
+  } else if(kakaoBtn){
+    kakaoBtn.innerHTML='<span class="kt-icon">💬</span> 카카오톡으로 공유';
+    if(hint){
+      if(_isMobile()){
+        hint.innerHTML='💡 [카카오톡으로 공유] 버튼을 누르면<br>채팅방을 선택해서 바로 전송할 수 있어요!';
+      } else {
+        hint.innerHTML='💻 [카카오톡으로 공유] 버튼을 누르면<br>카카오톡 공유 창이 열립니다.<br>또는 📋 복사 후 카카오톡에 붙여넣기 하세요.';
+      }
+    }
   }
 }
 
@@ -3938,7 +3972,7 @@ function _initKakao(){
   }
   // 중복 초기화 방지
   if(!Kakao.isInitialized()){
-    Kakao.init('7da5c6757ca9aa96c346e1349a7cbce1');
+    Kakao.init(KAKAO_JS_KEY);
   }
   _kakaoReady = true;
   return true;
@@ -3953,15 +3987,22 @@ window.doKakaoShare=function(){
   var url=_shareLinkUrl(c);
   if(!txt)return;
 
+  if(_isKakaoInApp()){
+    _copyToClipboard(txt);
+    toast('📋 복사됐습니다!\n채팅방 입력창에 붙여넣기 하세요.',{multiline:true,duration:4000});
+    return;
+  }
+  if(!_ensureKakaoCallerDomain())return;
+
   if(_initKakao()){
     try{
       if(c){
         var meta=_shareFeedMeta(c);
-        _sendKakaoFeed(c,meta,url,_shareOgImageUrl());
+        _sendKakaoFeed(c,meta,url,_kakaoFeedImageUrl());
       }else{
         Kakao.Share.sendDefault({
           objectType:'text',
-          text:txt,
+          text:_kakaoClamp(txt,200),
           link:{mobileWebUrl:url,webUrl:url},
           installTalk:true
         });
@@ -3971,12 +4012,14 @@ window.doKakaoShare=function(){
       try{
         Kakao.Share.sendDefault({
           objectType:'text',
-          text:txt,
+          text:_kakaoClamp(txt,200),
           link:{mobileWebUrl:url,webUrl:url},
           installTalk:true
         });
         return;
-      }catch(e2){}
+      }catch(e2){
+        toast('❌ 카카오 공유 실패 (4019)\n카카오 개발자 콘솔 → 플랫폼 키 → JavaScript SDK 도메인에\nhttps://isatok.web.app 등록을 확인해주세요.',{multiline:true,duration:5000});
+      }
     }
   }
 

@@ -41,7 +41,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add js/app/version.js version.json service-worker.js index.html js/app/main.js manifest.json
+          git add js/app/version.js version.json service-worker.js app.html js/app/main.js manifest.json
           if git diff --staged --quiet; then
             echo "No version files changed."
           else
