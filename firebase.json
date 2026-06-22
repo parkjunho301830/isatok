@@ -16,7 +16,6 @@
         "README.md",
         "LICENSE",
         ".gitignore",
-        "hosting-redirect/**",
         "index.html",
         "404.html"
       ],
@@ -117,17 +116,6 @@
               "value": "no-cache, must-revalidate"
             }
           ]
-        }
-      ]
-    },
-    {
-      "site": "isatok-ef06a",
-      "public": "hosting-redirect",
-      "redirects": [
-        {
-          "source": "**",
-          "destination": "https://isatok.web.app/:splat",
-          "type": 301
         }
       ]
     }

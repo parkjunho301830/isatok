@@ -3784,9 +3784,7 @@ function _kakaoCallerOrigin(){
 function _kakaoCallerAllowed(){
   var origin=_kakaoCallerOrigin();
   var canonical=SITE_ORIGIN.replace(/\/$/,'');
-  if(origin===canonical)return true;
-  if(origin==='https://isatok-ef06a.web.app')return true;
-  return false;
+  return origin===canonical;
 }
 function _ensureKakaoCallerDomain(){
   if(_kakaoCallerAllowed())return true;
