@@ -29,6 +29,18 @@
 </head>
 <body>
 
+<!-- 카카오톡 인앱 브라우저 안내 (모바일·최초 1회) -->
+<div id="kakao-inapp-banner" class="kakao-inapp-banner" hidden>
+  <div class="kakao-inapp-copy">
+    <p class="kakao-inapp-line">카카오톡 내부 브라우저에서는 일부 기능이 정상 동작하지 않을 수 있습니다.</p>
+    <p class="kakao-inapp-line kakao-inapp-line--sub">우측 상단 ⋮ 메뉴 → <strong>기본 브라우저로 열기</strong>를 선택해주세요.</p>
+  </div>
+  <div class="kakao-inapp-actions">
+    <button type="button" class="btn btn-p btn-xs" id="kakao-open-browser-btn" onclick="openInExternalBrowser()" hidden>Chrome에서 열기</button>
+    <button type="button" class="kakao-inapp-close" onclick="dismissKakaoInAppBanner()" aria-label="닫기">✕</button>
+  </div>
+</div>
+
 <!-- 로딩 -->
 <div class="ls" id="ls">
   <img src="assets/favicon.svg" alt="" class="ls-mark" width="56" height="56">
@@ -241,7 +253,7 @@
 <div id="pwa-install-banner" class="pwa-install-banner" hidden>
   <p class="pwa-install-text">🏓 이사탁을 홈 화면에 추가해 보세요.</p>
   <div class="pwa-install-actions">
-    <button type="button" class="btn btn-p btn-xs" id="pwa-install-btn" onclick="installPwa()">설치</button>
+    <button type="button" class="btn btn-p btn-sm pwa-install-btn" id="pwa-install-btn" onclick="installPwa()" hidden>📲 앱 설치</button>
     <button type="button" class="pwa-install-close" onclick="dismissPwaInstall()" aria-label="닫기">✕</button>
   </div>
 </div>

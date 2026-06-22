@@ -1,47 +1,147 @@
 /**
- * PWA: Service Worker 등록 + 홈 화면 설치 안내
+ * PWA 설치 + 카카오톡 인앱 브라우저 안내
  */
 var LS_PWA_DISMISS = 'isatok_pwa_install_dismissed';
+var LS_KAKAO_BANNER = 'isatok_kakao_inapp_banner_seen';
+var LS_KAKAO_INTENT = 'isatok_kakao_intent_attempted';
+
+function _ua() {
+  return window.navigator.userAgent || '';
+}
 
 function _isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
-function _isMobile() {
+function _isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(_ua());
+}
+
+function _isMobileViewport() {
   return window.matchMedia('(max-width: 768px)').matches;
 }
 
+function _isAndroid() {
+  return /Android/i.test(_ua());
+}
+
+function _isIos() {
+  return /iPhone|iPad|iPod/i.test(_ua());
+}
+
+function _isKakaoInApp() {
+  return /KAKAOTALK|KakaoTalk/i.test(_ua());
+}
+
 function _isIosSafari() {
-  var ua = window.navigator.userAgent || '';
-  var isIos = /iphone|ipad|ipod/i.test(ua);
-  var isSafari = /safari/i.test(ua) && !/crios|fxios|edgios/i.test(ua);
-  return isIos && isSafari;
+  if (!_isIos()) return false;
+  if (_isKakaoInApp()) return false;
+  var ua = _ua();
+  if (/crios|fxios|edgios|opr\//i.test(ua)) return false;
+  return /safari/i.test(ua);
+}
+
+function _tryOpenInChromeAndroid() {
+  if (!_isAndroid()) return;
+  if (localStorage.getItem(LS_KAKAO_INTENT)) return;
+  localStorage.setItem(LS_KAKAO_INTENT, '1');
+
+  var url = window.location.href;
+  var path = url.replace(/^https?:\/\//, '');
+  var intent =
+    'intent://' + path +
+    '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
+    encodeURIComponent(url) + ';end';
+
+  try {
+    window.location.href = intent;
+  } catch (e) { /* ignore */ }
+}
+
+function _showKakaoInAppBanner() {
+  if (!_isMobileDevice() || !_isKakaoInApp()) return;
+  if (localStorage.getItem(LS_KAKAO_BANNER)) return;
+
+  var banner = document.getElementById('kakao-inapp-banner');
+  if (!banner) return;
+
+  localStorage.setItem(LS_KAKAO_BANNER, '1');
+  banner.hidden = false;
+  document.body.classList.add('has-kakao-banner');
+
+  var chromeBtn = document.getElementById('kakao-open-browser-btn');
+  if (chromeBtn) chromeBtn.hidden = !_isAndroid();
+}
+
+window.dismissKakaoInAppBanner = function () {
+  localStorage.setItem(LS_KAKAO_BANNER, '1');
+  var banner = document.getElementById('kakao-inapp-banner');
+  if (banner) banner.hidden = true;
+  document.body.classList.remove('has-kakao-banner');
+};
+
+window.openInExternalBrowser = function () {
+  if (_isAndroid()) {
+    localStorage.setItem(LS_KAKAO_INTENT, '1');
+    var url = window.location.href;
+    var path = url.replace(/^https?:\/\//, '');
+    window.location.href =
+      'intent://' + path +
+      '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
+      encodeURIComponent(url) + ';end';
+  }
+};
+
+function initKakaoInAppBanner() {
+  if (!_isMobileDevice() || !_isKakaoInApp()) return;
+  if (localStorage.getItem(LS_KAKAO_BANNER)) return;
+
+  if (_isAndroid()) {
+    _tryOpenInChromeAndroid();
+    window.setTimeout(_showKakaoInAppBanner, 700);
+  } else {
+    _showKakaoInAppBanner();
+  }
 }
 
 function _showPwaBanner(mode) {
-  if (_isStandalone() || localStorage.getItem(LS_PWA_DISMISS)) return;
-  if (!_isMobile()) return;
+  if (_isStandalone()) return;
+  if (_isKakaoInApp()) return;
+  if (localStorage.getItem(LS_PWA_DISMISS)) return;
+  if (!_isMobileViewport()) return;
+
   var banner = document.getElementById('pwa-install-banner');
   if (!banner) return;
 
   var textEl = banner.querySelector('.pwa-install-text');
   var installBtn = document.getElementById('pwa-install-btn');
-  if (mode === 'ios') {
-    if (textEl) textEl.textContent = '🏓 이사탁을 홈 화면에 추가해 보세요. (공유 → 홈 화면에 추가)';
-    if (installBtn) installBtn.style.display = 'none';
+
+  if (mode === 'android') {
+    if (textEl) textEl.textContent = '🏓 이사탁을 홈 화면에 추가하면 더 빠르게 이용할 수 있어요.';
+    if (installBtn) {
+      installBtn.hidden = false;
+      installBtn.textContent = '📲 앱 설치';
+    }
+  } else if (mode === 'ios') {
+    if (textEl) textEl.textContent = 'Safari 공유 버튼 → 홈 화면에 추가';
+    if (installBtn) installBtn.hidden = true;
   } else {
-    if (textEl) textEl.textContent = '🏓 이사탁 앱을 설치해 보세요.';
-    if (installBtn) installBtn.style.display = '';
+    return;
   }
+
   banner.hidden = false;
   document.body.classList.add('has-pwa-banner');
 }
 
-window.dismissPwaInstall = function () {
-  localStorage.setItem(LS_PWA_DISMISS, '1');
+function _hidePwaBanner() {
   var banner = document.getElementById('pwa-install-banner');
   if (banner) banner.hidden = true;
   document.body.classList.remove('has-pwa-banner');
+}
+
+window.dismissPwaInstall = function () {
+  localStorage.setItem(LS_PWA_DISMISS, '1');
+  _hidePwaBanner();
 };
 
 window.installPwa = async function () {
@@ -55,7 +155,6 @@ window.installPwa = async function () {
   window.dismissPwaInstall();
 };
 
-// Firebase 초기화 전에 등록해야 installability 조건을 충족함
 if ('serviceWorker' in navigator && !_isStandalone()) {
   navigator.serviceWorker.register('service-worker.js').catch(function () {});
 }
@@ -68,8 +167,25 @@ window.addEventListener('beforeinstallprompt', function (e) {
   }
 });
 
+window.addEventListener('appinstalled', function () {
+  window._deferredPwaPrompt = null;
+  localStorage.setItem(LS_PWA_DISMISS, '1');
+  _hidePwaBanner();
+});
+
+function _bootKakaoBanner() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initKakaoInAppBanner);
+  } else {
+    initKakaoInAppBanner();
+  }
+}
+
+_bootKakaoBanner();
+
 export function initPwa() {
   if (_isStandalone()) return;
+  if (_isKakaoInApp()) return;
 
   if (window._deferredPwaPrompt) {
     _showPwaBanner('android');

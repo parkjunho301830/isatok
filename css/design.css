@@ -604,6 +604,61 @@
   box-shadow:0 -2px 12px rgba(0,0,0,.04);
 }
 
+/* ── Kakao in-app browser banner ── */
+.kakao-inapp-banner{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  position:fixed;
+  top:calc(52px + env(safe-area-inset-top, 0px));
+  left:0;
+  right:0;
+  z-index:490;
+  padding:10px 12px;
+  background:linear-gradient(135deg, #fff9db 0%, #fff 55%);
+  border-bottom:1px solid rgba(254,229,0,.45);
+  box-shadow:0 4px 16px rgba(0,0,0,.08);
+}
+.kakao-inapp-banner[hidden]{display:none!important;}
+.kakao-inapp-copy{flex:1;min-width:0;}
+.kakao-inapp-line{
+  margin:0;
+  font-size:12px;
+  font-weight:700;
+  color:var(--t1);
+  line-height:1.45;
+}
+.kakao-inapp-line--sub{
+  margin-top:4px;
+  font-size:11px;
+  font-weight:600;
+  color:var(--t2);
+}
+.kakao-inapp-line strong{color:var(--a);}
+.kakao-inapp-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-shrink:0;
+}
+.kakao-inapp-actions .btn-xs{min-height:36px;padding:6px 10px;font-size:11px;white-space:nowrap;}
+.kakao-inapp-close{
+  width:32px;height:32px;
+  border:none;border-radius:999px;
+  background:rgba(0,0,0,.06);
+  color:var(--t3);
+  font-size:14px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+body.has-kakao-banner .main{
+  padding-top:68px;
+}
+@media(min-width:769px){
+  .kakao-inapp-banner{display:none!important;}
+  body.has-kakao-banner .main{padding-top:0;}
+}
+
 /* ── PWA install banner ── */
 .pwa-install-banner{
   display:flex;
@@ -637,7 +692,15 @@
   gap:6px;
   flex-shrink:0;
 }
-.pwa-install-actions .btn-xs{min-height:36px;padding:6px 12px;font-size:12px;}
+.pwa-install-actions .btn-xs,
+.pwa-install-actions .pwa-install-btn{
+  min-height:40px;
+  min-width:44px;
+  padding:8px 14px;
+  font-size:13px;
+  font-weight:700;
+  white-space:nowrap;
+}
 .pwa-install-close{
   width:32px;height:32px;
   border:none;border-radius:999px;

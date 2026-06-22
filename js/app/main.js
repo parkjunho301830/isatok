@@ -3889,7 +3889,7 @@ function _isMobile(){
 
 // ── 현재 환경이 카카오톡 인앱 브라우저인지 판별
 function _isKakaoInApp(){
-  return /KAKAOTALK/i.test(navigator.userAgent);
+  return /KAKAOTALK|KakaoTalk/i.test(navigator.userAgent);
 }
 
 // ── 환경에 따라 공유 모달 하단 힌트 텍스트를 동적으로 세팅
