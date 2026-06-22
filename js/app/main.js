@@ -1022,12 +1022,10 @@ function _renderBsSummary(){
 }
 window.bsStepNextFrom2=function(){
   if(_editChId)bsStep(4);
-  else if(_isInstantCreateMode())bsStep(4);
   else bsStep(3);
 };
 window.bsStepPrevFrom4=function(){
   if(_editChId)bsStep(1);
-  else if(_isInstantCreateMode())bsStep(2);
   else bsStep(3);
 };
 
@@ -1192,11 +1190,11 @@ function _getCurrentBsStep(){
 function _syncBsFootNav(){
   var foot2Next=g('bs-foot2')&&g('bs-foot2').querySelector('.btn-p');
   if(foot2Next){
-    foot2Next.setAttribute('onclick',(_isInstantCreateMode()&&!_editChId)?'bsStepNextFrom2()':'bsStep(3)');
+    foot2Next.setAttribute('onclick',_editChId?'bsStepNextFrom2()':'bsStep(3)');
   }
   var foot4Prev=g('bs-foot4')&&g('bs-foot4').querySelector('.btn-g');
   if(foot4Prev){
-    foot4Prev.setAttribute('onclick',(_isInstantCreateMode()&&!_editChId)?'bsStepPrevFrom4()':'bsStep(3)');
+    foot4Prev.setAttribute('onclick',_editChId?'bsStepPrevFrom4()':'bsStep(3)');
   }
 }
 

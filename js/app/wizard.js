@@ -533,6 +533,11 @@ export function wizValidateStep(from, to) {
     return true;
   }
 
+  if (to === 4 && from === 2 && !C.getEditId()) {
+    toast('⚠️ 상대팀 선택 단계를 먼저 진행해주세요');
+    return false;
+  }
+
   if (to === 4 && from === 3) {
     var isOpen = g('oc-chk') && g('oc-chk').checked;
     if (!isOpen) {
