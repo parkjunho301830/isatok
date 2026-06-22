@@ -877,9 +877,42 @@ body.has-pwa-banner .toast{
 .rating-chart-empty,.rating-chart-note{text-align:center;font-size:12px;color:var(--t3);padding:12px 0;}
 .rating-chart-note{padding-top:0;margin-top:-4px;}
 
-.wiz-instant-res{margin-top:4px;}
-.wiz-instant-res .mb{padding:0;}
-.wiz-instant-res #ri{margin-bottom:14px;font-size:15px;}
+.wiz-instant-res{
+  margin-top:4px;
+  width:100%;
+  display:block;
+  visibility:visible;
+}
+.wiz-instant-res .mb{
+  padding:0 0 16px;
+  overflow:visible;
+  min-height:auto;
+  flex:none;
+  visibility:visible;
+}
+.wiz-instant-res #ri{
+  margin-bottom:14px;
+  font-size:15px;
+}
+#bs-step4 .fg label{
+  font-size:13px;
+  font-weight:800;
+  color:var(--t1);
+}
+#bs-step4 .res-mode-tabs{gap:10px;}
+#bs-step4 .res-mode-tab{
+  min-height:56px;
+  padding:12px 14px;
+}
+#bs-step4 .gm-grid-res .gm-card-sm{min-height:52px;}
+#bs-step4 #wa,#bs-step4 #wb{min-height:56px;}
+#bs-step4 .res-setwin-row,#bs-step4 .res-set-row{
+  margin-bottom:10px;
+}
+#bs-step4 .drum-picker{
+  width:80px;
+  height:140px;
+}
 
 @media(max-width:768px){
   .wiz-pick{min-height:58px;}

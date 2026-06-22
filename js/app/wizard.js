@@ -421,20 +421,30 @@ function _renderStep4() {
   var html = '';
 
   if (instant && !C.getEditId()) {
-    var now = C.nowDateTimeFields();
-    html += '<input type="date" id="ch-date" value="' + now.date + '" tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none">';
-    html += '<input type="time" id="ch-time" value="' + now.time + '" tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none">';
-    html += '<div id="wiz-instant-res-root" class="wiz-instant-res"></div>';
-    box.innerHTML = html;
     if (C.unmountInstantResultForm) C.unmountInstantResultForm();
+    var now = C.nowDateTimeFields();
+    var root = g('wiz-instant-res-root');
+    if (!root || !box.contains(root)) {
+      html += '<input type="date" id="ch-date" value="' + now.date + '" tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none">';
+      html += '<input type="time" id="ch-time" value="' + now.time + '" tabindex="-1" aria-hidden="true" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none">';
+      html += '<div id="wiz-instant-res-root" class="wiz-instant-res"></div>';
+      box.innerHTML = html;
+    } else {
+      var dateEl = g('ch-date');
+      var timeEl = g('ch-time');
+      if (dateEl) dateEl.value = now.date;
+      if (timeEl) timeEl.value = now.time;
+    }
     if (C.mountInstantResultForm) C.mountInstantResultForm();
     if (C.initResultForm) {
       C.initResultForm({
         myTeam: my,
         oppTeam: isOpen ? [] : opp,
-        gameMode: C.getBsGameMode ? C.getBsGameMode() : 'bo1'
+        gameMode: C.getBsGameMode ? C.getBsGameMode() : 'bo1',
+        instantWizard: true
       });
     }
+    if (C.scrollBsStep) C.scrollBsStep(4);
     C.updateChSubmitBtn();
     return;
   }

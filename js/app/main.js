@@ -664,6 +664,7 @@ function finish(){
     isInstantMode:_isInstantCreateMode,
     mountInstantResultForm:_mountInstantResultForm,
     unmountInstantResultForm:_unmountInstantResultForm,
+    scrollBsStep:_scrollBsStep,
     initResultForm:_initResultForm,
     getBsGameMode:function(){return _bsGameMode;},
     computeDoublesRecord:_computeDoublesRecord,
@@ -934,6 +935,7 @@ window.openBS = function(){
   setChCreateMode('normal');
   setBsGameMode('bo1');
   wizResetFlow(false);
+  _syncBsFootNav();
   bsStep(1);
   _showBS();
 };
@@ -959,6 +961,7 @@ window.openInstantBS=function(){
   var dateEl=g('ch-date');if(dateEl)dateEl.value=now.date;
   var timeEl=g('ch-time');if(timeEl)timeEl.value=now.time;
   wizResetFlow(true);
+  _syncBsFootNav();
   bsStep(1);
   _showBS();
 };
@@ -990,6 +993,7 @@ window.setChCreateMode=function(mode){
   }
   _applyChCreateModeUI();
   _updateChSubmitBtn();
+  _syncBsFootNav();
   renderGridsBS({force:true});
 };
 function _applyChCreateModeUI(){
@@ -1185,21 +1189,34 @@ function _getCurrentBsStep(){
 }
 
 // ── STEP 전환 (Wizard 4단계: 유형 → 내팀 → 상대팀 → 결과)
+function _syncBsFootNav(){
+  var foot2Next=g('bs-foot2')&&g('bs-foot2').querySelector('.btn-p');
+  if(foot2Next){
+    foot2Next.setAttribute('onclick',(_isInstantCreateMode()&&!_editChId)?'bsStepNextFrom2()':'bsStep(3)');
+  }
+  var foot4Prev=g('bs-foot4')&&g('bs-foot4').querySelector('.btn-g');
+  if(foot4Prev){
+    foot4Prev.setAttribute('onclick',(_isInstantCreateMode()&&!_editChId)?'bsStepPrevFrom4()':'bsStep(3)');
+  }
+}
+
 window.bsStep = function(n){
   var cur=_getCurrentBsStep();
   if(n>cur&&!wizValidateStep(cur,n))return;
   for(var i=1;i<=4;i++){
     var step=g('bs-step'+i),foot=g('bs-foot'+i);
     if(step)step.style.display=(i===n)?'':'none';
-    if(foot)foot.style.display=(i===n)?'':'none';
+    if(foot)foot.style.display=(i===n)?'flex':'none';
   }
   wizRenderStep(n);
+  _syncBsFootNav();
   if(n===4){
     if(_isInstantCreateMode()&&!_editChId){
       var ocWrap=g('oc-toggle-wrap');
       if(ocWrap)ocWrap.style.display='none';
     }
     _updateChSubmitBtn();
+    _scrollBsStep(4);
   }
 }
 
@@ -2259,23 +2276,34 @@ function _buildResultScore(){
 
 let _resultFormMountedInWizard=false;
 
-function _mountInstantResultForm(){
-  var slot=g('wiz-instant-res-root');
+function _findResultFormBody(){
   var mo=g('mo-result');
   var mb=mo&&mo.querySelector('.mb');
-  if(!slot||!mb||_resultFormMountedInWizard)return;
-  slot.appendChild(mb);
+  if(mb)return mb;
+  var slot=g('wiz-instant-res-root');
+  return slot?slot.querySelector('.mb'):null;
+}
+
+function _mountInstantResultForm(){
+  var slot=g('wiz-instant-res-root');
+  var mb=_findResultFormBody();
+  if(!slot||!mb)return;
+  if(mb.parentElement!==slot)slot.appendChild(mb);
   _resultFormMountedInWizard=true;
 }
 
 function _unmountInstantResultForm(){
-  if(!_resultFormMountedInWizard)return;
   var mo=g('mo-result');
   var mw=mo&&mo.querySelector('.mw');
-  var mb=mo&&mo.querySelector('.mb');
   var mf=mw&&mw.querySelector('.mf');
-  if(mb&&mw&&mf)mw.insertBefore(mb,mf);
+  var mb=_findResultFormBody();
+  if(mb&&mw&&mf&&mb.parentElement!==mw)mw.insertBefore(mb,mf);
   _resultFormMountedInWizard=false;
+}
+
+function _scrollBsStep(n){
+  var step=g('bs-step'+n);
+  if(step)step.scrollTop=0;
 }
 
 function _initResultForm(opts){
@@ -2332,6 +2360,10 @@ function _initResultForm(opts){
     }else if(!opts.score){
       setResMode('winner');
     }
+  }else if(opts.instantWizard){
+    setResMode('detail');
+    renderSetWinPickRows();
+    renderSetInputRows();
   }else{
     setResMode('winner');
     renderSetWinPickRows();
