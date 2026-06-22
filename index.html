@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="이사탁">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json?v=2026.06.22.02">
-<script type="module" src="js/app/pwa.js?v=2026.06.22.02"></script>
+<link rel="manifest" href="manifest.json?v=2026.06.22.03">
+<script type="module" src="js/app/pwa.js?v=2026.06.22.03"></script>
 <meta property="og:title" content="이사탁">
 <meta property="og:description" content="이사탁 탁구 동호회 — 대결 신청, 랭킹, 통계">
 <meta property="og:type" content="website">
@@ -26,9 +26,9 @@
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
   integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
   crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/style.css?v=2026.06.22.02">
-<link rel="stylesheet" href="css/components.css?v=2026.06.22.02">
-<link rel="stylesheet" href="css/design.css?v=2026.06.22.02">
+<link rel="stylesheet" href="css/style.css?v=2026.06.22.03">
+<link rel="stylesheet" href="css/components.css?v=2026.06.22.03">
+<link rel="stylesheet" href="css/design.css?v=2026.06.22.03">
 </head>
 <body>
 
@@ -98,6 +98,7 @@
     </div>
     <div class="mhdr-r">
       <button class="btn btn-g btn-xs admin-mhdr-btn" id="btn-admin-m" type="button" onclick="toggleAdmin()" title="관리자">🔐</button>
+      <button type="button" class="mhdr-install-btn" id="pwa-header-install-btn" onclick="onHeaderInstallClick()" hidden aria-label="앱 설치" title="앱 설치"><span class="mhdr-install-icon" aria-hidden="true">📲</span><span class="mhdr-install-label">설치</span></button>
       <span class="mhdr-status" id="dbm" title="연결 상태">🟢</span>
     </div>
   </header>
@@ -752,6 +753,6 @@
   </div>
 </div>
 
-<script type="module" src="js/app/main.js?v=2026.06.22.02"></script>
+<script type="module" src="js/app/main.js?v=2026.06.22.03"></script>
 </body>
 </html>

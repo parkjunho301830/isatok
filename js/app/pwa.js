@@ -193,6 +193,56 @@ function initKakaoInAppBanner() {
   }
 }
 
+function _toastInstall(msg, opts) {
+  if (typeof window.toast === 'function') {
+    window.toast(msg, opts);
+    return;
+  }
+  window.setTimeout(function () {
+    _toastInstall(msg, opts);
+  }, 120);
+}
+
+function _getHeaderInstallBtn() {
+  return document.getElementById('pwa-header-install-btn');
+}
+
+function _hideHeaderInstallBtn() {
+  var btn = _getHeaderInstallBtn();
+  if (btn) btn.hidden = true;
+}
+
+function _syncHeaderInstallBtn() {
+  if (_isStandalone() || _isKakaoInApp() || !_isMobileViewport()) {
+    _hideHeaderInstallBtn();
+    return;
+  }
+  var btn = _getHeaderInstallBtn();
+  if (!btn) return;
+  if (window._deferredPwaPrompt || _isIosSafari()) {
+    btn.hidden = false;
+  } else {
+    btn.hidden = true;
+  }
+}
+
+window.onHeaderInstallClick = function () {
+  if (_isStandalone()) return;
+  if (_isKakaoInApp()) {
+    _toastInstall('기본 브라우저로 열기 후 설치 가능합니다.', { duration: 3200 });
+    return;
+  }
+  if (_isIosSafari()) {
+    _toastInstall('Safari 하단 공유 버튼 → 홈 화면에 추가를 선택하세요.', { multiline: true, duration: 4200 });
+    return;
+  }
+  if (window._deferredPwaPrompt) {
+    window.installPwa();
+    return;
+  }
+  _toastInstall('현재 브라우저에서는 앱 설치를 지원하지 않습니다.', { duration: 2800 });
+};
+
 function _showPwaBanner(mode) {
   if (_isStandalone()) return;
   if (_isKakaoInApp()) return;
@@ -238,15 +288,20 @@ window.installPwa = async function () {
   if (!prompt) return;
   prompt.prompt();
   try {
-    await prompt.userChoice;
+    var choice = await prompt.userChoice;
+    if (choice && choice.outcome === 'accepted') {
+      _toastInstall('이사탁 앱이 설치되었습니다.');
+    }
   } catch (e) { /* ignore */ }
   window._deferredPwaPrompt = null;
+  _hideHeaderInstallBtn();
   window.dismissPwaInstall();
 };
 
 window.addEventListener('beforeinstallprompt', function (e) {
   e.preventDefault();
   window._deferredPwaPrompt = e;
+  _syncHeaderInstallBtn();
   if (document.body && document.getElementById('pwa-install-banner')) {
     _showPwaBanner('android');
   }
@@ -256,6 +311,8 @@ window.addEventListener('appinstalled', function () {
   window._deferredPwaPrompt = null;
   localStorage.setItem(LS_PWA_DISMISS, '1');
   _hidePwaBanner();
+  _hideHeaderInstallBtn();
+  _toastInstall('이사탁 앱이 설치되었습니다.');
 });
 
 function _bootKakaoBanner() {
@@ -269,8 +326,16 @@ function _bootKakaoBanner() {
 _bootKakaoBanner();
 
 export function initPwa() {
-  if (_isStandalone()) return;
-  if (_isKakaoInApp()) return;
+  if (_isStandalone()) {
+    _hideHeaderInstallBtn();
+    return;
+  }
+  if (_isKakaoInApp()) {
+    _hideHeaderInstallBtn();
+    return;
+  }
+
+  _syncHeaderInstallBtn();
 
   if (window._deferredPwaPrompt) {
     _showPwaBanner('android');
