@@ -251,14 +251,82 @@ function _applyChallengesSnapshotRender(){
   handleDeepLink();
 }
 function _scrollToChallenge(id){
-  var el=document.querySelector('[data-match-id="'+id+'"]')||document.querySelector('[data-cid="'+id+'"]');
+  var sel="[data-match-id='"+_cssEscape(id)+"']";
+  var el=document.querySelector(sel)||document.querySelector('[data-cid="'+_cssEscape(id)+'"]');
   if(!el)return;
-  el.scrollIntoView({behavior:'smooth',block:'center'});
+  scrollToElement(el);
   el.classList.add('ch-highlight');
   setTimeout(function(){el.classList.remove('ch-highlight');},2800);
 }
+if(!window.CSS||!window.CSS.escape){
+  window.CSS=window.CSS||{};
+  window.CSS.escape=function(value){
+    return String(value).replace(/([^\w-])/g,'\\$1');
+  };
+}
+function _cssEscape(value){
+  return window.CSS&&window.CSS.escape?window.CSS.escape(value):String(value).replace(/'/g,"\\'");
+}
+function _isMobileUa(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+}
+function getScrollContainer(el){
+  var main=document.querySelector('.main');
+  if(main){
+    var mainStyle=window.getComputedStyle(main);
+    if(/auto|scroll/.test(mainStyle.overflowY)&&main.scrollHeight>main.clientHeight)return main;
+  }
+  var parent=el.parentElement;
+  while(parent&&parent!==document.body){
+    var style=window.getComputedStyle(parent);
+    var overflow=style.overflow+style.overflowY;
+    if(/auto|scroll/.test(overflow)&&parent.scrollHeight>parent.clientHeight)return parent;
+    parent=parent.parentElement;
+  }
+  return window;
+}
+function smoothScrollTo(targetY,duration){
+  var startY=window.pageYOffset||document.documentElement.scrollTop||0;
+  var diff=targetY-startY;
+  var startTime=null;
+  function step(timestamp){
+    if(!startTime)startTime=timestamp;
+    var progress=Math.min((timestamp-startTime)/duration,1);
+    var ease=progress<0.5
+      ?2*progress*progress
+      :-1+(4-2*progress)*progress;
+    window.scrollTo(0,startY+diff*ease);
+    if(progress<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function scrollToElement(el){
+  var navHeight=_isMobileUa()?80:60;
+  var container=getScrollContainer(el);
+  var rect=el.getBoundingClientRect();
+  if(container===window){
+    var scrollTop=window.pageYOffset||document.documentElement.scrollTop||0;
+    var targetY=rect.top+scrollTop-(window.innerHeight/2)+(rect.height/2)-navHeight;
+    targetY=Math.max(0,targetY);
+    if('scrollBehavior' in document.documentElement.style){
+      window.scrollTo({top:targetY,behavior:'smooth'});
+    }else{
+      smoothScrollTo(targetY,500);
+    }
+    return;
+  }
+  var containerRect=container.getBoundingClientRect();
+  var targetScroll=container.scrollTop+rect.top-containerRect.top
+    -(container.clientHeight/2)+(rect.height/2);
+  targetScroll=Math.max(0,targetScroll);
+  if('scrollBehavior' in document.documentElement.style){
+    container.scrollTo({top:targetScroll,behavior:'smooth'});
+  }else{
+    container.scrollTop=targetScroll;
+  }
+}
 function waitForElement(selector,callback,maxWait,onTimeout){
-  maxWait=maxWait||5000;
+  maxWait=maxWait||8000;
   var elapsed=0;
   var interval=200;
   var timer=setInterval(function(){
@@ -271,6 +339,7 @@ function waitForElement(selector,callback,maxWait,onTimeout){
     elapsed+=interval;
     if(elapsed>=maxWait){
       clearInterval(timer);
+      console.warn('[딥링크] 요소를 찾지 못했습니다:',selector);
       if(onTimeout)onTimeout();
     }
   },interval);
@@ -279,23 +348,32 @@ function handleDeepLink(){
   if(_deepLinkHandled||_deepLinkWaitStarted)return;
   var params=new URLSearchParams(window.location.search);
   var matchId=params.get('match');
+  console.log('[딥링크] 전체 URL:',location.href);
+  console.log('[딥링크] matchId:',matchId);
   if(!matchId)return;
   if(!CHAL.length)return;
   _deepLinkWaitStarted=true;
+  var isMobile=_isMobileUa();
+  var tabDelay=isMobile?1000:500;
+  var maxWait=isMobile?10000:6000;
   var c=CHAL.find(function(x){return x.id===matchId;});
   if(c)window.setF(_shareFilterFor(c));
   window.nav('challenge');
   if(_currentPage==='challenge'&&!_isBSFocused())renderC();
-  waitForElement("[data-match-id='"+matchId.replace(/'/g,"\\'")+"']",function(el){
-    _deepLinkHandled=true;
-    el.scrollIntoView({behavior:'smooth',block:'center'});
-    el.classList.add('deep-link-highlight');
-    setTimeout(function(){el.classList.remove('deep-link-highlight');},2000);
-    history.replaceState(null,'','/');
-  },5000,function(){
-    _deepLinkHandled=true;
-    history.replaceState(null,'','/');
-  });
+  history.replaceState(null,'','/');
+  setTimeout(function(){
+    var selector="[data-match-id='"+_cssEscape(matchId)+"']";
+    console.log('[딥링크] 탐색 selector:',selector);
+    waitForElement(selector,function(el){
+      console.log('[딥링크] 요소 발견:',el);
+      _deepLinkHandled=true;
+      scrollToElement(el);
+      el.classList.add('deep-link-highlight');
+      setTimeout(function(){el.classList.remove('deep-link-highlight');},2500);
+    },maxWait,function(){
+      _deepLinkHandled=true;
+    });
+  },tabDelay);
 }
 function _onMainScroll(){
   if(!_scrollRaf){
@@ -1602,6 +1680,8 @@ function renderC(){
     const newHash=hashMap[c.id];
     let existing=existingMap[c.id];
     if(existing){
+      existing.dataset.cid=c.id;
+      existing.dataset.matchId=c.id;
       if(existing.dataset.chash!==newHash){
         const tmp=document.createElement('div');
         tmp.innerHTML=buildCCard(c);
