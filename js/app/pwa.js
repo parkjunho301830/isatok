@@ -7,6 +7,9 @@ var LS_APP_VERSION = 'isatok_app_version';
 var SS_VERSION_RELOAD = 'isatok_version_reload';
 var SS_SW_RELOAD = 'isatok_sw_reload';
 var SS_KAKAO_INTENT = 'isatok_kakao_intent_session';
+var _ANDROID_PWA_INTENT =
+  'intent://isatok.web.app#Intent;scheme=https;S.browser_fallback_url=' +
+  encodeURIComponent('https://isatok.web.app') + ';end';
 
 function _ua() {
   return window.navigator.userAgent || '';
@@ -161,7 +164,7 @@ function _setKakaoBannerCopy() {
     line1.textContent = '🏓 Safari에서 열면 더욱 안정적으로 이용할 수 있습니다.';
     line2.innerHTML = '카카오톡 우측 상단 메뉴 → <strong>Safari로 열기</strong>를 선택해주세요.';
   } else {
-    line1.textContent = '🏓 이사탁은 Chrome 브라우저에서 이용 시 가장 안정적으로 동작합니다.';
+    line1.textContent = '🏓 설치된 이사탁 앱에서 열면 더욱 안정적으로 이용할 수 있습니다.';
     line2.innerHTML = '우측 상단 ⋮ 메뉴 → <strong>기본 브라우저로 열기</strong>를 선택해주세요.';
   }
 }
@@ -171,15 +174,8 @@ function _tryOpenInChromeAndroid() {
   if (sessionStorage.getItem(SS_KAKAO_INTENT)) return;
   sessionStorage.setItem(SS_KAKAO_INTENT, '1');
 
-  var url = window.location.href;
-  var path = url.replace(/^https?:\/\//, '');
-  var intent =
-    'intent://' + path +
-    '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
-    encodeURIComponent(url) + ';end';
-
   try {
-    window.location.href = intent;
+    window.location.href = _ANDROID_PWA_INTENT;
   } catch (e) { /* ignore */ }
 }
 
@@ -208,12 +204,7 @@ window.dismissKakaoInAppBanner = function () {
 window.openInExternalBrowser = function () {
   if (!_isAndroid()) return;
   sessionStorage.setItem(SS_KAKAO_INTENT, '1');
-  var url = window.location.href;
-  var path = url.replace(/^https?:\/\//, '');
-  window.location.href =
-    'intent://' + path +
-    '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
-    encodeURIComponent(url) + ';end';
+  window.location.href = _ANDROID_PWA_INTENT;
 };
 
 function initKakaoInAppBanner() {
@@ -271,7 +262,7 @@ window.onHeaderInstallClick = function () {
       );
     } else {
       _toastInstall(
-        'Chrome에서 열어야 앱을 설치할 수 있습니다.\n카카오톡 ⋮ 메뉴 → 기본 브라우저로 열기를 선택해주세요.',
+        '외부 브라우저에서 열어야 앱을 설치할 수 있습니다.\n카카오톡 ⋮ 메뉴 → 기본 브라우저로 열기를 선택해주세요.',
         { multiline: true, duration: 4200 }
       );
     }

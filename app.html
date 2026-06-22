@@ -34,9 +34,7 @@
     document.documentElement.appendChild(overlay);
   };
   if(isAndroid){
-    var url=window.location.href;
-    var path=url.replace(/^https?:\/\//,'');
-    window.location.href='intent://'+path+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+    window.location.href='intent://isatok.web.app#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent('https://isatok.web.app')+';end';
     return;
   }
   if(isIos){
@@ -85,7 +83,7 @@
     <p class="kakao-inapp-line kakao-inapp-line--sub" id="kakao-inapp-line2"></p>
   </div>
   <div class="kakao-inapp-actions">
-    <button type="button" class="btn btn-p btn-xs" id="kakao-open-browser-btn" onclick="openInExternalBrowser()" hidden>Chrome에서 열기</button>
+    <button type="button" class="btn btn-p btn-xs" id="kakao-open-browser-btn" onclick="openInExternalBrowser()" hidden>앱에서 열기</button>
     <button type="button" class="kakao-inapp-close" onclick="dismissKakaoInAppBanner()" aria-label="닫기">✕</button>
   </div>
 </div>

@@ -34,9 +34,7 @@
     document.documentElement.appendChild(overlay);
   };
   if(isAndroid){
-    var targetUrl='https://isatok.web.app/';
-    var path='isatok.web.app/';
-    window.location.href='intent://'+path+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(targetUrl)+';end';
+    window.location.href='intent://isatok.web.app#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent('https://isatok.web.app')+';end';
     return;
   }
   if(isIos){
