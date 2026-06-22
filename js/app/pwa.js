@@ -7,9 +7,14 @@ var LS_APP_VERSION = 'isatok_app_version';
 var SS_VERSION_RELOAD = 'isatok_version_reload';
 var SS_SW_RELOAD = 'isatok_sw_reload';
 var SS_KAKAO_INTENT = 'isatok_kakao_intent_session';
-var _ANDROID_PWA_INTENT =
-  'intent://isatok.web.app#Intent;scheme=https;S.browser_fallback_url=' +
-  encodeURIComponent('https://isatok.web.app') + ';end';
+function _androidPwaIntentUrl(){
+  var fullUrl=window.location.href;
+  if(window.location.host!=='isatok.web.app'){
+    fullUrl='https://isatok.web.app'+(window.location.search||'')+(window.location.hash||'');
+  }
+  var path=fullUrl.replace(/^https?:\/\//,'');
+  return 'intent://'+path+'#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent(fullUrl)+';end';
+}
 
 function _ua() {
   return window.navigator.userAgent || '';
@@ -175,7 +180,7 @@ function _tryOpenInChromeAndroid() {
   sessionStorage.setItem(SS_KAKAO_INTENT, '1');
 
   try {
-    window.location.href = _ANDROID_PWA_INTENT;
+    window.location.href = _androidPwaIntentUrl();
   } catch (e) { /* ignore */ }
 }
 
@@ -204,7 +209,7 @@ window.dismissKakaoInAppBanner = function () {
 window.openInExternalBrowser = function () {
   if (!_isAndroid()) return;
   sessionStorage.setItem(SS_KAKAO_INTENT, '1');
-  window.location.href = _ANDROID_PWA_INTENT;
+  window.location.href = _androidPwaIntentUrl();
 };
 
 function initKakaoInAppBanner() {

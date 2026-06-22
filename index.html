@@ -34,7 +34,13 @@
     document.documentElement.appendChild(overlay);
   };
   if(isAndroid){
-    window.location.href='intent://isatok.web.app#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent('https://isatok.web.app')+';end';
+    try{
+      var m=new URLSearchParams(location.search).get('match');
+      if(m)sessionStorage.setItem('isatok_deeplink_match',m);
+    }catch(e){}
+    var fullUrl='https://isatok.web.app'+(location.search||'')+(location.hash||'');
+    var path=fullUrl.replace(/^https?:\/\//,'');
+    window.location.href='intent://'+path+'#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent(fullUrl)+';end';
     return;
   }
   if(isIos){

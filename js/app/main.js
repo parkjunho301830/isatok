@@ -84,7 +84,14 @@ let _profileMemberId=null;
 let _deepLinkCh=null;
 let _pendingDeepLinkFilter=null;
 let _deepLinkHandled=false;
-let _deepLinkWaitStarted=false;
+let _deepLinkInFlight=false;
+let _deepLinkTargetId=null;
+let _pendingDeepLink=false;
+const LS_DEEPLINK_MATCH='isatok_deeplink_match';
+try{
+  var _bootMatch=new URLSearchParams(location.search).get('match');
+  if(_bootMatch)sessionStorage.setItem(LS_DEEPLINK_MATCH,_bootMatch);
+}catch(e){}
 // 즉시 대결 생성 허용 (권한 체계 없음 → 전체 허용)
 const INSTANT_CREATE_ALLOWED=true;
 let _instantCreate=false;
@@ -204,6 +211,10 @@ function _flushPendingRenders(){
   if(_pendingRender.h&&_currentPage==='hall')renderHall();
   _pendingRender.c=false;_pendingRender.m=false;_pendingRender.grids=false;
   _pendingRender.sn=false;_pendingRender.h=false;
+  if(_pendingDeepLink&&!_deepLinkHandled){
+    _pendingDeepLink=false;
+    handleDeepLink();
+  }
 }
 function _applyMembersSnapshotRender(){
   if(MEMBERS.length) checkMyPlayerSetup();
@@ -224,13 +235,13 @@ function _applyMembersSnapshotRender(){
   }
 }
 function _applyChallengesSnapshotRender(){
-  if(_isScrolling){_pendingRender.c=true;return;}
+  if(_isScrolling){_pendingRender.c=true;_pendingDeepLink=true;return;}
   if(_pendingDeepLinkFilter){
     _applyDeepLinkFilter(_pendingDeepLinkFilter);
     _pendingDeepLinkFilter=null;
   }
   if(!_deepLinkHandled){
-    var matchId=new URLSearchParams(window.location.search).get('match');
+    var matchId=_peekDeepLinkMatchId();
     if(matchId){
       var matchCh=CHAL.find(function(x){return x.id===matchId;});
       if(matchCh)window.setF(_shareFilterFor(matchCh));
@@ -249,6 +260,25 @@ function _applyChallengesSnapshotRender(){
     });
   }
   handleDeepLink();
+}
+function _peekDeepLinkMatchId(){
+  if(_deepLinkTargetId)return _deepLinkTargetId;
+  var matchId=null;
+  try{
+    matchId=new URLSearchParams(window.location.search).get('match');
+    if(!matchId)matchId=sessionStorage.getItem(LS_DEEPLINK_MATCH);
+  }catch(e){}
+  if(matchId)_deepLinkTargetId=matchId;
+  return matchId;
+}
+function _stashDeepLinkMatchId(matchId){
+  if(!matchId)return;
+  _deepLinkTargetId=matchId;
+  try{sessionStorage.setItem(LS_DEEPLINK_MATCH,matchId);}catch(e){}
+}
+function _clearDeepLinkMatchId(){
+  _deepLinkTargetId=null;
+  try{sessionStorage.removeItem(LS_DEEPLINK_MATCH);}catch(e){}
 }
 function _scrollToChallenge(id){
   var sel="[data-match-id='"+_cssEscape(id)+"']";
@@ -345,33 +375,65 @@ function waitForElement(selector,callback,maxWait,onTimeout){
   },interval);
 }
 function handleDeepLink(){
-  if(_deepLinkHandled||_deepLinkWaitStarted)return;
-  var params=new URLSearchParams(window.location.search);
-  var matchId=params.get('match');
-  console.log('[딥링크] 전체 URL:',location.href);
-  console.log('[딥링크] matchId:',matchId);
-  if(!matchId)return;
-  if(!CHAL.length)return;
-  _deepLinkWaitStarted=true;
+  console.log('[딥링크 1] handleDeepLink 진입');
+  if(_deepLinkHandled||_deepLinkInFlight){
+    console.log('[딥링크 1-SKIP] 이미 처리됨 또는 진행 중');
+    return;
+  }
+
+  var matchId=_peekDeepLinkMatchId();
+  console.log('[딥링크 2] 현재 URL:',location.href);
+  console.log('[딥링크 3] matchId:',matchId);
+
+  if(!matchId){
+    console.log('[딥링크 3-FAIL] matchId 없음 → 종료');
+    return;
+  }
+
+  if(!CHAL.length){
+    console.log('[딥링크 3-WAIT] CHAL 비어 있음 → 다음 스냅샷 대기');
+    return;
+  }
+
+  _deepLinkInFlight=true;
+  _stashDeepLinkMatchId(matchId);
+
+  var c=CHAL.find(function(x){return x.id===matchId;});
+  if(c)window.setF(_shareFilterFor(c));
+
+  console.log('[딥링크 4] history.replaceState 실행');
+  history.replaceState(null,'','/');
+
+  console.log('[딥링크 5] 탭 전환 시도');
+  window.nav('challenge');
+  if(_currentPage==='challenge'&&!_isBSFocused())renderC();
+
   var isMobile=_isMobileUa();
   var tabDelay=isMobile?1000:500;
   var maxWait=isMobile?10000:6000;
-  var c=CHAL.find(function(x){return x.id===matchId;});
-  if(c)window.setF(_shareFilterFor(c));
-  window.nav('challenge');
-  if(_currentPage==='challenge'&&!_isBSFocused())renderC();
-  history.replaceState(null,'','/');
+  console.log('[딥링크 6] isMobile:',isMobile,'/ tabDelay:',tabDelay);
+
   setTimeout(function(){
-    var selector="[data-match-id='"+_cssEscape(matchId)+"']";
-    console.log('[딥링크] 탐색 selector:',selector);
+    var selector="[data-match-id='"+CSS.escape(matchId)+"']";
+    console.log('[딥링크 7] waitForElement 시작 / selector:',selector);
+
+    var allCards=document.querySelectorAll('[data-match-id]');
+    console.log('[딥링크 7-CHECK] 현재 data-match-id 카드 수:',allCards.length);
+    allCards.forEach(function(card){
+      console.log('  └ 카드 id:',card.getAttribute('data-match-id'));
+    });
+
     waitForElement(selector,function(el){
-      console.log('[딥링크] 요소 발견:',el);
+      console.log('[딥링크 8] 요소 발견 → 스크롤 실행');
       _deepLinkHandled=true;
+      _clearDeepLinkMatchId();
       scrollToElement(el);
       el.classList.add('deep-link-highlight');
       setTimeout(function(){el.classList.remove('deep-link-highlight');},2500);
     },maxWait,function(){
+      console.log('[딥링크 8-FAIL] 요소 미발견');
       _deepLinkHandled=true;
+      _clearDeepLinkMatchId();
     });
   },tabDelay);
 }
