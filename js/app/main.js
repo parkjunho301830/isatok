@@ -83,6 +83,8 @@ let _profileMemberId=null;
 // _deepLinkCh: 카카오 공유 링크로 진입 시 강조할 대결 ID
 let _deepLinkCh=null;
 let _pendingDeepLinkFilter=null;
+let _deepLinkHandled=false;
+let _deepLinkWaitStarted=false;
 // 즉시 대결 생성 허용 (권한 체계 없음 → 전체 허용)
 const INSTANT_CREATE_ALLOWED=true;
 let _instantCreate=false;
@@ -227,6 +229,13 @@ function _applyChallengesSnapshotRender(){
     _applyDeepLinkFilter(_pendingDeepLinkFilter);
     _pendingDeepLinkFilter=null;
   }
+  if(!_deepLinkHandled){
+    var matchId=new URLSearchParams(window.location.search).get('match');
+    if(matchId){
+      var matchCh=CHAL.find(function(x){return x.id===matchId;});
+      if(matchCh)window.setF(_shareFilterFor(matchCh));
+    }
+  }
   if(_currentPage==='challenge'&&!_isBSFocused())renderC();
   if(_currentPage==='ranking')renderR();
   if(_currentPage==='hall')renderHall();
@@ -239,13 +248,54 @@ function _applyChallengesSnapshotRender(){
       _deepLinkCh=null;
     });
   }
+  handleDeepLink();
 }
 function _scrollToChallenge(id){
-  var el=document.querySelector('[data-cid="'+id+'"]');
+  var el=document.querySelector('[data-match-id="'+id+'"]')||document.querySelector('[data-cid="'+id+'"]');
   if(!el)return;
   el.scrollIntoView({behavior:'smooth',block:'center'});
   el.classList.add('ch-highlight');
   setTimeout(function(){el.classList.remove('ch-highlight');},2800);
+}
+function waitForElement(selector,callback,maxWait,onTimeout){
+  maxWait=maxWait||5000;
+  var elapsed=0;
+  var interval=200;
+  var timer=setInterval(function(){
+    var el=document.querySelector(selector);
+    if(el){
+      clearInterval(timer);
+      callback(el);
+      return;
+    }
+    elapsed+=interval;
+    if(elapsed>=maxWait){
+      clearInterval(timer);
+      if(onTimeout)onTimeout();
+    }
+  },interval);
+}
+function handleDeepLink(){
+  if(_deepLinkHandled||_deepLinkWaitStarted)return;
+  var params=new URLSearchParams(window.location.search);
+  var matchId=params.get('match');
+  if(!matchId)return;
+  if(!CHAL.length)return;
+  _deepLinkWaitStarted=true;
+  var c=CHAL.find(function(x){return x.id===matchId;});
+  if(c)window.setF(_shareFilterFor(c));
+  window.nav('challenge');
+  if(_currentPage==='challenge'&&!_isBSFocused())renderC();
+  waitForElement("[data-match-id='"+matchId.replace(/'/g,"\\'")+"']",function(el){
+    _deepLinkHandled=true;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.classList.add('deep-link-highlight');
+    setTimeout(function(){el.classList.remove('deep-link-highlight');},2000);
+    history.replaceState(null,'','/');
+  },5000,function(){
+    _deepLinkHandled=true;
+    history.replaceState(null,'','/');
+  });
 }
 function _onMainScroll(){
   if(!_scrollRaf){
@@ -641,7 +691,7 @@ function finish(){
   const sb=g('sidebar');
   if(sb) sb.style.display='';           // 사이드바 표시 (CSS가 모바일에서 숨김)
 
-  // 카카오 공유 링크: ?p=challenge&ch=ID (카톡 Feed) 또는 #challenge?… (구버전)
+  // 카카오 공유 링크: ?match=ID (신규) · ?p=challenge&ch=ID (구버전) · #challenge?… (해시)
   _applyEntryNavigation();
   _applyAdminUI();
   _initBsPlayerSearchInputs();
@@ -1671,7 +1721,7 @@ function buildCCard(c){
       ?vsParts[0]+'<span class="cc-vs-sep">VS</span>'+vsParts[1]
       :vsTitle;
     var statusBadge='<span class="badge '+_chStatusBadge(c,isOpen)+'">'+_chStatusLabel(c,isOpen)+'</span>';
-    return `<div class="${cardClass}" data-cid="${c.id}">
+    return `<div class="${cardClass}" data-cid="${c.id}" data-match-id="${c.id}">
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${statusBadge}${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
       <div class="cc-vs-title">${vsHtml}</div>
       ${formatChallengeCreatorHtml(c)}
@@ -3818,9 +3868,9 @@ function _shareFilterFor(c){
   return 'pending';
 }
 function buildShareUrl(c){
-  // 카카오 Feed는 # 해시 URL을 링크로 인식하지 못함 → 쿼리 파라미터 사용
-  if(!c||!c.id)return _siteBase()+'?p=challenge&filter=pending';
-  return _siteBase()+'?p=challenge&ch='+encodeURIComponent(c.id)+'&filter='+_shareFilterFor(c);
+  var base=SITE_ORIGIN.replace(/\/$/,'');
+  if(!c||!c.id)return base;
+  return base+'?match='+encodeURIComponent(c.id);
 }
 function _shareBetLabel(c){
   return c.bet==='coffee'?'☕ 커피 내기':c.bet==='jjajang'?'🍜 짜장면 내기':'';
