@@ -20,8 +20,8 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,BUILD_TIME}from'./version.js';
-import{initPwa}from'./pwa.js';
+import{APP_VERSION,BUILD_TIME}from'./version.js?v=2026.06.22.02';
+import{initPwa,ensureLatestVersion}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
@@ -4183,4 +4183,6 @@ window.submitBetPick = async function(){
 
 // 시작
 window.setF('all');
-init();
+ensureLatestVersion().then(function(){
+  init();
+});

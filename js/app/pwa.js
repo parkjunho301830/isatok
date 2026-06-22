@@ -1,9 +1,12 @@
 /**
- * PWA 설치 + 카카오톡 인앱 브라우저 안내
+ * PWA 설치 + 카카오톡 인앱 브라우저 안내 + 버전/Service Worker 갱신
  */
 var LS_PWA_DISMISS = 'isatok_pwa_install_dismissed';
 var LS_KAKAO_BANNER = 'isatok_kakao_inapp_banner_seen';
 var LS_KAKAO_INTENT = 'isatok_kakao_intent_attempted';
+var LS_APP_VERSION = 'isatok_app_version';
+var SS_VERSION_RELOAD = 'isatok_version_reload';
+var SS_SW_RELOAD = 'isatok_sw_reload';
 
 function _ua() {
   return window.navigator.userAgent || '';
@@ -40,6 +43,92 @@ function _isIosSafari() {
   if (/crios|fxios|edgios|opr\//i.test(ua)) return false;
   return /safari/i.test(ua);
 }
+
+function _fetchRemoteVersion() {
+  return fetch('version.json?_=' + Date.now(), {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' }
+  }).then(function (res) {
+    if (!res.ok) return null;
+    return res.json();
+  }).catch(function () {
+    return null;
+  });
+}
+
+function _reloadForNewVersion(remoteVersion) {
+  localStorage.setItem(LS_APP_VERSION, remoteVersion);
+  if (sessionStorage.getItem(SS_VERSION_RELOAD) === remoteVersion) return false;
+  sessionStorage.setItem(SS_VERSION_RELOAD, remoteVersion);
+  location.reload();
+  return true;
+}
+
+function _registerServiceWorker(appVersion) {
+  if (!('serviceWorker' in navigator)) return Promise.resolve();
+
+  var swUrl = 'service-worker.js?v=' + encodeURIComponent(appVersion || Date.now());
+
+  if (!window._isatokSwReloadBound) {
+    window._isatokSwReloadBound = true;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (sessionStorage.getItem(SS_SW_RELOAD)) return;
+      sessionStorage.setItem(SS_SW_RELOAD, '1');
+      location.reload();
+    });
+  }
+
+  return navigator.serviceWorker.register(swUrl).then(function (reg) {
+    reg.addEventListener('updatefound', function () {
+      var worker = reg.installing;
+      if (!worker) return;
+      worker.addEventListener('statechange', function () {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+          worker.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+    return reg.update().catch(function () {});
+  }).catch(function () {});
+}
+
+export function ensureLatestVersion() {
+  return _fetchRemoteVersion().then(function (remote) {
+    if (!remote || !remote.appVersion) return null;
+
+    var stored = localStorage.getItem(LS_APP_VERSION);
+    if (stored && stored !== remote.appVersion) {
+      if (_reloadForNewVersion(remote.appVersion)) {
+        return new Promise(function () {});
+      }
+    }
+
+    localStorage.setItem(LS_APP_VERSION, remote.appVersion);
+    sessionStorage.removeItem(SS_VERSION_RELOAD);
+    sessionStorage.removeItem(SS_SW_RELOAD);
+    return _registerServiceWorker(remote.appVersion).then(function () {
+      return remote;
+    });
+  });
+}
+
+function _watchVersionOnVisible() {
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    _fetchRemoteVersion().then(function (remote) {
+      if (!remote || !remote.appVersion) return;
+      var stored = localStorage.getItem(LS_APP_VERSION);
+      if (stored && stored !== remote.appVersion) {
+        _reloadForNewVersion(remote.appVersion);
+      }
+    });
+  });
+}
+
+_watchVersionOnVisible();
 
 function _tryOpenInChromeAndroid() {
   if (!_isAndroid()) return;
@@ -154,10 +243,6 @@ window.installPwa = async function () {
   window._deferredPwaPrompt = null;
   window.dismissPwaInstall();
 };
-
-if ('serviceWorker' in navigator && !_isStandalone()) {
-  navigator.serviceWorker.register('service-worker.js').catch(function () {});
-}
 
 window.addEventListener('beforeinstallprompt', function (e) {
   e.preventDefault();
