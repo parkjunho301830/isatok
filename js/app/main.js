@@ -20,7 +20,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION}from'./version.js?v=2026.06.22.07';
+import{APP_VERSION,SITE_ORIGIN}from'./version.js?v=2026.06.22.07';
 import{initPwa,ensureLatestVersion}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
@@ -3734,10 +3734,7 @@ window.delBd=async function(id){
 // ════ 카카오톡 공유 ════
 
 function _siteBase(){
-  var path=window.location.pathname||'/';
-  var idx=path.lastIndexOf('/');
-  var dir=idx>=0?path.slice(0,idx+1):'/';
-  return window.location.origin+dir;
+  return SITE_ORIGIN.replace(/\/$/,'')+'/';
 }
 var _SHARE_IMG_VER='6';
 function _shareOgImageUrl(){
