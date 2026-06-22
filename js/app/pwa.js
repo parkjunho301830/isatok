@@ -2,11 +2,11 @@
  * PWA 설치 + 카카오톡 인앱 브라우저 안내 + 버전/Service Worker 갱신
  */
 var LS_PWA_DISMISS = 'isatok_pwa_install_dismissed';
-var LS_KAKAO_BANNER = 'isatok_kakao_inapp_banner_seen';
-var LS_KAKAO_INTENT = 'isatok_kakao_intent_attempted';
+var LS_KAKAO_POPUP_DATE = 'isatok_kakao_inapp_popup_date';
 var LS_APP_VERSION = 'isatok_app_version';
 var SS_VERSION_RELOAD = 'isatok_version_reload';
 var SS_SW_RELOAD = 'isatok_sw_reload';
+var SS_KAKAO_INTENT = 'isatok_kakao_intent_session';
 
 function _ua() {
   return window.navigator.userAgent || '';
@@ -42,6 +42,28 @@ function _isIosSafari() {
   var ua = _ua();
   if (/crios|fxios|edgios|opr\//i.test(ua)) return false;
   return /safari/i.test(ua);
+}
+
+function _kstDateKey() {
+  var parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  var get = function (t) {
+    return (parts.find(function (p) { return p.type === t; }) || {}).value || '';
+  };
+  return get('year') + '-' + get('month') + '-' + get('day');
+}
+
+function _shouldShowKakaoPopup() {
+  if (!_isMobileDevice() || !_isKakaoInApp()) return false;
+  return localStorage.getItem(LS_KAKAO_POPUP_DATE) !== _kstDateKey();
+}
+
+function _markKakaoPopupShown() {
+  localStorage.setItem(LS_KAKAO_POPUP_DATE, _kstDateKey());
 }
 
 function _fetchRemoteVersion() {
@@ -130,10 +152,24 @@ function _watchVersionOnVisible() {
 
 _watchVersionOnVisible();
 
+function _setKakaoBannerCopy() {
+  var line1 = document.getElementById('kakao-inapp-line1');
+  var line2 = document.getElementById('kakao-inapp-line2');
+  if (!line1 || !line2) return;
+
+  if (_isIos()) {
+    line1.textContent = '🏓 Safari에서 열면 더욱 안정적으로 이용할 수 있습니다.';
+    line2.innerHTML = '카카오톡 우측 상단 메뉴 → <strong>Safari로 열기</strong>를 선택해주세요.';
+  } else {
+    line1.textContent = '🏓 이사탁은 Chrome 브라우저에서 이용 시 가장 안정적으로 동작합니다.';
+    line2.innerHTML = '우측 상단 ⋮ 메뉴 → <strong>기본 브라우저로 열기</strong>를 선택해주세요.';
+  }
+}
+
 function _tryOpenInChromeAndroid() {
   if (!_isAndroid()) return;
-  if (localStorage.getItem(LS_KAKAO_INTENT)) return;
-  localStorage.setItem(LS_KAKAO_INTENT, '1');
+  if (sessionStorage.getItem(SS_KAKAO_INTENT)) return;
+  sessionStorage.setItem(SS_KAKAO_INTENT, '1');
 
   var url = window.location.href;
   var path = url.replace(/^https?:\/\//, '');
@@ -148,13 +184,13 @@ function _tryOpenInChromeAndroid() {
 }
 
 function _showKakaoInAppBanner() {
-  if (!_isMobileDevice() || !_isKakaoInApp()) return;
-  if (localStorage.getItem(LS_KAKAO_BANNER)) return;
+  if (!_shouldShowKakaoPopup()) return;
 
   var banner = document.getElementById('kakao-inapp-banner');
   if (!banner) return;
 
-  localStorage.setItem(LS_KAKAO_BANNER, '1');
+  _markKakaoPopupShown();
+  _setKakaoBannerCopy();
   banner.hidden = false;
   document.body.classList.add('has-kakao-banner');
 
@@ -163,27 +199,25 @@ function _showKakaoInAppBanner() {
 }
 
 window.dismissKakaoInAppBanner = function () {
-  localStorage.setItem(LS_KAKAO_BANNER, '1');
+  _markKakaoPopupShown();
   var banner = document.getElementById('kakao-inapp-banner');
   if (banner) banner.hidden = true;
   document.body.classList.remove('has-kakao-banner');
 };
 
 window.openInExternalBrowser = function () {
-  if (_isAndroid()) {
-    localStorage.setItem(LS_KAKAO_INTENT, '1');
-    var url = window.location.href;
-    var path = url.replace(/^https?:\/\//, '');
-    window.location.href =
-      'intent://' + path +
-      '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
-      encodeURIComponent(url) + ';end';
-  }
+  if (!_isAndroid()) return;
+  sessionStorage.setItem(SS_KAKAO_INTENT, '1');
+  var url = window.location.href;
+  var path = url.replace(/^https?:\/\//, '');
+  window.location.href =
+    'intent://' + path +
+    '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
+    encodeURIComponent(url) + ';end';
 };
 
 function initKakaoInAppBanner() {
-  if (!_isMobileDevice() || !_isKakaoInApp()) return;
-  if (localStorage.getItem(LS_KAKAO_BANNER)) return;
+  if (!_shouldShowKakaoPopup()) return;
 
   if (_isAndroid()) {
     _tryOpenInChromeAndroid();
@@ -202,6 +236,60 @@ function _toastInstall(msg, opts) {
     _toastInstall(msg, opts);
   }, 120);
 }
+
+function _getHeaderInstallBtn() {
+  return document.getElementById('pwa-header-install-btn');
+}
+
+function _hideHeaderInstallBtn() {
+  var btn = _getHeaderInstallBtn();
+  if (btn) btn.hidden = true;
+}
+
+function _syncHeaderInstallBtn() {
+  if (_isStandalone() || !_isMobileViewport()) {
+    _hideHeaderInstallBtn();
+    return;
+  }
+  var btn = _getHeaderInstallBtn();
+  if (!btn) return;
+  if (window._deferredPwaPrompt || _isIosSafari() || _isKakaoInApp()) {
+    btn.hidden = false;
+    return;
+  }
+  btn.hidden = true;
+}
+
+window.onHeaderInstallClick = function () {
+  if (_isStandalone()) return;
+
+  if (_isKakaoInApp()) {
+    if (_isIos()) {
+      _toastInstall(
+        'Safari에서 열어야 앱을 설치할 수 있습니다.\n카카오톡 메뉴 → Safari로 열기를 선택해주세요.',
+        { multiline: true, duration: 4200 }
+      );
+    } else {
+      _toastInstall(
+        'Chrome에서 열어야 앱을 설치할 수 있습니다.\n카카오톡 ⋮ 메뉴 → 기본 브라우저로 열기를 선택해주세요.',
+        { multiline: true, duration: 4200 }
+      );
+    }
+    return;
+  }
+
+  if (_isIosSafari()) {
+    _toastInstall('Safari 공유 버튼 → 홈 화면에 추가', { multiline: true, duration: 4200 });
+    return;
+  }
+
+  if (window._deferredPwaPrompt) {
+    window.installPwa();
+    return;
+  }
+
+  _toastInstall('현재 브라우저에서는 앱 설치를 지원하지 않습니다.', { duration: 2800 });
+};
 
 function _showPwaBanner(mode) {
   if (_isStandalone()) return;
@@ -254,12 +342,14 @@ window.installPwa = async function () {
     }
   } catch (e) { /* ignore */ }
   window._deferredPwaPrompt = null;
+  _hideHeaderInstallBtn();
   window.dismissPwaInstall();
 };
 
 window.addEventListener('beforeinstallprompt', function (e) {
   e.preventDefault();
   window._deferredPwaPrompt = e;
+  _syncHeaderInstallBtn();
   if (document.body && document.getElementById('pwa-install-banner')) {
     _showPwaBanner('android');
   }
@@ -269,21 +359,32 @@ window.addEventListener('appinstalled', function () {
   window._deferredPwaPrompt = null;
   localStorage.setItem(LS_PWA_DISMISS, '1');
   _hidePwaBanner();
+  _hideHeaderInstallBtn();
   _toastInstall('이사탁 앱이 설치되었습니다.');
 });
 
 function _bootKakaoBanner() {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initKakaoInAppBanner);
-  } else {
+  var boot = function () {
     initKakaoInAppBanner();
+    _syncHeaderInstallBtn();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
   }
 }
 
 _bootKakaoBanner();
 
 export function initPwa() {
-  if (_isStandalone()) return;
+  if (_isStandalone()) {
+    _hideHeaderInstallBtn();
+    return;
+  }
+
+  _syncHeaderInstallBtn();
+
   if (_isKakaoInApp()) return;
 
   if (window._deferredPwaPrompt) {

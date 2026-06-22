@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="이사탁">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json?v=2026.06.22.04">
-<script type="module" src="js/app/pwa.js?v=2026.06.22.04"></script>
+<link rel="manifest" href="manifest.json?v=2026.06.22.05">
+<script type="module" src="js/app/pwa.js?v=2026.06.22.05"></script>
 <meta property="og:title" content="이사탁">
 <meta property="og:description" content="이사탁 탁구 동호회 — 대결 신청, 랭킹, 통계">
 <meta property="og:type" content="website">
@@ -26,17 +26,17 @@
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
   integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
   crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/style.css?v=2026.06.22.04">
-<link rel="stylesheet" href="css/components.css?v=2026.06.22.04">
-<link rel="stylesheet" href="css/design.css?v=2026.06.22.04">
+<link rel="stylesheet" href="css/style.css?v=2026.06.22.05">
+<link rel="stylesheet" href="css/components.css?v=2026.06.22.05">
+<link rel="stylesheet" href="css/design.css?v=2026.06.22.05">
 </head>
 <body>
 
-<!-- 카카오톡 인앱 브라우저 안내 (모바일·최초 1회) -->
+<!-- 카카오톡 인앱 브라우저 안내 (모바일·하루 1회) -->
 <div id="kakao-inapp-banner" class="kakao-inapp-banner" hidden>
   <div class="kakao-inapp-copy">
-    <p class="kakao-inapp-line">카카오톡 내부 브라우저에서는 일부 기능이 정상 동작하지 않을 수 있습니다.</p>
-    <p class="kakao-inapp-line kakao-inapp-line--sub">우측 상단 ⋮ 메뉴 → <strong>기본 브라우저로 열기</strong>를 선택해주세요.</p>
+    <p class="kakao-inapp-line" id="kakao-inapp-line1"></p>
+    <p class="kakao-inapp-line kakao-inapp-line--sub" id="kakao-inapp-line2"></p>
   </div>
   <div class="kakao-inapp-actions">
     <button type="button" class="btn btn-p btn-xs" id="kakao-open-browser-btn" onclick="openInExternalBrowser()" hidden>Chrome에서 열기</button>
@@ -62,6 +62,7 @@
         <div class="logo-text">
           <div class="logo-title-row">
             <div class="logo-t">이사탁</div>
+            <button type="button" class="header-ver" onclick="openVersionInfo()" aria-label="버전 정보"><span class="header-ver-text"></span></button>
           </div>
           <div class="logo-s">탁구 동호회</div>
         </div>
@@ -90,12 +91,14 @@
       <div class="mhdr-text">
         <div class="mhdr-title-row">
           <span class="mhdr-name">이사탁</span>
+          <button type="button" class="header-ver" onclick="openVersionInfo()" aria-label="버전 정보"><span class="header-ver-text"></span></button>
         </div>
         <span class="mhdr-tag">탁구 동호회</span>
       </div>
     </div>
     <div class="mhdr-r">
       <button class="btn btn-g btn-xs admin-mhdr-btn" id="btn-admin-m" type="button" onclick="toggleAdmin()" title="관리자">🔐</button>
+      <button type="button" class="mhdr-install-btn" id="pwa-header-install-btn" onclick="onHeaderInstallClick()" hidden aria-label="앱 설치" title="앱 설치"><span class="mhdr-install-icon" aria-hidden="true">📲</span><span class="mhdr-install-label">앱 설치</span></button>
       <span class="mhdr-status" id="dbm" title="연결 상태">🟢</span>
     </div>
   </header>
@@ -750,6 +753,6 @@
   </div>
 </div>
 
-<script type="module" src="js/app/main.js?v=2026.06.22.04"></script>
+<script type="module" src="js/app/main.js?v=2026.06.22.05"></script>
 </body>
 </html>

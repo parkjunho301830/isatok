@@ -426,6 +426,22 @@ tr:last-child td{border-bottom:none;}
   width:32px;height:32px;border-radius:999px;
   background:var(--c2);font-size:14px;line-height:1;
 }
+.mhdr-install-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:3px;
+  min-width:36px;min-height:36px;padding:0 10px;
+  border:none;border-radius:999px;
+  background:linear-gradient(135deg, var(--a) 0%, #005ecb 100%);
+  color:#fff;font-family:inherit;
+  font-size:11px;font-weight:700;letter-spacing:-.2px;
+  box-shadow:0 2px 8px var(--aglow);
+  cursor:pointer;flex-shrink:0;
+  transition:transform .15s var(--ios-ease),box-shadow .15s var(--ios-ease),opacity .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mhdr-install-btn[hidden]{display:none!important;}
+.mhdr-install-btn:active{transform:scale(.94);opacity:.92;}
+.mhdr-install-icon{font-size:14px;line-height:1;}
+.mhdr-install-label{line-height:1;}
 
 .bnav{
   display:none;
