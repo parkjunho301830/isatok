@@ -1,12 +1,56 @@
 ﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
+<script>
+(function(){
+  var ua=navigator.userAgent||'';
+  if(!/KAKAOTALK|Instagram|FBAN|FBAV/i.test(ua))return;
+  var isAndroid=/Android/i.test(ua);
+  var isIos=/iPhone|iPad|iPod/i.test(ua);
+  window.showIosGuide=function(){
+    if(document.getElementById('isatok-ios-guide'))return;
+    var overlay=document.createElement('div');
+    overlay.id='isatok-ios-guide';
+    overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;';
+    var sheet=document.createElement('div');
+    sheet.style.cssText='width:100%;max-width:480px;background:#fff;border-radius:16px 16px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom));box-sizing:border-box;';
+    var img=document.createElement('img');
+    img.src='assets/ios-guide.png';
+    img.alt='';
+    img.style.cssText='display:block;width:100%;max-height:160px;object-fit:contain;margin:0 auto 16px;border-radius:8px;';
+    img.onerror=function(){img.style.display='none';};
+    var text=document.createElement('p');
+    text.style.cssText='margin:0 0 20px;font-size:15px;line-height:1.55;color:#1c1c1e;white-space:pre-line;text-align:center;';
+    text.textContent='카카오톡 내부 브라우저에서는 PWA 설치 및 일부 기능이 제한됩니다.\n우측 하단 ··· 버튼 → \'기본 브라우저로 열기\' 를 눌러주세요.';
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.textContent='확인';
+    btn.style.cssText='display:block;width:100%;padding:14px;border:none;border-radius:12px;background:#007AFF;color:#fff;font-size:16px;font-weight:700;cursor:pointer;';
+    btn.onclick=function(){overlay.remove();};
+    sheet.appendChild(img);
+    sheet.appendChild(text);
+    sheet.appendChild(btn);
+    overlay.appendChild(sheet);
+    document.documentElement.appendChild(overlay);
+  };
+  if(isAndroid){
+    var targetUrl='https://isatok.web.app/';
+    var path='isatok.web.app/';
+    window.location.href='intent://'+path+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(targetUrl)+';end';
+    return;
+  }
+  if(isIos){
+    window.__isatokInAppIos=true;
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',window.showIosGuide);
+    else window.showIosGuide();
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0;url=https://isatok.web.app/">
 <title>이사탁 — 이동 중</title>
 <link rel="canonical" href="https://isatok.web.app/">
-<script>location.replace('https://isatok.web.app/');</script>
+<script>if(!window.__isatokInAppIos)window.location.href='https://isatok.web.app/';</script>
 </head>
 <body>
 <p>이사탁 서비스가 <a href="https://isatok.web.app/">https://isatok.web.app</a> 으로 이전되었습니다.</p>
