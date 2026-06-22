@@ -12,7 +12,6 @@ const versionFile = path.join(root, 'js', 'app', 'version.js');
 const versionJsonFile = path.join(root, 'version.json');
 const swFile = path.join(root, 'service-worker.js');
 const indexFile = path.join(root, 'index.html');
-const mainFile = path.join(root, 'js', 'app', 'main.js');
 const manifestFile = path.join(root, 'manifest.json');
 
 function kstParts() {
@@ -91,17 +90,6 @@ fs.writeFileSync(swFile, nextSw, 'utf8');
 
 var indexContent = fs.readFileSync(indexFile, 'utf8');
 fs.writeFileSync(indexFile, bumpAssetQuery(indexContent, appVersion), 'utf8');
-
-var mainContent = fs.readFileSync(mainFile, 'utf8');
-var nextMain = mainContent.replace(
-  /from'\.\/version\.js(?:\?v=[^']*)?'/,
-  "from'./version.js?v=" + appVersion + "'"
-);
-if (nextMain === mainContent) {
-  console.error('version.js import not found in main.js');
-  process.exit(1);
-}
-fs.writeFileSync(mainFile, nextMain, 'utf8');
 
 var manifestContent = fs.readFileSync(manifestFile, 'utf8');
 var nextManifest = manifestContent.replace(

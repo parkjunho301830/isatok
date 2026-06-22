@@ -20,7 +20,6 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,BUILD_TIME}from'./version.js?v=2026.06.22.03';
 import{initPwa,ensureLatestVersion}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
@@ -645,7 +644,6 @@ function finish(){
   _applyEntryNavigation();
   _applyAdminUI();
   _initBsPlayerSearchInputs();
-  _initVersionUI();
   _initUxDefaults();
   initPwa();
   initWizard({
@@ -694,16 +692,6 @@ function setDb(ok){
   const h=ok?'<span style="color:var(--a)">● Firebase 연결됨</span>':'<span style="color:var(--amber)">● 연결 실패</span>';
   g('dbs').innerHTML=h;g('dbm').textContent=ok?'🟢':'🟡';
 }
-
-function _initVersionUI(){
-  var label='v'+APP_VERSION;
-  var inline=label+' | '+BUILD_TIME;
-  document.querySelectorAll('.header-ver-text').forEach(function(el){el.textContent=inline;});
-}
-window.openVersionInfo=function(){
-  var label='v'+APP_VERSION;
-  toast('버전 : '+label+'\n빌드 : '+BUILD_TIME,{multiline:true,duration:3200});
-};
 
 // ── 모달 헬퍼 ──
 
