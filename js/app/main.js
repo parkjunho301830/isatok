@@ -2359,9 +2359,7 @@ function _initResultForm(opts){
       setResMode('winner');
     }
   }else if(opts.instantWizard){
-    setResMode('detail');
-    renderSetWinPickRows();
-    renderSetInputRows();
+    setResMode('winner');
   }else{
     setResMode('winner');
     renderSetWinPickRows();
