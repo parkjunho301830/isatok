@@ -22,7 +22,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.23.03';
+import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.23.04';
 import{
   COL_CHALLENGES,COL_MEMBERS,COL_SEASONS,COL_NOTICES,COL_BOARDS,COL_TOURNAMENTS,
   PT_INDIVIDUAL_WIN,PT_INDIVIDUAL_LOSS,PT_DOUBLE_WIN,PT_DOUBLE_LOSS,PT_INIT,
@@ -90,6 +90,10 @@ let _scLblA='A팀',_scLblB='B팀';
 let _rkMode='double';
 // _rkScope: 랭킹 범위 ('all' | 'season')
 let _rkScope='season';
+// _previousPointMaps: 랭킹 뷰별 이전 포인트 스냅샷 (실시간 변동 표시용)
+let _previousPointMaps={};
+// _previousPointMapReady: 뷰별 최초 로드 완료 여부 (깜빡임 방지)
+let _previousPointMapReady={};
 // _hallMode: 통계 탭 ('individual' | 'double')
 let _hallMode='double';
 let SEASONS=[];
@@ -772,6 +776,31 @@ function getRankBadge(change){
   if(change===null||change===0)return '<span class="rk-change rk-change--flat">-</span>';
   if(change>0)return '<span class="rk-change rk-change--up">▲'+change+'</span>';
   return '<span class="rk-change rk-change--down">▼'+Math.abs(change)+'</span>';
+}
+function _rankViewKey(){
+  return _rkMode+'_'+_rkScope;
+}
+function _getPointChange(memberId,currentPt){
+  var key=_rankViewKey();
+  if(!_previousPointMapReady[key])return null;
+  var prev=_previousPointMaps[key];
+  if(!prev||prev[memberId]===undefined)return null;
+  var delta=currentPt-prev[memberId];
+  if(delta===0)return null;
+  return delta;
+}
+function getPointBadge(change){
+  if(change===null||change===0)return '';
+  var cls=change>0?'rk-pt-change--up':'rk-pt-change--down';
+  var sign=change>0?'+':'';
+  return '<span class="rk-pt-change '+cls+'">'+sign+change+'pt</span>';
+}
+function _syncPreviousPointMap(list){
+  var key=_rankViewKey();
+  var map={};
+  list.forEach(function(item){map[item.m.id]=item.pt;});
+  _previousPointMaps[key]=map;
+  _previousPointMapReady[key]=true;
 }
 function _memberGrade(m){return _calcGrade(_memberPt(m,false));}
 function _findMemberByName(name){return MEMBERS.find(function(m){return m.name===name;});}
@@ -3886,7 +3915,10 @@ function _buildRankRowCells(m,rank,pt,grOpt){
   else rankHtml='<span class="rk-rank-num">'+rank+'</span>';
   var rankChange=getRankChange(m.id,rank);
   var rankBadge=getRankBadge(rankChange);
-  return '<td data-label="순위"><div class="rk-rank-cell">'+rankHtml+rankBadge+'</div></td>'
+  var pointChange=_getPointChange(m.id,pt);
+  var pointBadge=getPointBadge(pointChange);
+  var changeStack='<div class="rk-change-stack">'+rankBadge+pointBadge+'</div>';
+  return '<td data-label="순위"><div class="rk-rank-cell">'+rankHtml+changeStack+'</div></td>'
     +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:flex-start;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px;flex-shrink:0">'+ini(m.name)+'</div><div style="min-width:0;flex:1"><div style="font-weight:600">'+gr.icon+' '+m.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div>'+streakHtml+recentHtml+'</div></div></td>'
     +'<td data-label="등급"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span></td>'
     +'<td data-label="포인트"><span class="rk-pt">'+pt+'</span><span class="rk-pt-unit">점</span></td>';
@@ -3951,7 +3983,8 @@ function renderR(){
     var recentKey=_getRecentMatchLines(item.m.name,_rkMode==='double',3,_rkScope==='season'&&season?_seasonFilterFn(season):null)
       .map(function(r){return r.date+r.score+r.result;}).join('|');
     var rankChange=getRankChange(item.m.id,rank);
-    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak,recentKey)+'|rc:'+(rankChange===null?'n':rankChange);
+    var pointChange=_getPointChange(item.m.id,item.pt);
+    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak,recentKey)+'|rc:'+(rankChange===null?'n':rankChange)+'|pc:'+(pointChange===null?'n':pointChange);
     var existing=existingMap[item.m.id];
     if(existing){
       if(existing.dataset.rhash!==newHash){
@@ -3973,6 +4006,7 @@ function renderR(){
       childList=Array.from(tb.children);
     }
   });
+  _syncPreviousPointMap(list);
   saveRankSnapshot(list);
   _renderHallOfFame();
 }
