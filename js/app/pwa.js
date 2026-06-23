@@ -40,13 +40,13 @@ function _isIos() {
   return /iPhone|iPad|iPod/i.test(_ua());
 }
 
-function _isKakaoInApp() {
+export function isKakaoInApp() {
   return /KAKAOTALK|KakaoTalk/i.test(_ua());
 }
 
 function _isIosSafari() {
   if (!_isIos()) return false;
-  if (_isKakaoInApp()) return false;
+  if (isKakaoInApp()) return false;
   var ua = _ua();
   if (/crios|fxios|edgios|opr\//i.test(ua)) return false;
   return /safari/i.test(ua);
@@ -66,7 +66,7 @@ function _kstDateKey() {
 }
 
 function _shouldShowKakaoPopup() {
-  if (!_isMobileDevice() || !_isKakaoInApp()) return false;
+  if (!_isMobileDevice() || !isKakaoInApp()) return false;
   return localStorage.getItem(LS_KAKAO_POPUP_DATE) !== _kstDateKey();
 }
 
@@ -249,7 +249,7 @@ function _syncHeaderInstallBtn() {
   }
   var btn = _getHeaderInstallBtn();
   if (!btn) return;
-  if (window._deferredPwaPrompt || _isIosSafari() || _isKakaoInApp()) {
+  if (window._deferredPwaPrompt || _isIosSafari() || isKakaoInApp()) {
     btn.hidden = false;
     return;
   }
@@ -259,7 +259,7 @@ function _syncHeaderInstallBtn() {
 window.onHeaderInstallClick = function () {
   if (_isStandalone()) return;
 
-  if (_isKakaoInApp()) {
+  if (isKakaoInApp()) {
     if (_isIos()) {
       _toastInstall(
         'Safari에서 열어야 앱을 설치할 수 있습니다.\n카카오톡 메뉴 → Safari로 열기를 선택해주세요.',
@@ -289,7 +289,7 @@ window.onHeaderInstallClick = function () {
 
 function _showPwaBanner(mode) {
   if (_isStandalone()) return;
-  if (_isKakaoInApp()) return;
+  if (isKakaoInApp()) return;
   if (localStorage.getItem(LS_PWA_DISMISS)) return;
   if (!_isMobileViewport()) return;
 
@@ -381,7 +381,7 @@ export function initPwa() {
 
   _syncHeaderInstallBtn();
 
-  if (_isKakaoInApp()) return;
+  if (isKakaoInApp()) return;
 
   if (window._deferredPwaPrompt) {
     _showPwaBanner('android');

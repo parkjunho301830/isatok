@@ -62,17 +62,6 @@ export function hasMyPlayerStored() {
   return !!(id && name);
 }
 
-function _logMyPlayerState(tag) {
-  var shouldShow = _setupMandatory;
-  console.log('[isatok] myPlayer check (' + (tag || '') + ')');
-  console.log('myPlayerId:', localStorage.getItem(LS.myPlayerId));
-  console.log('myPlayerName:', localStorage.getItem(LS.myPlayerName));
-  console.log('membersLoaded:', members().length);
-  console.log('hasMyPlayerStored:', hasMyPlayerStored());
-  console.log('validateMyPlayer:', !!validateMyPlayer());
-  console.log('showMyPlayerSetupModal:', shouldShow);
-}
-
 export function validateMyPlayer() {
   _migrateLegacyMyPlayerKeys();
   var id = localStorage.getItem(LS.myPlayerId);
@@ -104,6 +93,11 @@ export function isMyPlayerSetupMandatory() {
   return _setupMandatory;
 }
 
+/**
+ * 내 선수 미설정 시 토스트·설정 모달을 띄우고 진행을 막는다.
+ * @param {string} [message] - 안내 메시지
+ * @returns {boolean} 설정 완료 여부
+ */
 export function requireMyPlayer(message) {
   if (isMyPlayerReady()) return true;
   if (hasMyPlayerStored() && !members().length) return true;
@@ -112,6 +106,10 @@ export function requireMyPlayer(message) {
   return false;
 }
 
+/**
+ * LocalStorage·회원 목록에서 유효한 내 선수 객체를 반환한다.
+ * @returns {object|null}
+ */
 export function getMyPlayer() {
   return validateMyPlayer();
 }
@@ -129,7 +127,6 @@ function _setMyPlayer(id) {
   localStorage.setItem(LS.myPlayerName, m.name);
   _pendingPlayerId = null;
   _setupMandatory = false;
-  _logMyPlayerState('saved');
   C.onMyPlayerChanged();
   return true;
 }
@@ -475,6 +472,10 @@ function _renderStep4() {
   C.updateChSubmitBtn();
 }
 
+/**
+ * 위저드 단계 UI를 렌더한다.
+ * @param {number} n - 단계 번호 (1~4)
+ */
 export function wizRenderStep(n) {
   if (n !== 4 && C.unmountInstantResultForm) C.unmountInstantResultForm();
   _updateProgress(n);
@@ -484,6 +485,12 @@ export function wizRenderStep(n) {
   else if (n === 4) _renderStep4();
 }
 
+/**
+ * 대결 수정 모드에서 위저드 팀·종목 상태를 채운다.
+ * @param {string} type - 대결 종목 코드 (ms, md, fs 등)
+ * @param {string[]} myTeam - 내 팀 선수명 배열
+ * @param {string[]} oppTeam - 상대 팀 선수명 배열
+ */
 export function wizPrefillEdit(type, myTeam, oppTeam) {
   var isDbl = type === 'md' || type === 'fd' || type === 'mx';
   _category = isDbl ? 'double' : 'single';
@@ -497,6 +504,10 @@ export function wizPrefillEdit(type, myTeam, oppTeam) {
   _quickScore = '';
 }
 
+/**
+ * 위저드 흐름 상태를 초기화한다.
+ * @param {boolean} [instant] - 즉시 대결 모드 여부(미사용, 호환용)
+ */
 export function wizResetFlow(instant) {
   _category = 'double';
   _partner = null;
@@ -515,6 +526,12 @@ export function wizResetFlow(instant) {
   C.setOpp([]);
 }
 
+/**
+ * 위저드 단계 이동 전 필수 입력을 검증한다.
+ * @param {number} from - 현재 단계
+ * @param {number} to - 이동할 단계
+ * @returns {boolean} 이동 허용 여부
+ */
 export function wizValidateStep(from, to) {
   if (to === 2 && from === 1) return true;
 
@@ -566,7 +583,6 @@ export function getWizQuickResult() {
 }
 
 export function checkMyPlayerSetup() {
-  _logMyPlayerState('checkMyPlayerSetup');
   if (hasMyPlayerStored()) {
     _setupMandatory = false;
     if (validateMyPlayer()) renderMyRecordHome();
@@ -575,14 +591,12 @@ export function checkMyPlayerSetup() {
   if (!members().length) return;
   _setupMandatory = true;
   _pendingPlayerId = null;
-  console.log('[isatok] showMyPlayerSetupModal:', true);
   setTimeout(function () { openMyPlayerSetup(true); }, 400);
 }
 
 /** 앱 시작 시: LocalStorage만 확인·로그 (팝업은 회원 로드 후 checkMyPlayerSetup) */
 export function initMyPlayerOnLoad() {
   _migrateLegacyMyPlayerKeys();
-  _logMyPlayerState('init');
   if (hasMyPlayerStored()) {
     _setupMandatory = false;
     renderMyRecordHome();
@@ -613,6 +627,10 @@ function _renderMyPlayerList() {
   _updateMyPlayerModalUI();
 }
 
+/**
+ * 내 선수 선택 모달을 연다.
+ * @param {boolean} [firstVisit] - false면 변경 모드, 그 외는 최초 설정·필수 모드
+ */
 export function openMyPlayerSetup(firstVisit) {
   if (firstVisit === false) {
     _setupMandatory = false;
@@ -629,7 +647,6 @@ export function openMyPlayerSetup(firstVisit) {
       : '내 선수를 선택하세요.';
   }
   _renderMyPlayerList();
-  console.log('[isatok] showMyPlayerSetupModal:', _setupMandatory, 'manual:', firstVisit === false);
   openMo('mo-my-player');
 }
 
@@ -685,6 +702,9 @@ function _renderMyStatsHtml(compact) {
   return _statBlock('🤝 복식', dblRank, dblRec) + _statBlock('🏓 단식', indRank, indRec);
 }
 
+/**
+ * 홈 탭 상단의 내 기록 요약 카드를 렌더한다.
+ */
 export function renderMyRecordHome() {
   var box = g('my-record-home');
   if (!box) return;
@@ -696,6 +716,9 @@ export function renderMyRecordHome() {
     + '<span class="my-record-more">자세히 →</span></button>';
 }
 
+/**
+ * MY 탭 전체(배지·통계·설정)를 렌더한다.
+ */
 export function renderMyPage() {
   if (!isMyPlayerReady()) {
     var stats = g('my-page-stats');
@@ -719,6 +742,10 @@ export function renderMyPage() {
   }
 }
 
+/**
+ * 위저드·MY 모듈에 main.js 컨텍스트를 주입하고 전역 핸들러를 등록한다.
+ * @param {object} ctx - main.js에서 전달하는 API·상태 접근 객체
+ */
 export function initWizard(ctx) {
   C = ctx;
 

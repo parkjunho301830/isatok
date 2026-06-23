@@ -920,3 +920,18 @@ body.has-pwa-banner .toast{
   .wiz-cat{min-height:128px;}
   .bs-foot .btn{min-height:52px;}
 }
+
+/* ── 다크모드 (향후 적용 예정) ──────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 배경 */
+    /* --color-bg:      #1C1C1E; */
+    /* --color-surface: #2C2C2E; */
+    /* 텍스트 */
+    /* --color-text:    #FFFFFF; */
+    /* --color-subtext: #8E8E93; */
+    /* 테두리 */
+    /* --color-border:  #3A3A3C; */
+    /* primary/success/danger 는 라이트모드와 동일 유지 */
+  }
+}

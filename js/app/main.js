@@ -16,12 +16,28 @@
  * 12. 카카오톡 공유
  * 13. 공통 (toast, fmtP)
  * 14. 내기 참여
+ *
+ * 수정일: 2026-06-23 — constants.js 상수 분리, 진단용 console.log 제거, 중복 함수 통합
  */
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.23.02';
-import{initPwa,ensureLatestVersion}from'./pwa.js';
+import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.23.03';
+import{
+  COL_CHALLENGES,COL_MEMBERS,COL_SEASONS,COL_NOTICES,COL_BOARDS,COL_TOURNAMENTS,
+  PT_INDIVIDUAL_WIN,PT_INDIVIDUAL_LOSS,PT_DOUBLE_WIN,PT_DOUBLE_LOSS,PT_INIT,
+  GRADE_TIERS,
+  OPEN_CHALLENGE_EXPIRE_MS,
+  DEEPLINK_PARAM,DEEPLINK_TAB_DELAY_PC,DEEPLINK_TAB_DELAY_MOBILE,
+  DEEPLINK_MAX_WAIT_PC,DEEPLINK_MAX_WAIT_MOBILE,DEEPLINK_POLL_INTERVAL,
+  RANK_SNAPSHOT_KEY_PREFIX,
+  FEEDBACK_AUTO_CLOSE_MS,HIGHLIGHT_REMOVE_MS,FIREBASE_TIMEOUT_MS,
+  TOAST_DURATION_MS,BS_ANIM_MS,
+  NAV_HEIGHT_MOBILE,NAV_HEIGHT_PC,DRUM_ITEM_H,
+  ADMIN_PIN,
+  COLOR_PRIMARY,COLOR_SUCCESS,COLOR_DANGER,COLOR_WARNING,COLOR_GRAY,COLOR_GOLD
+}from'./constants.js';
+import{initPwa,ensureLatestVersion,isKakaoInApp}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
   wizResetFlow,wizRenderStep,wizValidateStep,saveWizRecentCombos,
@@ -89,13 +105,12 @@ let _deepLinkTargetId=null;
 let _pendingDeepLink=false;
 const LS_DEEPLINK_MATCH='isatok_deeplink_match';
 try{
-  var _bootMatch=new URLSearchParams(location.search).get('match');
+  var _bootMatch=new URLSearchParams(location.search).get(DEEPLINK_PARAM);
   if(_bootMatch)sessionStorage.setItem(LS_DEEPLINK_MATCH,_bootMatch);
 }catch(e){}
 // 즉시 대결 생성 허용 (권한 체계 없음 → 전체 허용)
 const INSTANT_CREATE_ALLOWED=true;
 let _instantCreate=false;
-let _bsPresetInstant=false;
 // 바텀시트 선수 검색: IME 조합·포커스 경쟁 시 DOM 재렌더 방지
 let _bsSearchComposing=false;
 let _bsGridRefreshPending=false;
@@ -265,7 +280,7 @@ function _peekDeepLinkMatchId(){
   if(_deepLinkTargetId)return _deepLinkTargetId;
   var matchId=null;
   try{
-    matchId=new URLSearchParams(window.location.search).get('match');
+    matchId=new URLSearchParams(window.location.search).get(DEEPLINK_PARAM);
     if(!matchId)matchId=sessionStorage.getItem(LS_DEEPLINK_MATCH);
   }catch(e){}
   if(matchId)_deepLinkTargetId=matchId;
@@ -280,6 +295,10 @@ function _clearDeepLinkMatchId(){
   _deepLinkTargetId=null;
   try{sessionStorage.removeItem(LS_DEEPLINK_MATCH);}catch(e){}
 }
+/**
+ * 대결 카드로 스크롤하고 하이라이트 효과를 적용한다.
+ * @param {string} id - Firestore 대결 문서 ID
+ */
 function _scrollToChallenge(id){
   var sel="[data-match-id='"+_cssEscape(id)+"']";
   var el=document.querySelector(sel)||document.querySelector('[data-cid="'+_cssEscape(id)+'"]');
@@ -300,6 +319,11 @@ function _cssEscape(value){
 function _isMobileUa(){
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent||'');
 }
+/**
+ * 요소가 속한 스크롤 컨테이너(.main 또는 window)를 반환한다.
+ * @param {Element} el - 기준 DOM 요소
+ * @returns {Element|Window}
+ */
 function getScrollContainer(el){
   var main=document.querySelector('.main');
   if(main){
@@ -330,8 +354,12 @@ function smoothScrollTo(targetY,duration){
   }
   requestAnimationFrame(step);
 }
+/**
+ * 요소가 화면 중앙(하단 네비 보정)에 오도록 스크롤한다.
+ * @param {Element} el - 스크롤 대상 DOM 요소
+ */
 function scrollToElement(el){
-  var navHeight=_isMobileUa()?80:60;
+  var navHeight=_isMobileUa()?NAV_HEIGHT_MOBILE:NAV_HEIGHT_PC;
   var container=getScrollContainer(el);
   var rect=el.getBoundingClientRect();
   if(container===window){
@@ -355,10 +383,17 @@ function scrollToElement(el){
     container.scrollTop=targetScroll;
   }
 }
+/**
+ * CSS 선택자에 해당하는 요소가 DOM에 나타날 때까지 폴링한다.
+ * @param {string} selector - querySelector용 선택자
+ * @param {function(Element): void} callback - 요소 발견 시 호출
+ * @param {number} [maxWait=8000] - 최대 대기 시간(ms)
+ * @param {function(): void} [onTimeout] - 타임아웃 시 호출
+ */
 function waitForElement(selector,callback,maxWait,onTimeout){
   maxWait=maxWait||8000;
   var elapsed=0;
-  var interval=200;
+  var interval=DEEPLINK_POLL_INTERVAL;
   var timer=setInterval(function(){
     var el=document.querySelector(selector);
     if(el){
@@ -369,31 +404,20 @@ function waitForElement(selector,callback,maxWait,onTimeout){
     elapsed+=interval;
     if(elapsed>=maxWait){
       clearInterval(timer);
-      console.warn('[딥링크] 요소를 찾지 못했습니다:',selector);
+      console.warn('[이사탁] waitForElement: 요소를 찾지 못했습니다.',selector);
       if(onTimeout)onTimeout();
     }
   },interval);
 }
+/**
+ * URL ?match= 파라미터로 진입 시 대결 탭 이동 후 해당 카드로 스크롤한다.
+ */
 function handleDeepLink(){
-  console.log('[딥링크 1] handleDeepLink 진입');
-  if(_deepLinkHandled||_deepLinkInFlight){
-    console.log('[딥링크 1-SKIP] 이미 처리됨 또는 진행 중');
-    return;
-  }
+  if(_deepLinkHandled||_deepLinkInFlight)return;
 
   var matchId=_peekDeepLinkMatchId();
-  console.log('[딥링크 2] 현재 URL:',location.href);
-  console.log('[딥링크 3] matchId:',matchId);
-
-  if(!matchId){
-    console.log('[딥링크 3-FAIL] matchId 없음 → 종료');
-    return;
-  }
-
-  if(!CHAL.length){
-    console.log('[딥링크 3-WAIT] CHAL 비어 있음 → 다음 스냅샷 대기');
-    return;
-  }
+  if(!matchId)return;
+  if(!CHAL.length)return;
 
   _deepLinkInFlight=true;
   _stashDeepLinkMatchId(matchId);
@@ -401,37 +425,25 @@ function handleDeepLink(){
   var c=CHAL.find(function(x){return x.id===matchId;});
   if(c)window.setF(_shareFilterFor(c));
 
-  console.log('[딥링크 4] history.replaceState 실행');
   history.replaceState(null,'','/');
 
-  console.log('[딥링크 5] 탭 전환 시도');
   window.nav('challenge');
   if(_currentPage==='challenge'&&!_isBSFocused())renderC();
 
   var isMobile=_isMobileUa();
-  var tabDelay=isMobile?1000:500;
-  var maxWait=isMobile?10000:6000;
-  console.log('[딥링크 6] isMobile:',isMobile,'/ tabDelay:',tabDelay);
+  var tabDelay=isMobile?DEEPLINK_TAB_DELAY_MOBILE:DEEPLINK_TAB_DELAY_PC;
+  var maxWait=isMobile?DEEPLINK_MAX_WAIT_MOBILE:DEEPLINK_MAX_WAIT_PC;
 
   setTimeout(function(){
     var selector="[data-match-id='"+CSS.escape(matchId)+"']";
-    console.log('[딥링크 7] waitForElement 시작 / selector:',selector);
-
-    var allCards=document.querySelectorAll('[data-match-id]');
-    console.log('[딥링크 7-CHECK] 현재 data-match-id 카드 수:',allCards.length);
-    allCards.forEach(function(card){
-      console.log('  └ 카드 id:',card.getAttribute('data-match-id'));
-    });
 
     waitForElement(selector,function(el){
-      console.log('[딥링크 8] 요소 발견 → 스크롤 실행');
       _deepLinkHandled=true;
       _clearDeepLinkMatchId();
       scrollToElement(el);
       el.classList.add('deep-link-highlight');
-      setTimeout(function(){el.classList.remove('deep-link-highlight');},2500);
+      setTimeout(function(){el.classList.remove('deep-link-highlight');},HIGHLIGHT_REMOVE_MS);
     },maxWait,function(){
-      console.log('[딥링크 8-FAIL] 요소 미발견');
       _deepLinkHandled=true;
       _clearDeepLinkMatchId();
     });
@@ -461,10 +473,8 @@ window.selectBet = function(btn){
   btn.classList.add('on');
   _bet = btn.dataset.bet || '';
 }
-const DEF_PT=1000;
-const PT={individual:{win:10,loss:-5},double:{win:5,loss:-2}};
-// 관리자 PIN (운영 시 변경 권장)
-const ADMIN_PIN='2580';
+const PT={individual:{win:PT_INDIVIDUAL_WIN,loss:PT_INDIVIDUAL_LOSS},double:{win:PT_DOUBLE_WIN,loss:PT_DOUBLE_LOSS}};
+// 관리자 PIN (운영 시 변경 권장 — constants.js ADMIN_PIN)
 const ADMIN_STORAGE_KEY='isatok_admin';
 let _adminPinCallback=null;
 
@@ -545,24 +555,21 @@ window.requireAdminAction=function(fn){
   _requireAdmin(fn);
 };
 const DOUBLES_TYPES=['md','fd','mx','doubles'];
-const GRADE_TIERS=[
-  {min:1500,icon:'👑',label:'마스터',badge:'bp'},
-  {min:1400,icon:'💎',label:'고수',badge:'bg'},
-  {min:1300,icon:'🥇',label:'상급',badge:'bb'},
-  {min:1200,icon:'🥈',label:'중급',badge:'ba'},
-  {min:1100,icon:'🥉',label:'초급',badge:'bz'},
-  {min:0,icon:'🌱',label:'입문',badge:'bz'}
-];
 
 function _isDoublesType(t){return DOUBLES_TYPES.indexOf(t)>=0;}
-function _memberPt(m,isDouble){return isDouble?(m.doublePoint??DEF_PT):(m.individualPoint??DEF_PT);}
+function _memberPt(m,isDouble){return isDouble?(m.doublePoint??PT_INIT):(m.individualPoint??PT_INIT);}
 function _calcGrade(pt){
-  var p=pt??DEF_PT;
+  var p=pt??PT_INIT;
   for(var i=0;i<GRADE_TIERS.length;i++){
     if(p>=GRADE_TIERS[i].min)return GRADE_TIERS[i];
   }
   return GRADE_TIERS[GRADE_TIERS.length-1];
 }
+/**
+ * Firestore Timestamp·숫자·ISO 문자열을 만료 시각(ms)으로 변환한다.
+ * @param {*} expiresAt - expiresAt 필드 값
+ * @returns {number|null}
+ */
 function _parseExpiresMs(expiresAt){
   if(!expiresAt)return null;
   if(typeof expiresAt.toDate==='function')return expiresAt.toDate().getTime();
@@ -570,6 +577,11 @@ function _parseExpiresMs(expiresAt){
   var t=new Date(expiresAt).getTime();
   return isNaN(t)?null:t;
 }
+/**
+ * 오픈 챌린지가 아직 유효한지(만료 전·대기 중) 판별한다.
+ * @param {object} c - 대결 객체
+ * @returns {boolean}
+ */
 function _isOpenChallengeActive(c){
   if(!c||!c.isOpen||c.status!=='pending')return true;
   if(!c.expiresAt)return true;
@@ -577,6 +589,11 @@ function _isOpenChallengeActive(c){
   if(ms==null)return true;
   return ms>Date.now();
 }
+/**
+ * 오픈 챌린지 만료까지 남은 시간 문구를 반환한다.
+ * @param {*} expiresAt - expiresAt 필드 값
+ * @returns {{text: string, urgent: boolean}|null}
+ */
 function getRemainingTime(expiresAt){
   if(!expiresAt)return null;
   var expireMs=_parseExpiresMs(expiresAt);
@@ -630,8 +647,13 @@ function _renderRivalStatsHtml(myPlayerName){
   if(!lines.length)return '';
   return '<div class="my-rival-section"><div class="my-stat-head">주요 상대 전적</div>'+lines.join('')+'</div>';
 }
+/**
+ * 단식 포인트 기준 현재 등급·다음 등급·진행률을 계산한다.
+ * @param {number} [point] - 회원 단식 포인트
+ * @returns {{currentGrade: string, nextGrade: string|null, progress: number, remain: number, isMaster: boolean}|null}
+ */
 function getGradeProgress(point){
-  var p=point??DEF_PT;
+  var p=point??PT_INIT;
   for(var i=0;i<GRADE_TIERS.length;i++){
     var tier=GRADE_TIERS[i];
     if(p>=tier.min){
@@ -648,10 +670,15 @@ function getGradeProgress(point){
   }
   return null;
 }
+/**
+ * 등급 진행바 HTML을 생성한다.
+ * @param {number} point - 회원 단식 포인트
+ * @returns {string}
+ */
 function _renderGradeProgressHtml(point){
   var info=getGradeProgress(point);
   if(!info)return '';
-  var barColor=info.isMaster?'#FFD700':'#007AFF';
+  var barColor=info.isMaster?COLOR_GOLD:COLOR_PRIMARY;
   var subtitle=info.isMaster
     ?'🏆 최고 등급 달성!'
     :'다음 등급 <strong>'+info.nextGrade+'</strong>까지 <strong>'+info.remain+'pt</strong>';
@@ -676,6 +703,11 @@ function _myPointDeltaForResult(challenge,winnerSide){
   if(loseTeam.indexOf(me.name)>=0)return pts.loss;
   return null;
 }
+/**
+ * 경기 결과 입력 후 승패·포인트 변동 피드백 모달을 표시한다.
+ * @param {boolean} isWin - 승리 여부
+ * @param {number|null} pointDelta - 포인트 변동량
+ */
 function showResultFeedback(isWin,pointDelta){
   if(pointDelta==null)return;
   var overlay=document.createElement('div');
@@ -685,21 +717,25 @@ function showResultFeedback(isWin,pointDelta){
   var emoji=isWin?'🎉':'💪';
   var title=isWin?'승리!':'아쉽지만 분전했어요!';
   var ptSign=pointDelta>=0?'+':'';
-  var ptColor=pointDelta>=0?'#34C759':'#FF3B30';
+  var ptColor=pointDelta>=0?COLOR_SUCCESS:COLOR_DANGER;
   var ptText=ptSign+pointDelta+'pt';
   box.innerHTML='<div style="font-size:56px;margin-bottom:12px">'+emoji+'</div>'
     +'<div style="font-size:22px;font-weight:700;margin-bottom:8px">'+title+'</div>'
     +'<div style="font-size:32px;font-weight:800;color:'+ptColor+';margin-bottom:24px">'+ptText+'</div>'
-    +'<button type="button" id="feedbackClose" style="width:100%;padding:14px;border:none;border-radius:12px;background:#007AFF;color:#fff;font-size:16px;font-weight:600;cursor:pointer">확인</button>';
+    +'<button type="button" id="feedbackClose" style="width:100%;padding:14px;border:none;border-radius:12px;background:'+COLOR_PRIMARY+';color:#fff;font-size:16px;font-weight:600;cursor:pointer">확인</button>';
   overlay.appendChild(box);
   document.body.appendChild(overlay);
   var closeFn=function(){overlay.remove();};
   box.querySelector('#feedbackClose').addEventListener('click',closeFn);
-  setTimeout(closeFn,3000);
+  setTimeout(closeFn,FEEDBACK_AUTO_CLOSE_MS);
 }
 function _rankSnapshotStorageKey(){
-  return 'isatok_rank_snapshot_'+_rkMode+'_'+_rkScope;
+  return RANK_SNAPSHOT_KEY_PREFIX+'_'+_rkMode+'_'+_rkScope;
 }
+/**
+ * 현재 랭킹 순위를 localStorage에 하루 1회 스냅샷으로 저장한다.
+ * @param {Array<{m: object}>} rankList - 랭킹 목록(순위 순)
+ */
 function saveRankSnapshot(rankList){
   var today=new Date().toDateString();
   var dateKey=_rankSnapshotStorageKey()+'_date';
@@ -711,6 +747,12 @@ function saveRankSnapshot(rankList){
     localStorage.setItem(dateKey,today);
   }catch(e){}
 }
+/**
+ * 이전 스냅샷 대비 순위 변동량을 계산한다.
+ * @param {string} memberId - 회원 ID
+ * @param {number} currentRank - 현재 순위(1부터)
+ * @returns {number|null} 양수=순위 상승, 음수=하락, null=비교 불가
+ */
 function getRankChange(memberId,currentRank){
   try{
     var snapshot=JSON.parse(localStorage.getItem(_rankSnapshotStorageKey())||'{}');
@@ -721,6 +763,11 @@ function getRankChange(memberId,currentRank){
     return null;
   }
 }
+/**
+ * 순위 변동량에 따른 ▲▼ 배지 HTML을 반환한다.
+ * @param {number|null} change - getRankChange 반환값
+ * @returns {string}
+ */
 function getRankBadge(change){
   if(change===null||change===0)return '<span class="rk-change rk-change--flat">-</span>';
   if(change>0)return '<span class="rk-change rk-change--up">▲'+change+'</span>';
@@ -738,7 +785,7 @@ function renderEmptyState(emoji,title,subtitle){
     "<div style='",
       "display:flex;flex-direction:column;align-items:center;",
       "justify-content:center;padding:48px 24px;text-align:center;",
-      "color:#8E8E93",
+      "color:"+COLOR_GRAY,
     "'>",
       "<div style='font-size:48px;margin-bottom:16px'>"+emoji+"</div>",
       "<div style='font-size:16px;font-weight:600;color:#1C1C1E;margin-bottom:8px'>"+title+"</div>",
@@ -941,7 +988,7 @@ function patchMc2Grid(gr, items, emptyMsg){
 
 // ── 초기화 ──
 async function init(){
-  const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},6000);
+  const safe=setTimeout(()=>{finish();toast('⚠️ 연결 지연');},FIREBASE_TIMEOUT_MS);
   try{
     _fbApp=initializeApp(FB);
     db=getFirestore(_fbApp);
@@ -951,7 +998,7 @@ async function init(){
     // RAF 디바운스: Firestore 연속 이벤트 시 한 프레임에 한 번만 렌더
     let _rafC=null,_rafM=null,_rafN=null,_rafB=null;
     setDb(true);
-    onSnapshot(query(collection(db,'members'),orderBy('name')),s=>{
+    onSnapshot(query(collection(db,COL_MEMBERS),orderBy('name')),s=>{
       MEMBERS=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafM)cancelAnimationFrame(_rafM);
       _rafM=requestAnimationFrame(()=>{
@@ -959,7 +1006,7 @@ async function init(){
         _rafM=null;
       });
     });
-    onSnapshot(query(collection(db,'challenges'),orderBy('createdAt','desc')),s=>{
+    onSnapshot(query(collection(db,COL_CHALLENGES),orderBy('createdAt','desc')),s=>{
       CHAL=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafC)cancelAnimationFrame(_rafC);
       _rafC=requestAnimationFrame(()=>{
@@ -968,7 +1015,7 @@ async function init(){
       });
     });
     let _rafSn=null;
-    onSnapshot(query(collection(db,'seasons'),orderBy('startDate','desc')),s=>{
+    onSnapshot(query(collection(db,COL_SEASONS),orderBy('startDate','desc')),s=>{
       SEASONS=s.docs.map(d=>({id:d.id,...d.data()}));
       if(_rafSn)cancelAnimationFrame(_rafSn);
       _rafSn=requestAnimationFrame(()=>{
@@ -977,7 +1024,7 @@ async function init(){
       });
     });
     try{
-      onSnapshot(collection(db,'tournaments'),s=>{
+      onSnapshot(collection(db,COL_TOURNAMENTS),s=>{
         TOURNAMENTS=s.docs.map(d=>({id:d.id,...d.data()}));
         if(_currentPage==='hall')renderHall();
         var profMo=g('mo-profile');
@@ -988,6 +1035,10 @@ async function init(){
     clearTimeout(safe);finish();
   }catch(e){clearTimeout(safe);setDb(false);toast('❌ '+e.message);finish();}
 }
+/**
+ * URL 쿼리·해시에서 진입 페이지와 필터 파라미터를 파싱한다.
+ * @returns {{pageId: string|null, params: object}}
+ */
 function _parseEntryFromLocation(){
   var pageId=null,params={};
   try{
@@ -1013,6 +1064,9 @@ function _parseEntryFromLocation(){
   }
   return {pageId:pageId,params:params};
 }
+/**
+ * 공유 링크(?p=, #challenge 등) 진입 시 해당 탭·필터로 이동한다.
+ */
 function _applyEntryNavigation(){
   var entry=_parseEntryFromLocation();
   var validPages=['challenge','ranking','members','hall','admin','my'];
@@ -1109,7 +1163,6 @@ window.openVersionInfo=function(){
 // ════════════════════════════════════════════════════════
 
 var _bsSwipeInited=false,_bsClosing=false;
-var BS_ANIM_MS=320;
 var BS_DISMISS_VEL=0.55; // px/ms — 빠른 아래 flick 시 닫기
 
 function _getActiveBSBody(){
@@ -1311,7 +1364,6 @@ function _hideBS(done){
 window.openBS = function(){
   if(!requireMyPlayer())return;
   _editChId = null;
-  _bsPresetInstant = false;
   _my = []; _opp = [];
   var chk = g('oc-chk');
   if(chk) chk.checked = false;
@@ -1337,7 +1389,6 @@ window.openBS = function(){
 window.openInstantBS=function(){
   if(!requireMyPlayer())return;
   _editChId=null;
-  _bsPresetInstant=true;
   _my=[];_opp=[];
   var chk=g('oc-chk');
   if(chk)chk.checked=false;
@@ -1646,23 +1697,6 @@ function _updateChSubmitBtn(){
 }
 window.updateChSubmitBtn=_updateChSubmitBtn;
 
-function _debugChallengeCreate(info){
-  if(typeof console==='undefined'||!console.log)return;
-  console.log('[isatok] challenge create',info);
-}
-function _debugCardActions(c){
-  if(typeof console==='undefined'||!console.log||!c)return;
-  var isOpen=!!c.isOpen&&c.status==='pending';
-  var actions=[];
-  if(isOpen)actions.push('accept-open','edit','reject');
-  else if(_chPendingAccept(c))actions.push('accept','edit','reject');
-  else if(_chResultReady(c))actions.push('result-input');
-  else if(c.status==='completed')actions.push('result-edit');
-  console.log('[isatok] card actions',{
-    id:c.id,status:c.status,instantCreate:!!c.instantCreate,isOpen:isOpen,actions:actions
-  });
-}
-
 // ── 바텀시트 전용 신청 저장 (기존 submitCh 로직 재사용, ID 참조만 동일하게 유지)
 window.submitChBS = async function(){
   if(!requireMyPlayer())return;
@@ -1671,18 +1705,6 @@ window.submitChBS = async function(){
   var isOpenMode = g('oc-chk') && g('oc-chk').checked;
   var editId = _editChId;
   var instantMode = !editId && _isInstantCreateMode() && !isOpenMode;
-  _debugChallengeCreate({
-    phase:'submit',
-    createMode:instantMode?'instant':(isOpenMode?'open':'normal'),
-    instantCreate:instantMode,
-    requiresAcceptance:!instantMode&&!isOpenMode,
-    isOpenMode:isOpenMode,
-    checkboxChecked:_bsCreateMode==='instant',
-    stateFlag:_instantCreate,
-    type:_type,
-    myTeam:[..._my],
-    oppTeam:isOpenMode?[]:[..._opp]
-  });
   if(instantMode){
     var tm=_type||'ms';
     var m=TM[tm]||TM.ms;
@@ -1711,7 +1733,7 @@ window.submitChBS = async function(){
   try {
     if(editId){
       if(db){
-        await updateDoc(doc(db,'challenges',editId), fields);
+        await updateDoc(doc(db,COL_CHALLENGES,editId), fields);
       } else {
         var target = CHAL.find(function(c){ return c.id === editId; });
         if(target) Object.assign(target, fields);
@@ -1734,27 +1756,18 @@ window.submitChBS = async function(){
     data.instantCreate=true;
   }
   if(isOpenMode&&!editId){
-    data.expiresAt=new Date(Date.now()+3*24*60*60*1000);
+    data.expiresAt=new Date(Date.now()+OPEN_CHALLENGE_EXPIRE_MS);
   }
     let newId = 'l' + Date.now();
-    if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
+    if(db){ const ref = await addDoc(collection(db,COL_CHALLENGES), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
     _saveRecentPlayers([..._my,..._opp]);
     saveWizRecentCombos();
     var saved={id:newId,...data};
-    _debugChallengeCreate({
-      phase:'saved',
-      createMode:instantMode?'instant':(isOpenMode?'open':'normal'),
-      status:saved.status,
-      instantCreate:!!saved.instantCreate,
-      requiresAcceptance:saved.status==='pending',
-      acceptedAt:saved.acceptedAt||null
-    });
-    _debugCardActions(saved);
     if(instantMode&&pendingResult&&pendingResult.winner){
       try{
         if(db){
-          await updateDoc(doc(db,'challenges',newId),{status:'completed',winner:pendingResult.winner,score:pendingResult.score});
+          await updateDoc(doc(db,COL_CHALLENGES,newId),{status:'completed',winner:pendingResult.winner,score:pendingResult.score});
         }
         saved.status='completed';saved.winner=pendingResult.winner;saved.score=pendingResult.score;
         saved.gameMode=pendingResult.gameMode;
@@ -1822,6 +1835,10 @@ function _initNavCache(){
   _navFab=Array.from(g('app').querySelectorAll('.fab'));
   _navMain=document.querySelector('.main');
 }
+/**
+ * 하단 네비·사이드바 탭을 전환하고 해당 페이지를 렌더한다.
+ * @param {string} id - 페이지 ID (challenge, ranking, members, hall, my, admin)
+ */
 window.nav=function(id){
   if(id==='my'&&!requireMyPlayer())return;
   // 최초 1회 캐싱 (DOM 로드 후 변하지 않는 노드)
@@ -2081,7 +2098,7 @@ function buildCCard(c){
     if(isOpen&&c.expiresAt){
       var rem=getRemainingTime(c.expiresAt);
       if(rem){
-        var remColor=rem.urgent?'#FF3B30':'#FF9500';
+        var remColor=rem.urgent?COLOR_DANGER:COLOR_WARNING;
         expireHtml='<div class="cc-open-expire" style="font-size:12px;color:'+remColor+';margin-top:8px">'+rem.text+'</div>';
       }
     }
@@ -2340,7 +2357,7 @@ window.submitAcceptOpen=async function(){
 
   closeMo('mo-accept-open');
   try{
-    if(db)await updateDoc(doc(db,'challenges',_acceptOpenId),updateData);
+    if(db)await updateDoc(doc(db,COL_CHALLENGES,_acceptOpenId),updateData);
     else{
       var target=CHAL.find(function(c){return c.id===_acceptOpenId;});
       if(target){
@@ -2356,18 +2373,18 @@ window.submitAcceptOpen=async function(){
 }
 
 window.acceptC=async function(id){
-  try{if(db)await updateDoc(doc(db,'challenges',id),{status:'accepted'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='accepted');renderC();}toast('✅ 수락했습니다!');}
+  try{if(db)await updateDoc(doc(db,COL_CHALLENGES,id),{status:'accepted'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='accepted');renderC();}toast('✅ 수락했습니다!');}
   catch(e){toast('❌ '+e.message);}
 }
 window.rejectC=async function(id){
   if(!confirm('거절하시겠습니까?'))return;
-  try{if(db)await updateDoc(doc(db,'challenges',id),{status:'rejected'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='rejected');renderC();}toast('거절했습니다');}
+  try{if(db)await updateDoc(doc(db,COL_CHALLENGES,id),{status:'rejected'});else{CHAL.find(c=>c.id===id)&&(CHAL.find(c=>c.id===id).status='rejected');renderC();}toast('거절했습니다');}
   catch(e){toast('❌ '+e.message);}
 }
 window.delC=async function(id){
   if(!_isAdmin()){_requireAdmin(function(){delC(id);});return;}
   if(!confirm('삭제하시겠습니까?'))return;
-  try{if(db)await deleteDoc(doc(db,'challenges',id));else{CHAL=CHAL.filter(c=>c.id!==id);renderC();}toast('🗑 삭제됐습니다');}
+  try{if(db)await deleteDoc(doc(db,COL_CHALLENGES,id));else{CHAL=CHAL.filter(c=>c.id!==id);renderC();}toast('🗑 삭제됐습니다');}
   catch(e){toast('❌ '+e.message);}
 }
 // ── 저장된 score 문자열 → _sets 배열 복원 ("21:18, 15:21" 형식)
@@ -2829,8 +2846,6 @@ window.setW=function(t){
 // ── 드럼롤 피커 초기화 및 제어
 // 듀스 대응: 0~30 범위, 상한 제한 없음 (tabletTennis deuce rule)
 var DRUM_MAX = 30; // 드럼롤 표시 최대 점수
-var DRUM_ITEM_H = 44; // 아이템 높이(px) — CSS .drum-item 높이와 일치해야 함
-
 // 드럼롤 목록 렌더링: 0~DRUM_MAX 숫자 아이템 생성
 // 위아래 여백(패딩) 2개씩 추가하여 첫/끝 아이템도 가운데 정렬 가능
 function _initDrumScroll(scrollEl){
@@ -2987,11 +3002,6 @@ window.stepScore=function(team,delta){
   }
 }
 
-// ── renderSets: 세트 요약 갱신 (하위 호환)
-function renderSets(){
-  _renderSetSummary();
-}
-
 // ── addSet / removeSet: 하위 호환 (드럼롤 UI 제거 후 addSetRow/removeSetRow로 위임)
 window.addSet=function(){addSetRow();};
 window.removeSet=function(idx){removeSetRow(idx);};
@@ -3050,7 +3060,7 @@ async function _updateMatchPoints(challenge,winnerSide,sign){
     var nv=cur+d.delta;
     if(db){
       var upd={};upd[d.field]=nv;
-      await updateDoc(doc(db,'members',d.id),upd);
+      await updateDoc(doc(db,COL_MEMBERS,d.id),upd);
     }else{
       var idx=MEMBERS.findIndex(function(x){return x.id===d.id;});
       if(idx>-1){MEMBERS[idx][d.field]=nv;}
@@ -3073,7 +3083,7 @@ window.submitResult=async function(){
       await _updateMatchPoints(c,c.winner,-1);
     }
     if(db){
-      await updateDoc(doc(db,'challenges',_rid),{status:'completed',winner:_rw,score:sc||null});
+      await updateDoc(doc(db,COL_CHALLENGES,_rid),{status:'completed',winner:_rw,score:sc||null});
     } else {
       c.status='completed';c.winner=_rw;c.score=sc||null;
       renderC();
@@ -3213,7 +3223,7 @@ function _computeRatingHistory(name,isDbl){
   var matches=_getMatchesForMode(name,isDbl).slice().sort(function(a,b){
     return _matchSortKey(a).localeCompare(_matchSortKey(b));
   });
-  var pts=DEF_PT;
+  var pts=PT_INIT;
   var ptsCfg=isDbl?PT.double:PT.individual;
   var history=[{date:'',points:pts,label:'시작'}];
   matches.forEach(function(c){
@@ -3376,7 +3386,7 @@ function _isMatchForRkMode(c,isDbl){
   return isDbl?_isDoublesType(c.type):_isSinglesType(c.type);
 }
 function _computeSeasonPoints(member,season,isDbl){
-  var pt=DEF_PT,name=member.name;
+  var pt=PT_INIT,name=member.name;
   CHAL.forEach(function(c){
     if(!_chInSeason(c,season)||!_isMatchForRkMode(c,isDbl))return;
     if(!_playerSideInAnyMatch(c,name))return;
@@ -3524,7 +3534,7 @@ async function _unsetOtherCurrentSeasons(exceptId){
   for(var i=0;i<SEASONS.length;i++){
     var s=SEASONS[i];
     if(s.id!==exceptId&&s.isCurrent){
-      if(db)await updateDoc(doc(db,'seasons',s.id),{isCurrent:false});
+      if(db)await updateDoc(doc(db,COL_SEASONS,s.id),{isCurrent:false});
       else s.isCurrent=false;
     }
   }
@@ -3538,7 +3548,7 @@ window.createSeason=async function(){
     var data={name:name,startDate:startDate,status:'active',isCurrent:true,createdAt:new Date().toISOString()};
     if(db){
       await _unsetOtherCurrentSeasons(null);
-      await addDoc(collection(db,'seasons'),data);
+      await addDoc(collection(db,COL_SEASONS),data);
     }else{
       await _unsetOtherCurrentSeasons(null);
       SEASONS.unshift({id:'local_'+Date.now(),...data});
@@ -3553,7 +3563,7 @@ window.setCurrentSeason=async function(id){
   try{
     if(db){
       await _unsetOtherCurrentSeasons(id);
-      await updateDoc(doc(db,'seasons',id),{isCurrent:true,status:'active'});
+      await updateDoc(doc(db,COL_SEASONS,id),{isCurrent:true,status:'active'});
     }else{
       await _unsetOtherCurrentSeasons(id);
       var s=SEASONS.find(function(x){return x.id===id;});
@@ -3577,7 +3587,7 @@ window.endSeason=async function(id){
   try{
     var upd={status:'ended',isCurrent:false,endDate:endDate,endedAt:new Date().toISOString(),champion:champion};
     if(db){
-      await updateDoc(doc(db,'seasons',id),upd);
+      await updateDoc(doc(db,COL_SEASONS,id),upd);
     }else{
       Object.assign(season,upd);
       _applySeasonsSnapshotRender();
@@ -3619,7 +3629,7 @@ function renderHall(){
     var hist=_computeRatingHistory(me.name,isDbl);
     ratingHtml='<div class="card card-p hall-cat rating-chart-card"><div class="hall-cat-t">📈 '+modeLbl+' 레이팅 변화 추이 · '+me.name+'</div>'
       +'<div class="rating-chart-wrap">'+_buildRatingChartSvg(hist)+'</div>'
-      +'<div class="rating-chart-note">경기 완료 순으로 포인트를 재계산한 추정치입니다 (시작 '+DEF_PT+'pt)</div></div>';
+      +'<div class="rating-chart-note">경기 완료 순으로 포인트를 재계산한 추정치입니다 (시작 '+PT_INIT+'pt)</div></div>';
   }else{
     ratingHtml='<div class="card card-p hall-cat rating-chart-card"><div class="hall-cat-t">📈 레이팅 변화 추이</div>'
       +'<div class="rating-chart-empty">마이페이지에서 내 선수를 설정하면 그래프가 표시됩니다.</div></div>';
@@ -4054,9 +4064,9 @@ window.submitM=async function(){
   if(!name){g('e-rn').classList.add('on');return;}
   g('e-rn').classList.remove('on');
   const now=new Date();
-  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,individualPoint:DEF_PT,doublePoint:DEF_PT,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
+  const m={name,phone:g('rp').value.trim(),gender:g('rg').value,individualPoint:PT_INIT,doublePoint:PT_INIT,status:'활성',memo:g('rmemo').value.trim(),joined:`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}`,createdAt:now.toISOString()};
   g('af').style.display='none';g('asn').textContent=`${name} 회원님 환영합니다! 🏓`;g('as').style.display='';
-  try{if(db)await addDoc(collection(db,'members'),m);else{MEMBERS.push({id:'l'+Date.now(),...m});renderM();}toast('✅ '+name+' 등록 완료');}
+  try{if(db)await addDoc(collection(db,COL_MEMBERS),m);else{MEMBERS.push({id:'l'+Date.now(),...m});renderM();}toast('✅ '+name+' 등록 완료');}
   catch(e){toast('❌ '+e.message);}
 }
 window.openEdit=function(id){
@@ -4076,7 +4086,7 @@ window.saveEdit=async function(){
   if(!name){g('e-en').classList.add('on');return;}
   const u={name,phone:g('ep').value.trim(),gender:g('eg').value,status:g('est').value,memo:g('ememo').value.trim()};
   closeMo('mo-edit');
-  try{if(db)await updateDoc(doc(db,'members',id),u);else{const i=MEMBERS.findIndex(m=>m.id===id);if(i>-1)MEMBERS[i]={...MEMBERS[i],...u};renderM();}toast('✅ '+name+' 수정 완료');}
+  try{if(db)await updateDoc(doc(db,COL_MEMBERS,id),u);else{const i=MEMBERS.findIndex(m=>m.id===id);if(i>-1)MEMBERS[i]={...MEMBERS[i],...u};renderM();}toast('✅ '+name+' 수정 완료');}
   catch(e){toast('❌ '+e.message);}
 }
 window.openDel=function(id){
@@ -4086,7 +4096,7 @@ window.openDel=function(id){
 window.confirmDel=async function(){
   if(!_isAdmin()){toast('⚠️ 관리자만 회원을 삭제할 수 있습니다');return;}
   const m=MEMBERS.find(m=>m.id===_delId);closeMo('mo-del');
-  try{if(db)await deleteDoc(doc(db,'members',_delId));else{MEMBERS=MEMBERS.filter(m=>m.id!==_delId);renderM();}toast('🗑 '+m?.name+' 삭제 완료');}
+  try{if(db)await deleteDoc(doc(db,COL_MEMBERS,_delId));else{MEMBERS=MEMBERS.filter(m=>m.id!==_delId);renderM();}toast('🗑 '+m?.name+' 삭제 완료');}
   catch(e){toast('❌ '+e.message);}
 }
 
@@ -4119,7 +4129,7 @@ window.submitNotice=async function(){
   if(!title){g('e-nt').classList.add('on');return;}
   const data={type:g('ntype').value,title,body:g('nbody').value.trim(),createdAt:new Date().toISOString()};
   closeMo('mo-notice');
-  try{if(db)await addDoc(collection(db,'notices'),data);else{NOTICES.unshift({id:'l'+Date.now(),...data});renderN();}toast('📢 공지 등록!');}
+  try{if(db)await addDoc(collection(db,COL_NOTICES),data);else{NOTICES.unshift({id:'l'+Date.now(),...data});renderN();}toast('📢 공지 등록!');}
   catch(e){toast('❌ '+e.message);}
 }
 window.openNEdit=function(id){
@@ -4132,12 +4142,12 @@ window.saveNoticeEdit=async function(){
   if(!title){g('e-net').classList.add('on');return;}
   const u={type:g('netype').value,title,body:g('nebody').value.trim(),updatedAt:new Date().toISOString()};
   closeMo('mo-nedit');
-  try{if(db)await updateDoc(doc(db,'notices',id),u);else{const i=NOTICES.findIndex(n=>n.id===id);if(i>-1)NOTICES[i]={...NOTICES[i],...u};renderN();}toast('✅ 공지 수정!');}
+  try{if(db)await updateDoc(doc(db,COL_NOTICES,id),u);else{const i=NOTICES.findIndex(n=>n.id===id);if(i>-1)NOTICES[i]={...NOTICES[i],...u};renderN();}toast('✅ 공지 수정!');}
   catch(e){toast('❌ '+e.message);}
 }
 window.delN=async function(id){
   if(!confirm('공지를 삭제할까요?'))return;
-  try{if(db)await deleteDoc(doc(db,'notices',id));else{NOTICES=NOTICES.filter(n=>n.id!==id);renderN();}toast('🗑 공지 삭제');}
+  try{if(db)await deleteDoc(doc(db,COL_NOTICES,id));else{NOTICES=NOTICES.filter(n=>n.id!==id);renderN();}toast('🗑 공지 삭제');}
   catch(e){toast('❌ '+e.message);}
 }
 
@@ -4171,7 +4181,7 @@ window.submitBoard=async function(){
   if(!ok)return;
   const data={author,title,body:g('bbody').value.trim(),createdAt:new Date().toISOString()};
   closeMo('mo-board');
-  try{if(db)await addDoc(collection(db,'boards'),data);else{BOARDS.unshift({id:'l'+Date.now(),...data});renderB();}toast('✅ 게시글 등록!');}
+  try{if(db)await addDoc(collection(db,COL_BOARDS),data);else{BOARDS.unshift({id:'l'+Date.now(),...data});renderB();}toast('✅ 게시글 등록!');}
   catch(e){toast('❌ '+e.message);}
 }
 window.openBEdit=function(id){
@@ -4184,12 +4194,12 @@ window.saveBoardEdit=async function(){
   if(!title){g('e-bet').classList.add('on');return;}
   const u={author:g('beauthor').value.trim(),title,body:g('bebody').value.trim(),updatedAt:new Date().toISOString()};
   closeMo('mo-bedit');
-  try{if(db)await updateDoc(doc(db,'boards',id),u);else{const i=BOARDS.findIndex(b=>b.id===id);if(i>-1)BOARDS[i]={...BOARDS[i],...u};renderB();}toast('✅ 게시글 수정!');}
+  try{if(db)await updateDoc(doc(db,COL_BOARDS,id),u);else{const i=BOARDS.findIndex(b=>b.id===id);if(i>-1)BOARDS[i]={...BOARDS[i],...u};renderB();}toast('✅ 게시글 수정!');}
   catch(e){toast('❌ '+e.message);}
 }
 window.delBd=async function(id){
   if(!confirm('게시글을 삭제할까요?'))return;
-  try{if(db)await deleteDoc(doc(db,'boards',id));else{BOARDS=BOARDS.filter(b=>b.id!==id);renderB();}toast('🗑 게시글 삭제');}
+  try{if(db)await deleteDoc(doc(db,COL_BOARDS,id));else{BOARDS=BOARDS.filter(b=>b.id!==id);renderB();}toast('🗑 게시글 삭제');}
   catch(e){toast('❌ '+e.message);}
 }
 
@@ -4251,6 +4261,11 @@ function _shareFilterFor(c){
   if(c.isOpen&&c.status==='pending')return 'open';
   return 'pending';
 }
+/**
+ * 카카오 공유·딥링크용 대결 URL을 생성한다.
+ * @param {object} c - 대결 객체
+ * @returns {string}
+ */
 function buildShareUrl(c){
   var base=SITE_ORIGIN.replace(/\/$/,'');
   if(!c||!c.id)return base;
@@ -4400,12 +4415,7 @@ window.setShareTemplate=function(mode){
 
 // ── 현재 환경이 모바일인지 판별 (User-Agent 기반)
 function _isMobile(){
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
-
-// ── 현재 환경이 카카오톡 인앱 브라우저인지 판별
-function _isKakaoInApp(){
-  return /KAKAOTALK|KakaoTalk/i.test(navigator.userAgent);
+  return _isMobileUa();
 }
 
 // ── 환경에 따라 공유 모달 하단 힌트 텍스트를 동적으로 세팅
@@ -4416,7 +4426,7 @@ function _setShareHint(){
   if(originInfo){
     originInfo.textContent='접속 주소: '+_kakaoCallerOrigin();
   }
-  if(_isKakaoInApp()){
+  if(isKakaoInApp()){
     if(kakaoBtn)kakaoBtn.innerHTML='<span class="kt-icon">📋</span> 복사 후 채팅에 붙여넣기';
     if(hint)hint.innerHTML='💡 카카오톡 안에서는 <b>복사 후 붙여넣기</b>가 가장 안정적입니다.<br>Chrome·Safari에서 열면 채팅방 선택 공유도 가능해요.';
   } else if(kakaoBtn){
@@ -4432,6 +4442,10 @@ function _setShareHint(){
 }
 
 // ── 대결 신청 완료 직후 공유 모달 열기 (submitCh 에서 호출)
+/**
+ * 공유 템플릿 미리보기 모달을 연다.
+ * @param {object} c - 공유할 대결 객체
+ */
 window.openShareModal=function(c){
   window._shareChallenge=c;
   window._shareTemplate=(c.isOpen&&c.status==='pending')?'open':'detail';
@@ -4449,6 +4463,10 @@ window.openShareModal=function(c){
 }
 
 // ── 대결 카드 공유 버튼 클릭 → ID로 찾아서 모달 열기
+/**
+ * 대결 카드의 카카오 공유 버튼 핸들러.
+ * @param {string} id - 대결 문서 ID
+ */
 window.shareKakao=function(id){
   var c=CHAL.find(function(c){return c.id===id;});
   if(!c){toast('❌ 대결 정보를 찾을 수 없습니다');return;}
@@ -4475,13 +4493,16 @@ function _initKakao(){
 // ── 실제 카카오톡 공유 처리 (2단계 Fallback)
 // 1단계: 카카오 SDK sendDefault → 채팅방 선택 피커 → 직접 전송
 // 2단계: SDK 미지원(구형 브라우저 등) → 클립보드 복사 후 안내
+/**
+ * 카카오 SDK 또는 클립보드로 대결 공유를 실행한다.
+ */
 window.doKakaoShare=function(){
   var c=window._shareChallenge;
   var txt=window._shareText||'';
   var url=_shareLinkUrl(c);
   if(!txt)return;
 
-  if(_isKakaoInApp()){
+  if(isKakaoInApp()){
     _copyToClipboard(txt);
     toast('📋 복사됐습니다!\n채팅방 입력창에 붙여넣기 하세요.',{multiline:true,duration:4000});
     return;
@@ -4512,7 +4533,7 @@ window.doKakaoShare=function(){
         });
         return;
       }catch(e2){
-        toast('❌ 카카오 공유 실패 (4019)\n카카오 개발자 콘솔 → 플랫폼 키 → JavaScript SDK 도메인에\nhttps://isatok.web.app 등록을 확인해주세요.',{multiline:true,duration:5000});
+        toast('❌ 카카오 공유 실패 (4019)\n카카오 개발자 콘솔 → 플랫폼 키 → JavaScript SDK 도메인에\nhttps://isatok.web.app 등록을 확인해주세요.',{multiline:true,duration:TOAST_DURATION_MS});
       }
     }
   }
@@ -4703,7 +4724,7 @@ window.submitBetPick = async function(){
     if(db){
       var updateObj={};
       updateObj[updField]=payload;
-      await updateDoc(doc(db,'challenges',_betPickId),updateObj);
+      await updateDoc(doc(db,COL_CHALLENGES,_betPickId),updateObj);
     }else{
       if(!c.betPicks)c.betPicks={};
       c.betPicks[me.id]=payload;

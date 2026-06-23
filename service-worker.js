@@ -3,7 +3,7 @@
  * - 오프라인 캐싱 없음 (실시간 데이터 pass-through)
  * - 배포 시 SW_VERSION 갱신 → 즉시 activate
  */
-var SW_VERSION = '2026.06.23.02';
+var SW_VERSION = '2026.06.23.03';
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
