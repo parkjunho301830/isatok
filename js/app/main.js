@@ -733,6 +733,45 @@ const g=id=>document.getElementById(id);
 function avc(n){let h=0;for(const c of(n||''))h+=c.charCodeAt(0);return AVC[h%5];}
 function ini(n){return n?n[0]:'?';}
 function $ko(d){return new Date(d).toLocaleDateString('ko-KR',{month:'long',day:'numeric'});}
+function renderEmptyState(emoji,title,subtitle){
+  return [
+    "<div style='",
+      "display:flex;flex-direction:column;align-items:center;",
+      "justify-content:center;padding:48px 24px;text-align:center;",
+      "color:#8E8E93",
+    "'>",
+      "<div style='font-size:48px;margin-bottom:16px'>"+emoji+"</div>",
+      "<div style='font-size:16px;font-weight:600;color:#1C1C1E;margin-bottom:8px'>"+title+"</div>",
+      "<div style='font-size:14px;line-height:1.6'>"+subtitle+"</div>",
+    "</div>"
+  ].join("");
+}
+function _formatExpireDateTime(expiresAt){
+  var ms=_parseExpiresMs(expiresAt);
+  if(ms==null)return null;
+  return new Date(ms).toLocaleString('ko-KR',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function _shareApplicantName(c,v){
+  var team=c.myTeam||[];
+  return team[0]||v.myT||'미정';
+}
+function _shareOpponentName(c,v){
+  if(v.isOpen)return '누구나';
+  var team=c.oppTeam||[];
+  return team[0]||v.opT||'미정';
+}
+function _shareDateTimeStr(c){
+  var dtStr=c.date?$ko(c.date+'T00:00'):'';
+  return (dtStr||'날짜 미정')+(c.time?' '+c.time:'');
+}
+function _hasRankingData(isDbl,season,isSeason){
+  return MEMBERS.some(function(m){
+    if(m.status==='비활성')return false;
+    var filterFn=isSeason&&season?_seasonFilterFn(season):null;
+    var r=isDbl?_computeDoublesRecord(m.name,filterFn):_computeSinglesRecord(m.name,filterFn);
+    return r.total>0;
+  });
+}
 
 const _KO_CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 function _extractChosung(str){
@@ -1029,6 +1068,7 @@ function finish(){
     nowDateTimeFields:_nowDateTimeFields,
     updateChSubmitBtn:_updateChSubmitBtn,
     renderMyExtrasHtml:_renderMyExtrasHtml,
+    renderEmptyState:renderEmptyState,
     onMyPlayerChanged:function(){renderMyRecordHome();renderMyPage();}
   });
   initMyPlayerOnLoad();
@@ -3636,6 +3676,13 @@ function renderHall(){
   }
   cats.push({title:'🏆 토너먼트 우승 TOP10',rows:tourRows,fn:function(x){return x.value+'회';}});
   cats.push({title:'👑 시즌 우승 TOP10',rows:seasonList,fn:function(x){return x.value+'회';}});
+  var hasHallData=cats.some(function(cat){return cat.rows.length>0;});
+  if(!hasHallData){
+    box.innerHTML=isDbl
+      ?renderEmptyState('📈','복식 통계가 없어요','복식 경기를 완료하면 통계가 생겨요')
+      :renderEmptyState('📊','통계 데이터가 없어요','대결 결과가 쌓이면 자동으로 표시돼요');
+    return;
+  }
   box.innerHTML=ratingHtml+cats.map(function(cat){
     var noteHtml=cat.note?('<div style="font-size:11px;color:var(--t3);margin:-4px 0 8px">'+cat.note+'</div>'):'';
     return '<div class="card card-p hall-cat"><div class="hall-cat-t">'+cat.title+'</div>'+noteHtml
@@ -3862,12 +3909,15 @@ function renderR(){
       return {m:m,pt:pt,gr:gr};
     })
     .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
-  if(!list.length){
+  if(!list.length||!_hasRankingData(isDbl,season,isSeason)){
     Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){tb.removeChild(el);});
     if(!tb.querySelector('tr[data-empty]')){
+      var rkEmpty=isDbl
+        ?renderEmptyState('🤝','복식 기록이 없어요','파트너와 함께 도전해보세요!')
+        :renderEmptyState('🏆','아직 랭킹이 없어요','첫 대결을 시작해보세요!');
       var emptyTr=document.createElement('tr');
       emptyTr.dataset.empty='1';
-      emptyTr.innerHTML='<td colspan="4" style="text-align:center;padding:24px;color:var(--t3)">랭킹 데이터가 없습니다</td>';
+      emptyTr.innerHTML='<td colspan="4">'+rkEmpty+'</td>';
       tb.appendChild(emptyTr);
     }
     _renderHallOfFame();
@@ -4233,8 +4283,9 @@ function _shareFeedMeta(c){
     title='🔥 오픈 챌린지 · '+v.myT;
     descParts.push('누구나 수락 환영!');
   } else if(c.status==='pending'){
-    title='🏓 도전장 도착! · '+v.vs;
-    descParts.push('수락/거절 부탁드려요');
+    var appName=_shareApplicantName(c,v);
+    title='🏓 '+appName+'님의 도전장!';
+    descParts.push('받아치시겠습니까? 🔥');
   }
   if(dtStr||c.time)descParts.push('📅 '+(dtStr||'날짜 미정')+(c.time?' '+c.time:''));
   if(betLabel)descParts.push(betLabel);
@@ -4248,7 +4299,12 @@ function buildShareText(c,template){
   var betLabel=_shareBetLabel(c);
   var dtStr=c.date?$ko(c.date+'T00:00'):'';
   var isOpen=v.isOpen;
+  var appName=_shareApplicantName(c,v);
+  var oppName=_shareOpponentName(c,v);
   if(template==='short'){
+    if(c.status==='pending'&&!isOpen){
+      return '🔥 '+appName+'님의 도전장!\n\n수락하시겠습니까? 👊\n'+url;
+    }
     var head='🏓 ['+v.tm.lb+'] '+v.vs;
     var sub=[];
     if(c.status==='completed'&&c.winner){
@@ -4256,7 +4312,7 @@ function buildShareText(c,template){
       head='🏆 '+wn+' 승! · '+v.tm.lb;
       if(c.score)sub.push(c.score);
     } else if(c.status==='accepted'){ head='📅 '+v.vs+' · 곧 만나요!'; }
-    else if(isOpen){ head='🔥 오픈 · '+v.myT+' 도전!'; }
+    else if(isOpen){ head='🔥 오픈 · '+appName+' 도전!'; }
     else { head='🏓 도전장 · '+v.vs; }
     if(dtStr||c.time)sub.push((dtStr||'날짜 미정')+(c.time?' '+c.time:''));
     if(betLabel)sub.push(betLabel);
@@ -4264,16 +4320,31 @@ function buildShareText(c,template){
     return head+'\n'+(sub.length?sub.join(' · ')+'\n':'')+cta+'\n'+url;
   }
   if(template==='open'&&isOpen){
-    var openLines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.myT+'의 도전!','👋 실력 자랑할 시간, 누구든 환영!',''];
-    if(dtStr||c.time)openLines.push('📅 '+dtStr+(c.time?' '+c.time:''));
-    if(c.expiresAt){
-      var rem=getRemainingTime(c.expiresAt);
-      if(rem)openLines.push(rem.text);
-    }
-    if(betLabel)openLines.push('🎰 '+betLabel);
-    if(c.message)openLines.push('💬 '+c.message);
-    openLines.push('─────────────────','단톡에서 수락해 주세요! 🙏',url);
+    var expireStr=_formatExpireDateTime(c.expiresAt);
+    var openLines=[
+      '🏓 오픈 챌린지 등록!',
+      appName+'님이 아무나 도전을 받겠다고 나섰어요!',
+      '',
+      '자신 있으면 수락해보세요 😤'
+    ];
+    if(expireStr)openLines.push('⏳ 마감: '+expireStr);
+    openLines.push('👇 지금 수락하기',url);
     return openLines.join('\n');
+  }
+  if(c.status==='pending'&&!isOpen){
+    var pendingLines=[
+      '🏓 도전장이 날아왔어요!',
+      appName+'님이 '+oppName+'에게 도전장을 보냈습니다.',
+      '',
+      '받아치시겠습니까? 🔥',
+      '📌 종목: '+v.tm.lb,
+      '',
+      '📅 일시: '+_shareDateTimeStr(c)
+    ];
+    if(betLabel)pendingLines.push('🎰 '+betLabel);
+    if(c.message)pendingLines.push('💬 '+c.message);
+    pendingLines.push('👇 도전 내용 확인하기',url);
+    return pendingLines.join('\n');
   }
   var lines=[];
   if(c.status==='completed'&&c.winner){
@@ -4282,20 +4353,23 @@ function buildShareText(c,template){
   } else if(c.status==='accepted'){
     lines=['📅 이사탁 경기 안내','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,'✨ 곧 코트에서 만나요!',''];
   } else if(isOpen){
-    lines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.myT+'의 도전!','👋 실력 자랑할 시간, 누구든 환영!',''];
+    var openDetailExpire=_formatExpireDateTime(c.expiresAt);
+    lines=['🏓 오픈 챌린지 등록!',appName+'님이 아무나 도전을 받겠다고 나섰어요!','','자신 있으면 수락해보세요 😤'];
+    if(openDetailExpire)lines.push('⏳ 마감: '+openDetailExpire);
+    lines.push('👇 지금 수락하기');
   } else {
     lines=['🏓 이사탁 탁구 대결 신청','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,'💌 도전장이 도착했어요!',''];
   }
-  if(dtStr||c.time)lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
-  if(isOpen&&c.expiresAt){
-    var remDetail=getRemainingTime(c.expiresAt);
-    if(remDetail)lines.push(remDetail.text);
+  if(dtStr||c.time)lines.push('📅 일시: '+_shareDateTimeStr(c));
+  if(isOpen&&c.expiresAt&&!lines.some(function(l){return l.indexOf('⏳ 마감:')===0;})){
+    var remDetailExpire=_formatExpireDateTime(c.expiresAt);
+    if(remDetailExpire)lines.push('⏳ 마감: '+remDetailExpire);
   }
   if(betLabel)lines.push('🎰 내기: '+betLabel);
   if(c.message)lines.push('💬 '+c.message);
   if(c.status==='completed')lines.push('─────────────────','결과 확인은 아래 링크! 👀');
   else if(c.status==='accepted')lines.push('─────────────────','경기 후 결과 입력 예정! 🏓');
-  else lines.push('─────────────────','아래 링크에서 수락/거절해주세요! 🙏');
+  else if(!isOpen)lines.push('─────────────────','아래 링크에서 수락/거절해주세요! 🙏');
   lines.push(url);
   return lines.join('\n');
 }

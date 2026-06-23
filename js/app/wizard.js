@@ -669,6 +669,12 @@ function _renderMyStatsHtml(compact) {
   var indRec = C.computeSinglesRecord(me.name);
   var dblRank = C.getMemberRankPosition(me, true, true);
   var indRank = C.getMemberRankPosition(me, false, true);
+  if (!dblRec.total && !indRec.total) {
+    if (C.renderEmptyState) {
+      return C.renderEmptyState('🏓', '아직 경기 기록이 없어요', '도전장을 보내거나 받아보세요!');
+    }
+    return '<div class="my-record-empty">아직 경기 기록이 없어요. 도전장을 보내거나 받아보세요!</div>';
+  }
   if (compact) {
     return '<div class="my-record-compact">'
       + '<div class="my-record-name">👤 ' + me.name + '</div>'
