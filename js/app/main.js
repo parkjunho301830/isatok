@@ -20,7 +20,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.22.20';
+import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.23.01';
 import{initPwa,ensureLatestVersion}from'./pwa.js';
 import{
   initWizard,checkMyPlayerSetup,initMyPlayerOnLoad,renderMyRecordHome,renderMyPage,
@@ -563,6 +563,169 @@ function _calcGrade(pt){
   }
   return GRADE_TIERS[GRADE_TIERS.length-1];
 }
+function _parseExpiresMs(expiresAt){
+  if(!expiresAt)return null;
+  if(typeof expiresAt.toDate==='function')return expiresAt.toDate().getTime();
+  if(typeof expiresAt==='number')return expiresAt;
+  var t=new Date(expiresAt).getTime();
+  return isNaN(t)?null:t;
+}
+function _isOpenChallengeActive(c){
+  if(!c||!c.isOpen||c.status!=='pending')return true;
+  if(!c.expiresAt)return true;
+  var ms=_parseExpiresMs(c.expiresAt);
+  if(ms==null)return true;
+  return ms>Date.now();
+}
+function getRemainingTime(expiresAt){
+  if(!expiresAt)return null;
+  var expireMs=_parseExpiresMs(expiresAt);
+  if(expireMs==null)return null;
+  var diff=expireMs-Date.now();
+  if(diff<=0)return {text:'⏰ 마감됨',urgent:true};
+  var hours=Math.floor(diff/(1000*60*60));
+  var days=Math.floor(hours/24);
+  if(days>=1)return {text:'⏳ '+days+'일 후 마감',urgent:false};
+  if(hours>=1)return {text:'⏳ '+hours+'시간 후 마감',urgent:true};
+  return {text:'⏳ 곧 마감',urgent:true};
+}
+function calcRivalStats(myPlayerName){
+  var rivalMap={};
+  CHAL.forEach(function(match){
+    if(match.status!=='completed')return;
+    var myTeam=null;
+    var my=match.myTeam||[];
+    var opp=match.oppTeam||[];
+    if(my.indexOf(myPlayerName)>=0)myTeam='a';
+    else if(opp.indexOf(myPlayerName)>=0)myTeam='b';
+    if(!myTeam)return;
+    var isWin=match.winner===myTeam;
+    var rivals=myTeam==='a'?opp:my;
+    rivals.forEach(function(rivalName){
+      if(!rivalName)return;
+      if(!rivalMap[rivalName])rivalMap[rivalName]={win:0,lose:0};
+      if(isWin)rivalMap[rivalName].win++;
+      else rivalMap[rivalName].lose++;
+    });
+  });
+  var rivalList=Object.keys(rivalMap).map(function(name){
+    var s=rivalMap[name];
+    return {name:name,win:s.win,lose:s.lose,total:s.win+s.lose};
+  }).filter(function(r){return r.total>0;});
+  if(!rivalList.length)return {mostWin:null,mostLose:null};
+  var mostWin=rivalList.slice().sort(function(a,b){return b.win-a.win||b.total-a.total;})[0];
+  var mostLose=rivalList.slice().sort(function(a,b){return b.lose-a.lose||b.total-a.total;})[0];
+  return {mostWin:mostWin,mostLose:mostLose};
+}
+function _renderRivalStatsHtml(myPlayerName){
+  var stats=calcRivalStats(myPlayerName);
+  if(!stats.mostWin&&!stats.mostLose)return '';
+  var lines=[];
+  if(stats.mostWin&&stats.mostWin.win>0){
+    lines.push('<div class="my-rival-row"><span class="my-rival-label">💪 자주 이긴 상대</span><strong>'+stats.mostWin.name+'</strong><span class="my-rival-rec">'+stats.mostWin.win+'승 '+stats.mostWin.lose+'패</span></div>');
+  }
+  if(stats.mostLose&&stats.mostLose.lose>0&&( !stats.mostWin||stats.mostLose.name!==stats.mostWin.name||stats.mostLose.lose>stats.mostWin.lose)){
+    lines.push('<div class="my-rival-row"><span class="my-rival-label">🔥 라이벌</span><strong>'+stats.mostLose.name+'</strong><span class="my-rival-rec">'+stats.mostLose.win+'승 '+stats.mostLose.lose+'패</span></div>');
+  }
+  if(!lines.length)return '';
+  return '<div class="my-rival-section"><div class="my-stat-head">주요 상대 전적</div>'+lines.join('')+'</div>';
+}
+function getGradeProgress(point){
+  var p=point??DEF_PT;
+  for(var i=0;i<GRADE_TIERS.length;i++){
+    var tier=GRADE_TIERS[i];
+    if(p>=tier.min){
+      var isMaster=i===0;
+      var nextTier=i>0?GRADE_TIERS[i-1]:null;
+      if(isMaster){
+        return {currentGrade:tier.label,nextGrade:null,progress:100,remain:0,isMaster:true};
+      }
+      var range=nextTier.min-tier.min;
+      var progress=Math.min(100,Math.round((p-tier.min)/range*100));
+      var remain=nextTier.min-p;
+      return {currentGrade:tier.label,nextGrade:nextTier.label,progress:progress,remain:remain,isMaster:false};
+    }
+  }
+  return null;
+}
+function _renderGradeProgressHtml(point){
+  var info=getGradeProgress(point);
+  if(!info)return '';
+  var barColor=info.isMaster?'#FFD700':'#007AFF';
+  var subtitle=info.isMaster
+    ?'🏆 최고 등급 달성!'
+    :'다음 등급 <strong>'+info.nextGrade+'</strong>까지 <strong>'+info.remain+'pt</strong>';
+  return '<div class="my-grade-progress">'
+    +'<div class="my-grade-progress-head"><span>'+info.currentGrade+'</span><span class="my-grade-progress-sub">'+subtitle+'</span></div>'
+    +'<div class="my-grade-progress-track"><div class="my-grade-progress-bar" style="width:'+info.progress+'%;background:'+barColor+'"></div></div>'
+    +'</div>';
+}
+function _renderMyExtrasHtml(){
+  var me=getMyPlayer();
+  if(!me)return '';
+  return _renderRivalStatsHtml(me.name)+_renderGradeProgressHtml(_memberPt(me,false));
+}
+function _myPointDeltaForResult(challenge,winnerSide){
+  var me=getMyPlayer();
+  if(!me||!challenge||!winnerSide)return null;
+  var isDbl=_isDoublesType(challenge.type);
+  var pts=isDbl?PT.double:PT.individual;
+  var winTeam=winnerSide==='a'?(challenge.myTeam||[]):(challenge.oppTeam||[]);
+  var loseTeam=winnerSide==='a'?(challenge.oppTeam||[]):(challenge.myTeam||[]);
+  if(winTeam.indexOf(me.name)>=0)return pts.win;
+  if(loseTeam.indexOf(me.name)>=0)return pts.loss;
+  return null;
+}
+function showResultFeedback(isWin,pointDelta){
+  if(pointDelta==null)return;
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:24px;padding:40px 32px;text-align:center;width:280px;animation:feedbackPop 0.3s ease';
+  var emoji=isWin?'🎉':'💪';
+  var title=isWin?'승리!':'아쉽지만 분전했어요!';
+  var ptSign=pointDelta>=0?'+':'';
+  var ptColor=pointDelta>=0?'#34C759':'#FF3B30';
+  var ptText=ptSign+pointDelta+'pt';
+  box.innerHTML='<div style="font-size:56px;margin-bottom:12px">'+emoji+'</div>'
+    +'<div style="font-size:22px;font-weight:700;margin-bottom:8px">'+title+'</div>'
+    +'<div style="font-size:32px;font-weight:800;color:'+ptColor+';margin-bottom:24px">'+ptText+'</div>'
+    +'<button type="button" id="feedbackClose" style="width:100%;padding:14px;border:none;border-radius:12px;background:#007AFF;color:#fff;font-size:16px;font-weight:600;cursor:pointer">확인</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  var closeFn=function(){overlay.remove();};
+  box.querySelector('#feedbackClose').addEventListener('click',closeFn);
+  setTimeout(closeFn,3000);
+}
+function _rankSnapshotStorageKey(){
+  return 'isatok_rank_snapshot_'+_rkMode+'_'+_rkScope;
+}
+function saveRankSnapshot(rankList){
+  var today=new Date().toDateString();
+  var dateKey=_rankSnapshotStorageKey()+'_date';
+  if(localStorage.getItem(dateKey)===today)return;
+  var snapshot={};
+  rankList.forEach(function(item,idx){snapshot[item.m.id]=idx+1;});
+  try{
+    localStorage.setItem(_rankSnapshotStorageKey(),JSON.stringify(snapshot));
+    localStorage.setItem(dateKey,today);
+  }catch(e){}
+}
+function getRankChange(memberId,currentRank){
+  try{
+    var snapshot=JSON.parse(localStorage.getItem(_rankSnapshotStorageKey())||'{}');
+    var prevRank=snapshot[memberId];
+    if(!prevRank)return null;
+    return prevRank-currentRank;
+  }catch(e){
+    return null;
+  }
+}
+function getRankBadge(change){
+  if(change===null||change===0)return '<span class="rk-change rk-change--flat">-</span>';
+  if(change>0)return '<span class="rk-change rk-change--up">▲'+change+'</span>';
+  return '<span class="rk-change rk-change--down">▼'+Math.abs(change)+'</span>';
+}
 function _memberGrade(m){return _calcGrade(_memberPt(m,false));}
 function _findMemberByName(name){return MEMBERS.find(function(m){return m.name===name;});}
 const AVC=['avG','avB','avA','avR','avP'];
@@ -865,6 +1028,7 @@ function finish(){
     getMemberRankPosition:_getMemberRankPosition,
     nowDateTimeFields:_nowDateTimeFields,
     updateChSubmitBtn:_updateChSubmitBtn,
+    renderMyExtrasHtml:_renderMyExtrasHtml,
     onMyPlayerChanged:function(){renderMyRecordHome();renderMyPage();}
   });
   initMyPlayerOnLoad();
@@ -1529,6 +1693,9 @@ window.submitChBS = async function(){
     data.acceptedAt=new Date().toISOString();
     data.instantCreate=true;
   }
+  if(isOpenMode&&!editId){
+    data.expiresAt=new Date(Date.now()+3*24*60*60*1000);
+  }
     let newId = 'l' + Date.now();
     if(db){ const ref = await addDoc(collection(db,'challenges'), data); newId = ref.id; }
     else { CHAL.unshift({id: newId, ...data}); renderC(); }
@@ -1553,6 +1720,8 @@ window.submitChBS = async function(){
         saved.gameMode=pendingResult.gameMode;
         if(!db){var loc=CHAL.find(function(c){return c.id===newId;});if(loc)Object.assign(loc,saved);renderC();}
         await _updateMatchPoints(saved,pendingResult.winner,1);
+        var ptDelta=_myPointDeltaForResult(saved,pendingResult.winner);
+        if(ptDelta!=null)showResultFeedback(ptDelta>0,ptDelta);
         toast(pendingResult.score?'🏆 대결 생성 및 결과 저장!':'🏆 대결 생성 · 승자 기록!');
         if(_currentPage==='ranking')renderR();
         renderMyRecordHome();renderMyPage();
@@ -1672,7 +1841,7 @@ window.setF=function(f){
 }
 // ── 오픈 챌린지 대기 중 개수 뱃지 업데이트
 function updateOpenBadge(){
-  const count=CHAL.filter(c=>c.isOpen&&c.status==='pending').length;
+  const count=CHAL.filter(c=>c.isOpen&&c.status==='pending'&&_isOpenChallengeActive(c)).length;
   const btn=g('f-open');
   if(!btn)return;
   // 기존 뱃지 제거
@@ -1695,6 +1864,11 @@ function renderC(){
   // ── 스크롤 중 뱃지 DOM 조작 스킵 (Forced Reflow 방지)
   if(!_isScrolling)updateOpenBadge();
   let data=[...CHAL];
+  data=data.filter(function(c){
+    if(!c.isOpen||c.status!=='pending')return true;
+    if(!c.expiresAt)return true;
+    return _isOpenChallengeActive(c);
+  });
   // ── 필터 적용 ──
   if(_cf==='pending')        data=data.filter(c=>c.status==='pending'); // 오픈 챌린지 포함하여 대기중 전체 표시
   else if(_cf==='open')      data=data.filter(c=>c.isOpen&&c.status==='pending'); // 오픈 챌린지 필터
@@ -1733,7 +1907,7 @@ function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(_isAdmin()?'1':'0');
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(_isAdmin()?'1':'0')+'|'+(c.expiresAt?_parseExpiresMs(c.expiresAt)||'':'');
   });
 
   // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
@@ -1863,6 +2037,14 @@ function buildCCard(c){
       ?vsParts[0]+'<span class="cc-vs-sep">VS</span>'+vsParts[1]
       :vsTitle;
     var statusBadge='<span class="badge '+_chStatusBadge(c,isOpen)+'">'+_chStatusLabel(c,isOpen)+'</span>';
+    var expireHtml='';
+    if(isOpen&&c.expiresAt){
+      var rem=getRemainingTime(c.expiresAt);
+      if(rem){
+        var remColor=rem.urgent?'#FF3B30':'#FF9500';
+        expireHtml='<div class="cc-open-expire" style="font-size:12px;color:'+remColor+';margin-top:8px">'+rem.text+'</div>';
+      }
+    }
     return `<div class="${cardClass}" data-cid="${c.id}" data-match-id="${c.id}">
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${statusBadge}${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
       <div class="cc-vs-title">${vsHtml}</div>
@@ -1870,6 +2052,7 @@ function buildCCard(c){
       ${pills?`<div class="cc-pills">${pills}</div>`:''}
       ${res}
       ${betPicksHtml}
+      ${expireHtml}
       <div class="cc-acts">${actsParts}</div>
     </div>`;
 }
@@ -2863,6 +3046,11 @@ window.submitResult=async function(){
     if(mtEm)mtEm.textContent='입력';
     if(_currentPage==='ranking')renderR();
     if(_currentPage==='members')renderM();
+    renderMyRecordHome();renderMyPage();
+    if(!wasEdit){
+      var ptDelta=_myPointDeltaForResult(c,_rw);
+      if(ptDelta!=null)showResultFeedback(ptDelta>0,ptDelta);
+    }
     var hasScore=!!sc;
     var msg=wasEdit
       ?(hasScore?'✏️ 결과 수정 완료!':'✏️ 결과 수정 완료!')
@@ -3639,7 +3827,9 @@ function _buildRankRowCells(m,rank,pt,grOpt){
   else if(rank===2)rankHtml='<span class="rk-medal rk-medal--2" aria-label="2위">🥈</span>';
   else if(rank===3)rankHtml='<span class="rk-medal rk-medal--3" aria-label="3위">🥉</span>';
   else rankHtml='<span class="rk-rank-num">'+rank+'</span>';
-  return '<td data-label="순위">'+rankHtml+'</td>'
+  var rankChange=getRankChange(m.id,rank);
+  var rankBadge=getRankBadge(rankChange);
+  return '<td data-label="순위"><div class="rk-rank-cell">'+rankHtml+rankBadge+'</div></td>'
     +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:flex-start;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px;flex-shrink:0">'+ini(m.name)+'</div><div style="min-width:0;flex:1"><div style="font-weight:600">'+gr.icon+' '+m.name+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div>'+streakHtml+recentHtml+'</div></div></td>'
     +'<td data-label="등급"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span></td>'
     +'<td data-label="포인트"><span class="rk-pt">'+pt+'</span><span class="rk-pt-unit">점</span></td>';
@@ -3700,7 +3890,8 @@ function renderR(){
     var streak=_streakForRankRow(item.m);
     var recentKey=_getRecentMatchLines(item.m.name,_rkMode==='double',3,_rkScope==='season'&&season?_seasonFilterFn(season):null)
       .map(function(r){return r.date+r.score+r.result;}).join('|');
-    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak,recentKey);
+    var rankChange=getRankChange(item.m.id,rank);
+    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak,recentKey)+'|rc:'+(rankChange===null?'n':rankChange);
     var existing=existingMap[item.m.id];
     if(existing){
       if(existing.dataset.rhash!==newHash){
@@ -3722,6 +3913,7 @@ function renderR(){
       childList=Array.from(tb.children);
     }
   });
+  saveRankSnapshot(list);
   _renderHallOfFame();
 }
 
@@ -4032,15 +4224,16 @@ function _shareFeedMeta(c){
   var descParts=[];
   if(c.status==='completed'&&c.winner){
     var wn=c.winner==='a'?v.myT:v.opT;
-    title='🏆 '+wn+' 승리 · '+v.tm.lb;
+    title='🏆 '+wn+' 승리! · '+v.tm.lb;
     if(c.score)descParts.push('스코어 '+c.score);
   } else if(c.status==='accepted'){
-    title='📅 경기 확정 · '+v.vs;
-    descParts.push('결과 입력을 기다려요');
+    title='📅 곧 만나요! · '+v.vs;
+    descParts.push('경기 후 결과 입력 예정');
   } else if(v.isOpen){
     title='🔥 오픈 챌린지 · '+v.myT;
-    descParts.push('누구나 수락 가능');
+    descParts.push('누구나 수락 환영!');
   } else if(c.status==='pending'){
+    title='🏓 도전장 도착! · '+v.vs;
     descParts.push('수락/거절 부탁드려요');
   }
   if(dtStr||c.time)descParts.push('📅 '+(dtStr||'날짜 미정')+(c.time?' '+c.time:''));
@@ -4060,18 +4253,23 @@ function buildShareText(c,template){
     var sub=[];
     if(c.status==='completed'&&c.winner){
       var wn=c.winner==='a'?v.myT:v.opT;
-      head='🏆 '+wn+' 승 · '+v.tm.lb;
+      head='🏆 '+wn+' 승! · '+v.tm.lb;
       if(c.score)sub.push(c.score);
-    } else if(c.status==='accepted'){ head='📅 '+v.vs; }
-    else if(isOpen){ head='🔥 오픈 · '+v.myT; }
+    } else if(c.status==='accepted'){ head='📅 '+v.vs+' · 곧 만나요!'; }
+    else if(isOpen){ head='🔥 오픈 · '+v.myT+' 도전!'; }
+    else { head='🏓 도전장 · '+v.vs; }
     if(dtStr||c.time)sub.push((dtStr||'날짜 미정')+(c.time?' '+c.time:''));
     if(betLabel)sub.push(betLabel);
-    var cta=c.status==='completed'?'결과 확인':c.status==='accepted'?'경기 예정':isOpen?'수락 환영!':'수락 부탁 🙏';
+    var cta=c.status==='completed'?'결과 확인 👀':c.status==='accepted'?'경기 화이팅!':isOpen?'수락 환영 🙌':'수락 부탁 🙏';
     return head+'\n'+(sub.length?sub.join(' · ')+'\n':'')+cta+'\n'+url;
   }
   if(template==='open'&&isOpen){
-    var openLines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ 도전: '+v.myT,'👋 누구나 수락 가능!',''];
+    var openLines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.myT+'의 도전!','👋 실력 자랑할 시간, 누구든 환영!',''];
     if(dtStr||c.time)openLines.push('📅 '+dtStr+(c.time?' '+c.time:''));
+    if(c.expiresAt){
+      var rem=getRemainingTime(c.expiresAt);
+      if(rem)openLines.push(rem.text);
+    }
     if(betLabel)openLines.push('🎰 '+betLabel);
     if(c.message)openLines.push('💬 '+c.message);
     openLines.push('─────────────────','단톡에서 수락해 주세요! 🙏',url);
@@ -4079,19 +4277,23 @@ function buildShareText(c,template){
   }
   var lines=[];
   if(c.status==='completed'&&c.winner){
-    lines=['🏆 이사탁 경기 결과','─────────────────','🏅 '+v.tm.lb,'👑 '+(c.winner==='a'?v.myT:v.opT)+' 팀 승리',''];
+    lines=['🏆 이사탁 경기 결과','─────────────────','🏅 '+v.tm.lb,'👑 '+(c.winner==='a'?v.myT:v.opT)+' 팀 승리!',''];
     if(c.score)lines.push('📊 '+c.score);
   } else if(c.status==='accepted'){
-    lines=['📅 이사탁 경기 안내','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,''];
+    lines=['📅 이사탁 경기 안내','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,'✨ 곧 코트에서 만나요!',''];
   } else if(isOpen){
-    lines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.myT,'👋 누구나 수락 가능!',''];
+    lines=['🔥 이사탁 오픈 챌린지','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.myT+'의 도전!','👋 실력 자랑할 시간, 누구든 환영!',''];
   } else {
-    lines=['🏓 이사탁 탁구 대결 신청','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,''];
+    lines=['🏓 이사탁 탁구 대결 신청','─────────────────','🏅 '+v.tm.lb,'⚔️ '+v.vs,'💌 도전장이 도착했어요!',''];
   }
   if(dtStr||c.time)lines.push('📅 일시: '+dtStr+(c.time?' '+c.time:''));
+  if(isOpen&&c.expiresAt){
+    var remDetail=getRemainingTime(c.expiresAt);
+    if(remDetail)lines.push(remDetail.text);
+  }
   if(betLabel)lines.push('🎰 내기: '+betLabel);
   if(c.message)lines.push('💬 '+c.message);
-  if(c.status==='completed')lines.push('─────────────────','결과 확인은 아래 링크! 🙏');
+  if(c.status==='completed')lines.push('─────────────────','결과 확인은 아래 링크! 👀');
   else if(c.status==='accepted')lines.push('─────────────────','경기 후 결과 입력 예정! 🏓');
   else lines.push('─────────────────','아래 링크에서 수락/거절해주세요! 🙏');
   lines.push(url);

@@ -703,7 +703,7 @@ export function renderMyPage() {
   }
   var stats = g('my-page-stats');
   var setting = g('my-page-setting');
-  if (stats) stats.innerHTML = _renderMyBadgesHtml() + _renderMyStatsHtml(false);
+  if (stats) stats.innerHTML = _renderMyBadgesHtml() + _renderMyStatsHtml(false) + (C.renderMyExtrasHtml ? C.renderMyExtrasHtml() : '');
   if (setting) {
     var me = getMyPlayer();
     setting.innerHTML = '<div class="my-setting-head">설정</div>'
