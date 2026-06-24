@@ -3,7 +3,7 @@
   "name": "이사탁",
   "short_name": "이사탁",
   "description": "이사탁 탁구 동호회 — 대결, 랭킹, 통계",
-  "start_url": "./?v=2026.06.23.04",
+  "start_url": "./?v=2026.06.24.01",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",

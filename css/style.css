@@ -786,3 +786,176 @@ tr:last-child td{border-bottom:none;}
 .my-grade-progress-track{background:var(--c3);border-radius:99px;height:8px;overflow:hidden;}
 .my-grade-progress-bar{height:100%;border-radius:99px;transition:width .6s ease;}
 .cc-open-expire{font-weight:600;}
+
+/* ============================
+   내 순위 요약 카드 (My Rank Card)
+   2026-06-23 추가
+   ============================ */
+.my-rank-card {
+  margin: 12px 12px 0;
+  border-radius: 14px;
+  background: #0B1829;
+  overflow: hidden;
+  position: relative;
+}
+.my-rank-card__accent {
+  height: 2.5px;
+  background: var(--primary);
+  transition: background 0.3s ease;
+}
+.my-rank-card__body {
+  padding: 15px 16px 0;
+  position: relative;
+}
+.my-rank-card__ghost {
+  position: absolute;
+  right: -6px;
+  top: -18px;
+  font-size: 108px;
+  font-weight: 500;
+  color: #fff;
+  opacity: 0.045;
+  line-height: 1;
+  letter-spacing: -3px;
+  pointer-events: none;
+  user-select: none;
+}
+.my-rank-card__eyebrow {
+  font-size: 10px;
+  color: rgba(255,255,255,0.38);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.my-rank-card__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.my-rank-card__name {
+  font-size: 19px;
+  font-weight: 500;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 7px;
+}
+.my-rank-card__grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(0,122,255,0.2);
+  color: #5AABFF;
+  border: 0.5px solid rgba(0,122,255,0.35);
+}
+.my-rank-card__rank-num {
+  font-size: 46px;
+  font-weight: 500;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -2px;
+  text-align: right;
+}
+.my-rank-card__rank-suf {
+  font-size: 15px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.5);
+  margin-left: 1px;
+}
+.my-rank-card__pts {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+  text-align: right;
+  margin-top: 3px;
+}
+.my-rank-card__pts-unit {
+  font-size: 11px;
+  color: rgba(255,255,255,0.38);
+  margin-left: 2px;
+}
+.my-rank-card__change {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 0;
+  border-top: 0.5px solid rgba(255,255,255,0.07);
+}
+.my-rank-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.my-rank-card__badge--up   { background: rgba(255,59,48,0.18);  color: #FF7066; }
+.my-rank-card__badge--down { background: rgba(0,122,255,0.18);  color: #5AABFF; }
+.my-rank-card__badge--same { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.4); }
+.my-rank-card__change-txt {
+  font-size: 12px;
+  color: rgba(255,255,255,0.38);
+}
+.my-rank-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 0.5px solid rgba(255,255,255,0.07);
+}
+.my-rank-card__stat {
+  padding: 10px 0;
+  text-align: center;
+  border-right: 0.5px solid rgba(255,255,255,0.07);
+}
+.my-rank-card__stat:last-child { border-right: none; }
+.my-rank-card__stat-val {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+}
+.my-rank-card__stat-lbl {
+  display: block;
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.my-rank-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.035);
+  border-top: 0.5px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.my-rank-card__footer:active { opacity: 0.75; }
+.my-rank-card__footer-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.38);
+}
+.my-rank-card__footer-hint b { color: #5AABFF; font-weight: 500; }
+.my-rank-card__footer-cta {
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+}
+.ranking-row--me {
+  background: rgba(0,122,255,0.06);
+}
+.ranking-row--me .ranking-name { color: var(--primary); }
+.ranking-row--me .ranking-pts  { color: var(--primary); }
+.ranking-name-badge {
+  font-size: 10px;
+  background: var(--primary);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 10px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
