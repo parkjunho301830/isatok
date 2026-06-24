@@ -22,7 +22,7 @@
 
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getFirestore,collection,doc,addDoc,updateDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.24.01';
+import{APP_VERSION,SITE_ORIGIN,KAKAO_JS_KEY}from'./version.js?v=2026.06.24.02';
 import{
   COL_CHALLENGES,COL_MEMBERS,COL_SEASONS,COL_NOTICES,COL_BOARDS,COL_TOURNAMENTS,
   PT_INDIVIDUAL_WIN,PT_INDIVIDUAL_LOSS,PT_DOUBLE_WIN,PT_DOUBLE_LOSS,PT_INIT,
@@ -90,6 +90,9 @@ let _scLblA='A팀',_scLblB='B팀';
 let _rkMode='double';
 // _rkScope: 랭킹 범위 ('all' | 'season')
 let _rkScope='season';
+let _rkGradeFilter='all';
+let _rkLastList=null;
+let _rkGradeChipBound=false;
 // _previousPointMaps: 랭킹 뷰별 이전 포인트 스냅샷 (실시간 변동 표시용)
 let _previousPointMaps={};
 // _previousPointMapReady: 뷰별 최초 로드 완료 여부 (깜빡임 방지)
@@ -3626,6 +3629,7 @@ window.endSeason=async function(id){
 };
 window.setRkScope=function(scope){
   _rkScope=scope;
+  _rkGradeFilter='all';
   var all=g('rk-scope-all'),sn=g('rk-scope-season');
   if(all)all.classList.toggle('on',scope==='all');
   if(sn)sn.classList.toggle('on',scope==='season');
@@ -3865,6 +3869,7 @@ window.renderProfileH2H=function(){
 
 window.setRk=function(mode){
   _rkMode=mode;
+  _rkGradeFilter='all';
   var ind=g('rk-ind'),dbl=g('rk-dbl');
   if(ind)ind.classList.toggle('on',mode==='individual');
   if(dbl)dbl.classList.toggle('on',mode==='double');
@@ -3889,6 +3894,250 @@ function _loadPreviousRankMap(){
     return JSON.parse(localStorage.getItem(_rankSnapshotStorageKey())||'{}');
   }catch(e){
     return {};
+  }
+}
+
+var GRADE_CHIPS=[
+  {key:'all',label:'전체',cls:'rank-chip--all'},
+  {key:'master',label:'마스터',cls:'rank-chip--master'},
+  {key:'pro',label:'고수',cls:'rank-chip--pro'},
+  {key:'adv',label:'상급',cls:'rank-chip--adv'},
+  {key:'mid',label:'중급',cls:'rank-chip--mid'},
+  {key:'beg',label:'초급',cls:'rank-chip--beg'},
+  {key:'nov',label:'입문',cls:'rank-chip--nov'}
+];
+
+function gradeToClass(grade){
+  var map={'마스터':'master','고수':'pro','상급':'adv','중급':'mid','초급':'beg','입문':'nov'};
+  return map[grade]||'nov';
+}
+function nameInitial(name){
+  return name?name.slice(0,2):'??';
+}
+function gradeAvatarStyle(grade){
+  var map={
+    '마스터':'background:#EEEDFE;color:#534AB7;',
+    '고수':'background:#E6F1FB;color:#185FA5;',
+    '상급':'background:#EAF3DE;color:#3B6D11;',
+    '중급':'background:#FAEEDA;color:#854F0B;',
+    '초급':'background:#FAECE7;color:#993C1D;',
+    '입문':'background:#F1EFE8;color:#5F5E5A;'
+  };
+  return map[grade]||'background:#eee;color:#666;';
+}
+function rankChangeMeta(diff){
+  if(diff>0)return {text:'▲ '+diff,cls:'rank-row__chg--up'};
+  if(diff<0)return {text:'▼ '+Math.abs(diff),cls:'rank-row__chg--down'};
+  return {text:'—',cls:'rank-row__chg--same'};
+}
+function _rankEntryToRowMember(entry){
+  var gr=entry.gr||_memberGrade(entry.m);
+  return {id:entry.m.id,name:entry.m.name,point:entry.pt,grade:gr.label};
+}
+function _getMemberRankStats(member){
+  var isDbl=_rkMode==='double';
+  var filterFn=null;
+  if(_rkScope==='season'){
+    var season=_getCurrentSeason();
+    if(season)filterFn=_seasonFilterFn(season);
+  }
+  var rec=isDbl?_computeDoublesRecord(member.name,filterFn):_computeSinglesRecord(member.name,filterFn);
+  return {wins:rec.wins,total:rec.total};
+}
+function _buildRankStreakMap(list){
+  var map=new Map();
+  var isDbl=_rkMode==='double';
+  var filterFn=null;
+  if(_rkScope==='season'){
+    var season=_getCurrentSeason();
+    if(season)filterFn=_seasonFilterFn(season);
+  }
+  list.forEach(function(item){
+    var matches=_getMatchesForMode(item.m.name,isDbl,filterFn);
+    var streak=_streakForRankRow(item.m);
+    var type='none';
+    if(matches.length&&streak>0){
+      var wonFn=isDbl?function(c){return _playerWonAnyMatch(c,item.m.name);}:function(c){return _playerWonMatch(c,item.m.name);};
+      type=wonFn(matches[0])?'win':'lose';
+    }
+    map.set(item.m.id,{count:streak,type:type});
+  });
+  return map;
+}
+function renderRankPodium(top3,prevMap){
+  if(!top3||top3.length<3)return '';
+  var myId=getMyPlayerId();
+  var order=[top3[1],top3[0],top3[2]];
+  var ranks=[2,1,3];
+  var itemsHtml=order.map(function(member,idx){
+    var rank=ranks[idx];
+    var prevRnk=prevMap[member.id]!=null?prevMap[member.id]:rank;
+    var diff=prevRnk-rank;
+    var chgMeta=rankChangeMeta(diff);
+    var isFirst=rank===1;
+    var anchorAttr=myId&&member.id===myId?' id="my-rank-anchor"':'';
+    return '<div class="rank-podium__item rank-podium__item--'+rank+'"'+anchorAttr+'>'
+      +(isFirst?'<div class="rank-podium__crown">🏆</div>':'')
+      +'<div class="rank-podium__avatar">'+nameInitial(member.name)+'</div>'
+      +'<div class="rank-podium__name">'+member.name+'</div>'
+      +'<div class="rank-podium__pts">'+member.point.toLocaleString()+'pt</div>'
+      +'<div class="rank-podium__chg '+chgMeta.cls+'">'+chgMeta.text+'</div>'
+      +'<div class="rank-podium__base">'+rank+'위</div>'
+      +'</div>';
+  }).join('');
+  return '<div class="rank-podium"><div class="rank-podium__row">'+itemsHtml+'</div></div>';
+}
+function renderGradeChips(activeKey){
+  return GRADE_CHIPS.map(function(c){
+    var active=activeKey===c.key?' is-active':'';
+    return '<div class="rank-chip '+c.cls+active+'" data-grade="'+c.key+'">'+c.label+'</div>';
+  }).join('');
+}
+function bindGradeChipEvents(chipsContainerId,onFilterChange){
+  var container=g(chipsContainerId);
+  if(!container||container.dataset.bound)return;
+  container.dataset.bound='1';
+  container.addEventListener('click',function(e){
+    var chip=e.target.closest('.rank-chip');
+    if(!chip)return;
+    onFilterChange(chip.dataset.grade||'all');
+  });
+}
+function renderRankRow(member,rank,prevRank,myId,stats){
+  var isMe=member.id===myId;
+  var diff=prevRank-rank;
+  var chgMeta=rankChangeMeta(diff);
+  var gcls=gradeToClass(member.grade);
+  var wins=stats?stats.wins:0;
+  var total=stats?stats.total:0;
+  var winPct=total>0?Math.round(wins/total*100):null;
+  var winBar=winPct!==null
+    ?'<div class="rank-row__win-line"><div class="rank-row__win-bar-wrap"><div class="rank-row__win-bar" style="width:'+winPct+'%"></div></div><span class="rank-row__win-pct">'+winPct+'%</span></div>'
+    :'';
+  var meBadge=isMe?'<span class="rank-row__me-badge">나</span>':'';
+  var meRowCls=isMe?' rank-row--me':'';
+  var mePtsCls=isMe?' rank-row__pts--me':'';
+  var meNmCls=isMe?' rank-row__name--me':'';
+  var numCls=rank<=3?' rank-row__num--top':'';
+  var anchorId=isMe?'id="my-rank-anchor" ':'';
+  return '<div class="rank-row'+meRowCls+'" '+anchorId+'data-member-id="'+member.id+'">'
+    +'<div class="rank-row__num'+numCls+'">'+rank+'</div>'
+    +'<div class="rank-row__avatar" style="'+gradeAvatarStyle(member.grade)+'">'+nameInitial(member.name)+'</div>'
+    +'<div class="rank-row__info"><div class="rank-row__name-line">'
+    +'<span class="rank-row__name'+meNmCls+'">'+member.name+'</span>'+meBadge
+    +'<span class="rank-row__grade-tag rank-row__grade-tag--'+gcls+'">'+member.grade+'</span></div>'+winBar+'</div>'
+    +'<div class="rank-row__right"><div class="rank-row__pts'+mePtsCls+'">'+member.point.toLocaleString()+'pt</div>'
+    +'<div class="rank-row__chg '+chgMeta.cls+'">'+chgMeta.text+'</div></div></div>';
+}
+function renderStreakBanner(rankList,streakMap){
+  var best=null;
+  var bestCount=1;
+  rankList.forEach(function(m){
+    var s=streakMap.get(m.id);
+    if(s&&s.type==='win'&&s.count>bestCount){
+      bestCount=s.count;
+      best=m;
+    }
+  });
+  if(!best)return '';
+  return '<div class="rank-streak-banner"><div class="rank-streak-banner__icon">🔥</div><div>'
+    +'<div class="rank-streak-banner__title">'+best.name+' '+bestCount+'연승 달성!</div>'
+    +'<div class="rank-streak-banner__sub">이번 시즌 최장 연승 기록</div></div></div>';
+}
+function _filterRankListByGrade(list,gradeKey){
+  if(gradeKey==='all')return list.length>=3?list.slice(3):list;
+  return list.filter(function(item){
+    var label=(item.gr||_memberGrade(item.m)).label;
+    return gradeToClass(label)===gradeKey;
+  });
+}
+function _getGlobalRank(fullList,memberId){
+  for(var i=0;i<fullList.length;i++){
+    if(fullList[i].m.id===memberId)return i+1;
+  }
+  return 0;
+}
+function _renderRankRowsList(displayList,fullList,prevMap,myId,container){
+  if(!container)return;
+  if(!displayList.length){
+    container.innerHTML='<div style="padding:24px;text-align:center;color:var(--t3)">'+(fullList.length>=3?'해당 등급 선수가 없습니다':'')+'</div>';
+    return;
+  }
+  container.innerHTML=displayList.map(function(entry){
+    var rank=_getGlobalRank(fullList,entry.m.id);
+    var member=_rankEntryToRowMember(entry);
+    var prevRank=prevMap[member.id]!=null?prevMap[member.id]:rank;
+    var stats=_getMemberRankStats(entry.m);
+    return renderRankRow(member,rank,prevRank,myId,stats);
+  }).join('');
+  if(!container.dataset.rowBound){
+    container.dataset.rowBound='1';
+    container.addEventListener('click',function(e){
+      var row=e.target.closest('.rank-row');
+      if(!row)return;
+      var id=row.dataset.memberId;
+      if(id)openMemberProfile(id);
+    });
+  }
+}
+function _clearRankUxSection(msg){
+  var chips=g('rank-grade-chips');
+  var podium=g('rank-podium-wrap');
+  var banner=g('rank-streak-banner-wrap');
+  var rows=g('rank-rows-list');
+  var empty=g('rank-empty-msg');
+  if(chips)chips.innerHTML='';
+  if(podium){podium.innerHTML='';podium.style.display='';}
+  if(banner){banner.innerHTML='';banner.style.display='';}
+  if(rows)rows.innerHTML='';
+  if(empty){
+    empty.style.display=msg?'block':'none';
+    empty.innerHTML=msg||'';
+  }
+}
+function _renderRankUxSection(list){
+  _rkLastList=list;
+  var chipsEl=g('rank-grade-chips');
+  var podiumEl=g('rank-podium-wrap');
+  var bannerEl=g('rank-streak-banner-wrap');
+  var rowsEl=g('rank-rows-list');
+  var emptyEl=g('rank-empty-msg');
+  if(!chipsEl||!rowsEl)return;
+  if(emptyEl)emptyEl.style.display='none';
+  var prevMap=_loadPreviousRankMap();
+  var streakMap=_buildRankStreakMap(list);
+  var myId=getMyPlayerId();
+  var activeGrade=_rkGradeFilter||'all';
+  chipsEl.innerHTML=renderGradeChips(activeGrade);
+  var showExtras=activeGrade==='all';
+  if(podiumEl){
+    if(showExtras&&list.length>=3){
+      var top3=list.slice(0,3).map(_rankEntryToRowMember);
+      podiumEl.innerHTML=renderRankPodium(top3,prevMap);
+      podiumEl.style.display='';
+    }else{
+      podiumEl.innerHTML='';
+      podiumEl.style.display='none';
+    }
+  }
+  if(bannerEl){
+    if(showExtras){
+      var bannerMembers=list.map(_rankEntryToRowMember);
+      bannerEl.innerHTML=renderStreakBanner(bannerMembers,streakMap);
+      bannerEl.style.display=bannerEl.innerHTML?'':'none';
+    }else{
+      bannerEl.innerHTML='';
+      bannerEl.style.display='none';
+    }
+  }
+  var displayList=_filterRankListByGrade(list,activeGrade);
+  _renderRankRowsList(displayList,list,prevMap,myId,rowsEl);
+  if(!_rkGradeChipBound){
+    bindGradeChipEvents('rank-grade-chips',function(gradeKey){
+      _rkGradeFilter=gradeKey;
+      if(_rkLastList)_renderRankUxSection(_rkLastList);
+    });
+    _rkGradeChipBound=true;
   }
 }
 /**
@@ -4035,49 +4284,19 @@ function _buildRankRecentHtml(m){
       +'</div>';
   }).join('')+'</div>';
 }
-function _buildRankRowCells(m,rank,pt,grOpt){
-  var gr=grOpt||_memberGrade(m);
-  var streakHtml='';
-  var cur=_streakForRankRow(m);
-  if(cur>0){
-    streakHtml='<div style="font-size:12px;color:var(--amber);font-weight:700;margin-top:2px">🔥 '+cur+'연승</div>';
-  }
-  var recentHtml=_buildRankRecentHtml(m);
-  var rankHtml;
-  if(rank===1)rankHtml='<span class="rk-medal rk-medal--1" aria-label="1위">🥇</span>';
-  else if(rank===2)rankHtml='<span class="rk-medal rk-medal--2" aria-label="2위">🥈</span>';
-  else if(rank===3)rankHtml='<span class="rk-medal rk-medal--3" aria-label="3위">🥉</span>';
-  else rankHtml='<span class="rk-rank-num">'+rank+'</span>';
-  var rankChange=getRankChange(m.id,rank);
-  var rankBadge=getRankBadge(rankChange);
-  var pointChange=_getPointChange(m.id,pt);
-  var pointBadge=getPointBadge(pointChange);
-  var changeStack='<div class="rk-change-stack">'+rankBadge+pointBadge+'</div>';
-  var isMe=m.id===getMyPlayerId();
-  var meBadge=isMe?'<span class="ranking-name-badge">나</span>':'';
-  return '<td data-label="순위"><div class="rk-rank-cell">'+rankHtml+changeStack+'</div></td>'
-    +'<td data-label="이름" style="color:var(--t1)"><div style="display:flex;align-items:flex-start;gap:8px"><div class="av '+avc(m.name)+'" style="width:34px;height:34px;font-size:13px;flex-shrink:0">'+ini(m.name)+'</div><div style="min-width:0;flex:1"><div class="ranking-name" style="font-weight:600">'+gr.icon+' '+m.name+meBadge+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+gr.label+'</div>'+streakHtml+recentHtml+'</div></div></td>'
-    +'<td data-label="등급"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span></td>'
-    +'<td data-label="포인트"><span class="rk-pt ranking-pts">'+pt+'</span><span class="rk-pt-unit">점</span></td>';
-}
-function _rankRowClass(rank){
-  return rank<=3?'rk-row rk-row--top'+rank:'rk-row';
-}
+
+/* [BEFORE] legacy table row cells — replaced by renderRankRow()
+function _buildRankRowCells(m,rank,pt,grOpt){ ... }
+function _rankRowClass(rank){ ... }
+*/
+
 function renderR(){
-  var tb=g('rtb');
-  if(!tb)return;
   var isDbl=_rkMode==='double';
   var isSeason=_rkScope==='season';
   var season=_getCurrentSeason();
   _updateRkSeasonBar(isSeason,season);
   if(isSeason&&!season){
-    Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){tb.removeChild(el);});
-    if(!tb.querySelector('tr[data-empty]')){
-      var emptyTr=document.createElement('tr');
-      emptyTr.dataset.empty='1';
-      emptyTr.innerHTML='<td colspan="4" style="text-align:center;padding:24px;color:var(--t3)">현재 시즌이 없습니다. 📅 시즌에서 생성해 주세요.</td>';
-      tb.appendChild(emptyTr);
-    }
+    _clearRankUxSection('현재 시즌이 없습니다. 📅 시즌에서 생성해 주세요.');
     _renderMyRankCardContainer(null);
     _renderHallOfFame();
     return;
@@ -4090,66 +4309,15 @@ function renderR(){
     })
     .sort(function(a,b){return b.pt-a.pt||((a.m.name||'').localeCompare(b.m.name||''));});
   if(!list.length||!_hasRankingData(isDbl,season,isSeason)){
-    Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){tb.removeChild(el);});
-    if(!tb.querySelector('tr[data-empty]')){
-      var rkEmpty=isDbl
-        ?renderEmptyState('🤝','복식 기록이 없어요','파트너와 함께 도전해보세요!')
-        :renderEmptyState('🏆','아직 랭킹이 없어요','첫 대결을 시작해보세요!');
-      var emptyTr=document.createElement('tr');
-      emptyTr.dataset.empty='1';
-      emptyTr.innerHTML='<td colspan="4">'+rkEmpty+'</td>';
-      tb.appendChild(emptyTr);
-    }
+    var emptyMsg=isDbl
+      ?renderEmptyState('🤝','복식 기록이 없어요','파트너와 함께 도전해보세요!')
+      :renderEmptyState('🏆','아직 랭킹이 없어요','첫 대결을 시작해보세요!');
+    _clearRankUxSection(emptyMsg);
     _renderMyRankCardContainer(null);
     _renderHallOfFame();
     return;
   }
-  var emptyRow=tb.querySelector('tr[data-empty]');
-  if(emptyRow)tb.removeChild(emptyRow);
-  var needed=list.map(function(x){return x.m.id;});
-  var existingMap={};
-  Array.from(tb.querySelectorAll('tr[data-rid]')).forEach(function(el){
-    existingMap[el.dataset.rid]=el;
-  });
-  Object.keys(existingMap).forEach(function(id){
-    if(needed.indexOf(id)<0)tb.removeChild(existingMap[id]);
-  });
-  var childList=Array.from(tb.children);
-  list.forEach(function(item,idx){
-    var rank=idx+1;
-    var gr=item.gr||_memberGrade(item.m);
-    var streak=_streakForRankRow(item.m);
-    var recentKey=_getRecentMatchLines(item.m.name,_rkMode==='double',3,_rkScope==='season'&&season?_seasonFilterFn(season):null)
-      .map(function(r){return r.date+r.score+r.result;}).join('|');
-    var rankChange=getRankChange(item.m.id,rank);
-    var pointChange=_getPointChange(item.m.id,item.pt);
-    var newHash=_rankRowHash(item.m,rank,item.pt,gr,streak,recentKey)+'|rc:'+(rankChange===null?'n':rankChange)+'|pc:'+(pointChange===null?'n':pointChange);
-    var isMe=item.m.id===getMyPlayerId();
-    var rowCls=_rankRowClass(rank)+(isMe?' rk-row--me ranking-row--me':'');
-    var existing=existingMap[item.m.id];
-    if(existing){
-      if(existing.dataset.rhash!==newHash){
-        existing.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);
-        existing.dataset.rhash=newHash;
-      }
-      existing.className=rowCls;
-      if(isMe)existing.id='my-rank-anchor';
-      else existing.removeAttribute('id');
-      if(childList[idx]!==existing){
-        tb.insertBefore(existing,childList[idx]||null);
-        childList=Array.from(tb.children);
-      }
-    }else{
-      var tr=document.createElement('tr');
-      tr.className=rowCls;
-      if(isMe)tr.id='my-rank-anchor';
-      tr.dataset.rid=item.m.id;
-      tr.dataset.rhash=newHash;
-      tr.innerHTML=_buildRankRowCells(item.m,rank,item.pt,gr);
-      tb.insertBefore(tr,childList[idx]||null);
-      childList=Array.from(tb.children);
-    }
-  });
+  _renderRankUxSection(list);
   _renderMyRankCardContainer(list);
   _syncPreviousPointMap(list);
   saveRankSnapshot(list);
