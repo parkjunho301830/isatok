@@ -1,0 +1,35 @@
+flowchart TB
+    subgraph ClientAuth["클라이언트 식별 (Firebase Auth 없음)"]
+        MP["내 선수 선택<br/>localStorage: isatok_myPlayerId"]
+        AD["관리자 PIN 2580<br/>localStorage: isatok_admin=1"]
+    end
+
+    subgraph ClientGates["클라이언트 UI 게이트"]
+        CSS["html.is-admin CSS"]
+        REQ["requireAdmin() → PIN 모달"]
+        MY["requireMyPlayer() → 위저드"]
+    end
+
+    subgraph FirestoreRules["Firestore Rules"]
+        OPEN["members, challenges,<br/>tournaments, notices, boards<br/>read, write: if true"]
+        SEASON["seasons: read open<br/>write: isValidSeasonWrite()<br/>delete: false"]
+    end
+
+    subgraph ServerSecrets["서버 보호"]
+        GEM["GEMINI_API_KEY<br/>Functions Secret"]
+    end
+
+    MP --> MY
+    AD --> REQ
+    REQ --> CSS
+
+    ClientGates -.->|"규칙과 무관<br/>UI만 제어"| OPEN
+
+    ANY["임의의 클라이언트<br/>(API Key만 알면)"] -->|"직접 Firestore SDK"| OPEN
+    ANY -->|"직접 write 가능"| SEASON
+
+    CF["Cloud Functions"] --> GEM
+
+    style OPEN fill:#FF3B30,color:#fff
+    style ClientGates fill:#FF9500,color:#fff
+    style GEM fill:#34C759,color:#fff

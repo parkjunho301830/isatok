@@ -90,6 +90,7 @@ body::before{
 }
 
 .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.ph-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .ph-t{font-size:28px;font-weight:800;letter-spacing:-.6px;line-height:1.15;color:var(--t1);}
 .ph-t em{color:var(--a);font-style:normal;}
 
@@ -829,10 +830,29 @@ tr:last-child td{border-bottom:none;}
 }
 .my-rank-card__main {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
+.my-rank-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.my-rank-card__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 800;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+.my-rank-card__who { min-width: 0; }
+.my-rank-card__rank-block { flex-shrink: 0; text-align: right; }
 .my-rank-card__name {
   font-size: 19px;
   font-weight: 500;
@@ -929,21 +949,45 @@ tr:last-child td{border-bottom:none;}
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: rgba(255,255,255,0.035);
-  border-top: 0.5px solid rgba(255,255,255,0.06);
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(0,122,255,0.1);
+  border-top: 0.5px solid rgba(0,122,255,0.2);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.my-rank-card__footer:active { opacity: 0.75; }
+.my-rank-card__footer:active { opacity: 0.85; }
 .my-rank-card__footer-hint {
   font-size: 12px;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.55);
+  flex: 1;
+  min-width: 0;
 }
-.my-rank-card__footer-hint b { color: #5AABFF; font-weight: 500; }
+.my-rank-card__footer-hint b { color: #7EC8FF; font-weight: 600; }
 .my-rank-card__footer-cta {
-  font-size: 12px;
-  color: rgba(255,255,255,0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
+  padding: 9px 16px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0,122,255,0.45);
+  letter-spacing: -0.02em;
+}
+.my-rank-card__footer-cta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+  font-size: 11px;
+  line-height: 1;
 }
 .ranking-row--me {
   background: rgba(0,122,255,0.06);

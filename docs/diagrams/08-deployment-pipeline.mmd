@@ -1,0 +1,26 @@
+flowchart TD
+    DEV["개발자 push → main"] --> CI{GitHub Actions<br/>[skip ci] ?}
+    CI -->|Yes| SKIP["배포 스킵"]
+    CI -->|No| PREP["node scripts/prepare-deploy.mjs"]
+
+    PREP --> V1["APP_VERSION bump<br/>(YYYY.MM.DD.NN)"]
+    PREP --> V2["version.json 갱신"]
+    PREP --> V3["service-worker.js SW_VERSION"]
+    PREP --> V4["?v= 쿼리 일괄 갱신<br/>app.html, main.js, manifest"]
+
+    V4 --> DEPLOY["FirebaseExtended/action-hosting-deploy@v0<br/>project: isatok-ef06a<br/>channel: live"]
+
+    DEPLOY --> HOST["Firebase Hosting<br/>isatok.web.app"]
+
+    DEPLOY --> COMMIT["git commit<br/>chore: bump deploy version [skip ci]"]
+    COMMIT --> PUSH["git push"]
+
+    MANUAL["수동 배포"] --> FN["firebase deploy --only functions"]
+    MANUAL --> RULES["firebase deploy --only firestore:rules"]
+
+    FN --> CF["Cloud Functions<br/>(CI 미포함)"]
+    RULES --> FS["Firestore Rules"]
+
+    style CI fill:#FF9500,color:#fff
+    style HOST fill:#007AFF,color:#fff
+    style CF fill:#FF3B30,color:#fff

@@ -30,6 +30,12 @@ export const GRADE_TIERS = [
   {min:0,icon:'🌱',label:'입문',badge:'bz'}
 ];
 
+// ── 대결(challenges) 페이지네이션 ─────────────────────
+/** Firestore 커서 페이지 크기 (실시간 스냅샷·추가 로드) */
+export const CHALLENGES_PAGE_SIZE = 50;
+/** 목록 UI 한 번에 표시할 카드 수 (더 보기로 확장) */
+export const CHALLENGES_LIST_DISPLAY_STEP = 30;
+
 // ── 오픈 챌린지 ───────────────────────────────────────
 export const OPEN_CHALLENGE_EXPIRE_DAYS = 3;
 export const OPEN_CHALLENGE_EXPIRE_MS   =
@@ -57,6 +63,26 @@ export const BS_ANIM_MS             = 320;
 export const NAV_HEIGHT_MOBILE = 80;
 export const NAV_HEIGHT_PC     = 60;
 export const DRUM_ITEM_H       = 44;
+
+// ── 조직도 회원 사진 API (Google Apps Script) ─────────
+export const ORG_CHART_API_URL =
+  'https://script.google.com/macros/s/AKfycbwSAudQcsWFxq5MPVuqQLzjmbyxgL0DRdGUBfXWLtscgYXh4-NDfiDx0VOwX_y8YLuseA/exec?action=getMembers';
+/** 사진 캐시 TTL (6시간) */
+export const MEMBER_PHOTO_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+// ── AI 코칭 (Firebase Functions) ─────────────────────
+const AI_FN_BASE =
+  'https://asia-northeast3-isatok-ef06a.cloudfunctions.net';
+export const WEEKLY_COACH_REPORT_URL = AI_FN_BASE + '/weeklyCoachReport';
+export const POST_MATCH_COMMENT_URL = AI_FN_BASE + '/postMatchComment';
+export const DAILY_BRIEFING_URL = AI_FN_BASE + '/dailyBriefing';
+export const OPPONENT_ANALYSIS_URL = AI_FN_BASE + '/opponentAnalysis';
+export const MONTHLY_CLUB_STORY_URL = AI_FN_BASE + '/monthlyClubStory';
+export const WEEKLY_REPORT_CACHE_KEY_PREFIX = 'isatok_weekly_report_v2';
+export const DAILY_BRIEFING_CACHE_PREFIX = 'isatok_daily_briefing_v1';
+export const POST_MATCH_CACHE_PREFIX = 'isatok_post_match_v1';
+export const OPPONENT_AI_CACHE_PREFIX = 'isatok_opponent_ai_v1';
+export const MONTHLY_STORY_CACHE_PREFIX = 'isatok_monthly_story_v1';
 
 // ── 관리자 ────────────────────────────────────────────
 export const ADMIN_PIN = '2580';

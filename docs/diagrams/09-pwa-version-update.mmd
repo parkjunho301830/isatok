@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant User as 사용자
+    participant App as pwa.js
+    participant VJ as version.json
+    participant SW as service-worker.js
+    participant Boot as appBootstrap.js
+
+    User->>App: 페이지 로드
+    App->>App: registerServiceWorker()
+    App->>VJ: fetch version.json (no-cache)
+    VJ-->>App: { appVersion, swVersion }
+
+    alt appVersion !== localStorage 저장값
+        App->>SW: postMessage SKIP_WAITING
+        SW->>SW: skipWaiting + clients.claim
+        App->>App: sessionStorage 플래그 + reload
+    end
+
+    App->>Boot: ensureLatestVersion() resolve
+    Boot->>Boot: bootApp() (Firebase init)
+
+    Note over SW: fetch 이벤트: cache no-store pass-through<br/>오프라인 asset 캐시 없음
+
+    alt 새 SW activate (배포 후)
+        SW->>SW: caches.keys() → 전부 delete
+        SW->>User: controllerchange → reload
+    end

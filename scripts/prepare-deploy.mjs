@@ -60,6 +60,15 @@ function bumpAssetQuery(content, appVersion) {
   return content.replace(/\?v=[^"'?#\s]+/g, '?v=' + appVersion);
 }
 
+function syncLocalImports(content, appVersion) {
+  return content.replace(
+    /from\s+(['"])(\.\/[^'"]+?\.js)(\?v=[^'"]*)?(\1)/g,
+    function (_, q, modPath, _oldV, q2) {
+      return 'from ' + q + modPath + '?v=' + appVersion + q2;
+    }
+  );
+}
+
 var versionContent = fs.readFileSync(versionFile, 'utf8');
 var currentVersion = readCurrentVersion(versionContent);
 var appVersion = nextAppVersion(currentVersion);
@@ -92,16 +101,27 @@ fs.writeFileSync(swFile, nextSw, 'utf8');
 var appHtmlContent = fs.readFileSync(appHtmlFile, 'utf8');
 fs.writeFileSync(appHtmlFile, bumpAssetQuery(appHtmlContent, appVersion), 'utf8');
 
+function bumpJsAppModules(dir) {
+  fs.readdirSync(dir, { withFileTypes: true }).forEach(function (ent) {
+    var full = path.join(dir, ent.name);
+    if (ent.isDirectory()) bumpJsAppModules(full);
+    else if (ent.isFile() && ent.name.endsWith('.js')) {
+      var c = fs.readFileSync(full, 'utf8');
+      var next = syncLocalImports(bumpAssetQuery(c, appVersion), appVersion);
+      if (next !== c) fs.writeFileSync(full, next, 'utf8');
+    }
+  });
+}
+bumpJsAppModules(path.join(root, 'js', 'app'));
+
 var mainContent = fs.readFileSync(mainFile, 'utf8');
 var nextMain = mainContent.replace(
   /from'\.\/version\.js(?:\?v=[^']*)?'/,
   "from'./version.js?v=" + appVersion + "'"
 );
-if (nextMain === mainContent) {
-  console.error('version.js import not found in main.js');
-  process.exit(1);
+if (nextMain !== mainContent) {
+  fs.writeFileSync(mainFile, nextMain, 'utf8');
 }
-fs.writeFileSync(mainFile, nextMain, 'utf8');
 
 var manifestContent = fs.readFileSync(manifestFile, 'utf8');
 var nextManifest = manifestContent.replace(

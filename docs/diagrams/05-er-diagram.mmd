@@ -1,0 +1,69 @@
+erDiagram
+    MEMBERS {
+        string id PK
+        string name
+        string phone
+        string gender
+        number individualPoint
+        number doublePoint
+        string status
+        string memo
+        string joined
+        string createdAt
+    }
+
+    CHALLENGES {
+        string id PK
+        string type
+        string[] myTeam
+        string[] oppTeam
+        string date
+        string time
+        string status
+        string winner
+        string score
+        boolean isOpen
+        string expiresAt
+        string createdByPlayerId FK
+        string createdAt
+    }
+
+    SEASONS {
+        string id PK
+        string name
+        string startDate
+        string endDate
+        string status
+        boolean isCurrent
+        object champion
+        string createdAt
+    }
+
+    TOURNAMENTS {
+        string id PK
+        string title
+        string date
+        string[] participants
+    }
+
+    NOTICES {
+        string id PK
+        string type
+        string title
+        string body
+        string createdAt
+    }
+
+    BOARDS {
+        string id PK
+        string author
+        string title
+        string body
+        string createdAt
+    }
+
+    MEMBERS ||--o{ CHALLENGES : "name in myTeam/oppTeam"
+    MEMBERS ||--o{ CHALLENGES : "createdByPlayerId"
+    CHALLENGES }o--|| SEASONS : "date within season range (client calc)"
+    SEASONS ||--o| MEMBERS : "champion.name"
+    TOURNAMENTS }o--o{ MEMBERS : "participants[] (legacy)"

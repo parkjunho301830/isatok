@@ -61,8 +61,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="이사탁">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json?v=2026.06.24.03">
-<script type="module" src="js/app/pwa.js?v=2026.06.24.03"></script>
+<link rel="manifest" href="manifest.json?v=2026.06.26.10">
+<script type="module" src="js/app/pwa.js?v=2026.06.26.10"></script>
 <meta property="og:title" content="이사탁">
 <meta property="og:description" content="이사탁 탁구 동호회 — 대결 신청, 랭킹, 통계">
 <meta property="og:type" content="website">
@@ -77,9 +77,9 @@
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
   integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
   crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/style.css?v=2026.06.24.03">
-<link rel="stylesheet" href="css/components.css?v=2026.06.24.03">
-<link rel="stylesheet" href="css/design.css?v=2026.06.24.03">
+<link rel="stylesheet" href="css/style.css?v=2026.06.26.10">
+<link rel="stylesheet" href="css/components.css?v=2026.06.26.10">
+<link rel="stylesheet" href="css/design.css?v=2026.06.26.10">
 </head>
 <body>
 
@@ -124,7 +124,7 @@
     <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>랭킹</div>
     <div class="nav-i"     data-page="my"       onclick="nav('my')"><span class="ni-icon">👤</span>마이</div>
     <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">📈</span>통계</div>
-    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">📋</span>회원</div>
+    <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">🏓</span>선수</div>
     <div class="nav-i nav-admin-only admin-only" data-page="admin" onclick="nav('admin')"><span class="ni-icon">⚙️</span>관리자</div>
     <div class="admin-bar" id="admin-bar">
       <button class="btn btn-g btn-sm" id="btn-admin" type="button" onclick="toggleAdmin()" style="width:100%;min-height:40px">🔐 관리자</button>
@@ -150,70 +150,63 @@
     <div class="mhdr-r">
       <button class="btn btn-g btn-xs admin-mhdr-btn" id="btn-admin-m" type="button" onclick="toggleAdmin()" title="관리자">🔐</button>
       <button type="button" class="mhdr-install-btn" id="pwa-header-install-btn" onclick="onHeaderInstallClick()" hidden aria-label="앱 설치" title="앱 설치"><span class="mhdr-install-icon" aria-hidden="true">📲</span><span class="mhdr-install-label">앱 설치</span></button>
-      <span class="mhdr-status" id="dbm" title="연결 상태">🟢</span>
     </div>
   </header>
 
-  <!-- FAB (모바일 즉시 대결) -->
-  <button class="fab fab-instant" onclick="openInstantBS()">⚡ 즉시 대결</button>
+  <!-- FAB (모바일 즉시 등록) -->
+  <button class="fab fab-instant" onclick="openInstantBS()" aria-label="즉시 등록">🏓 등록</button>
 
   <main class="main">
 
-    <!-- ══ 대결 (홈) ══ -->
+    <!-- ══ 대결 (복식 결과 등록) ══ -->
     <div class="page on" id="page-challenge">
-      <section class="brand-hero" aria-label="이사탁 소개">
-        <div class="brand-hero-bg" aria-hidden="true"></div>
-        <div class="brand-hero-inner">
-          <img src="assets/favicon.svg" alt="" class="brand-mark" width="52" height="52">
-          <div class="brand-hero-copy">
-            <h1 class="brand-name">이사탁</h1>
-            <p class="brand-tagline">탁구 동호회 · 대결 · 랭킹 · 통계</p>
-          </div>
-          <button class="btn btn-p btn-sm brand-hero-cta pc-only" type="button" onclick="openInstantBS()">⚡ 즉시 대결</button>
+      <section class="ch-register-hero" aria-label="경기 결과 등록">
+        <div class="ch-register-hero__copy">
+          <div class="ch-register-hero__eyebrow">복식 경기 · 승패 등록</div>
+          <h1 class="ch-register-hero__title">🏓 경기 결과 등록</h1>
+          <p class="ch-register-hero__desc">경기 직후 5초 안에 승패만 입력하세요</p>
         </div>
+        <button type="button" class="ch-register-cta" onclick="openInstantBS()">
+          <span class="ch-register-cta__icon">⚡</span>
+          <span class="ch-register-cta__label">즉시 등록하기</span>
+        </button>
       </section>
       <div id="my-record-home" style="display:none"></div>
-      <div class="quick-actions">
-        <button class="qa-card qa-instant qa-primary" type="button" onclick="openInstantBS()">
-          <span class="qa-icon">⚡</span>
-          <span class="qa-label">즉시 대결</span>
-          <span class="qa-desc">수락 없이 바로</span>
-        </button>
-        <button class="qa-card qa-secondary" type="button" onclick="openBS()">
-          <span class="qa-icon">🏓</span>
-          <span class="qa-label">대결 신청</span>
-          <span class="qa-desc">일반 · 수락 필요</span>
-        </button>
-        <button class="qa-card" type="button" onclick="openResultPicker()">
-          <span class="qa-icon">📝</span>
-          <span class="qa-label">결과 입력</span>
-          <span class="qa-desc">진행중 대결</span>
-        </button>
-        <button class="qa-card" type="button" onclick="nav('ranking')">
-          <span class="qa-icon">🏆</span>
-          <span class="qa-label">랭킹 보기</span>
-          <span class="qa-desc">순위 확인</span>
-        </button>
+      <div id="ch-quick-shortcuts" class="ch-quick-shortcuts"></div>
+      <div class="ch-secondary-row">
+        <button type="button" class="ch-secondary-btn" onclick="openResultPicker()">📝 진행중 결과</button>
+        <button type="button" class="ch-secondary-btn" onclick="nav('ranking')">🏆 랭킹</button>
+        <button type="button" class="ch-secondary-btn" onclick="openBS()">📨 대결 신청</button>
       </div>
-      <div class="section-label">대결 목록</div>
-      <div class="fscroll">
-        <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
-        <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈 챌린지</button>
-        <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기중</button>
-        <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 수락됨</button>
-        <button class="fc"    id="f-md"         onclick="setF('md')">🏓 남복식</button>
-        <button class="fc"    id="f-fd"         onclick="setF('fd')">🎀 여복식</button>
-        <button class="fc"    id="f-mx"         onclick="setF('mx')">🤝 혼합복식</button>
-        <button class="fc"    id="f-ms"         onclick="setF('ms')">🏓 남단식</button>
-        <button class="fc"    id="f-fs"         onclick="setF('fs')">🎀 여단식</button>
-        <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
-      </div>
-      <div id="ch-empty" style="display:none;text-align:center;padding:64px 20px;color:var(--t3)">
-        <div style="font-size:56px;margin-bottom:18px">🏓</div>
-        <div style="font-size:18px;font-weight:800;color:var(--t2);margin-bottom:10px">대결 신청이 없어요</div>
-        <div style="font-size:14px;color:var(--t3);line-height:1.6">도전장을 내밀어보세요!<br>상대방도 기다리고 있을지 몰라요 😄</div>
-      </div>
-      <div id="ch-list"></div>
+      <details class="ch-manage" id="ch-manage">
+        <summary class="ch-manage__toggle">
+          <span class="ch-manage__title">📋 대결 관리</span>
+          <span class="ch-manage__sub">목록 · 필터 · 오픈챌린지</span>
+        </summary>
+        <div class="ch-manage__body">
+          <div class="fscroll ch-manage-filters">
+            <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
+            <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기</button>
+            <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 진행</button>
+            <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
+            <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈</button>
+            <button class="fc"    id="f-md"         onclick="setF('md')">남복</button>
+            <button class="fc"    id="f-fd"         onclick="setF('fd')">여복</button>
+            <button class="fc"    id="f-mx"         onclick="setF('mx')">혼복</button>
+            <button class="fc"    id="f-ms"         onclick="setF('ms')">남단</button>
+            <button class="fc"    id="f-fs"         onclick="setF('fs')">여단</button>
+          </div>
+          <div id="ch-empty" style="display:none;text-align:center;padding:48px 20px;color:var(--t3)">
+            <div style="font-size:48px;margin-bottom:14px">🏓</div>
+            <div style="font-size:16px;font-weight:800;color:var(--t2);margin-bottom:8px">대결이 없어요</div>
+            <div style="font-size:13px;color:var(--t3);line-height:1.5">위에서 즉시 등록하거나 대결 신청을 이용하세요</div>
+          </div>
+          <div id="ch-list"></div>
+          <div id="ch-load-more-wrap" class="ch-load-more-wrap" style="display:none;padding:12px 0 4px;text-align:center">
+            <button type="button" class="btn btn-g" id="ch-load-more-btn" onclick="loadMoreChallenges()">더 보기</button>
+          </div>
+        </div>
+      </details>
     </div>
 
     <!-- ══ 회원 랭킹 ══ -->
@@ -248,48 +241,61 @@
       </div>
     </div>
 
-    <!-- ══ 마이 (내 기록) ══ -->
-    <div class="page" id="page-my">
+    <!-- ══ 마이 (개인 코칭) ══ -->
+    <div class="page page-my" id="page-my">
       <div class="ph">
-        <div class="ph-t">👤 <em>마이</em></div>
+        <div class="ph-t">👤 <em>마이 코칭</em></div>
       </div>
-      <p class="page-sub">내 선수 · 통계 · 배지</p>
-      <div class="card card-p" id="my-page-setting"></div>
-      <div class="card card-p" id="my-page-stats" style="margin-top:16px"></div>
+      <div id="my-page-dashboard" class="my-dash-wrap"></div>
+      <div class="card card-p my-dash-setting" id="my-page-setting"></div>
     </div>
 
-    <!-- ══ 통계 (명예의 전당) ══ -->
-    <div class="page" id="page-hall">
+    <!-- ══ 통계 (동호회 · 명예의 전당) ══ -->
+    <div class="page page-hall" id="page-hall">
       <div class="ph">
-        <div class="ph-t">📈 <em>통계</em></div>
-        <button class="btn btn-g btn-sm" onclick="nav('ranking')">← 랭킹</button>
+        <div class="ph-t">📈 <em>동호회 통계</em></div>
+        <button class="btn btn-g btn-sm" onclick="nav('my')">👤 마이</button>
       </div>
-      <p class="page-sub">명예의 전당 · TOP10 기록</p>
-      <div class="fscroll">
+      <div class="fscroll hall-mode-tabs">
         <button class="fc on" id="hall-dbl" type="button" onclick="setHallMode('double')">🤝 복식</button>
         <button class="fc" id="hall-ind" type="button" onclick="setHallMode('individual')">🏓 단식</button>
       </div>
-      <div id="hall-content"></div>
+      <div id="hall-content" class="hall-content-wrap"></div>
     </div>
 
-    <!-- ══ 회원 ══ -->
-    <div class="page" id="page-members">
+    <!-- ══ 회원 (선수 탐색) ══ -->
+    <div class="page page-members" id="page-members">
       <div class="ph">
-        <div class="ph-t">👤 <em>회원</em></div>
-        <button class="btn btn-p btn-sm admin-only" onclick="openAddModal()">+ 신규 등록</button>
-      </div>
-      <div class="card card-p">
-        <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
-          <input type="text" placeholder="🔍 이름 검색 (초성·부분 검색)" style="max-width:100%;flex:1;min-height:48px" oninput="filterM(this.value)" id="ms" autocomplete="off" inputmode="search" enterkeyhint="search">
-          <select style="max-width:150px;min-height:44px" onchange="filterG(this.value)">
-            <option value="">전체 등급</option><option>마스터</option><option>고수</option><option>상급</option><option>중급</option><option>초급</option><option>입문</option>
-          </select>
+        <div class="ph-t">🏓 <em>선수</em></div>
+        <div class="ph-actions">
+          <button class="btn btn-g btn-sm" type="button" onclick="exportMembersVcf()">📇 연락처</button>
+          <button class="btn btn-p btn-sm admin-only" type="button" onclick="openAddModal()">+ 등록</button>
         </div>
-        <table class="tm">
-          <thead><tr><th>이름</th><th>등급</th><th>성별</th><th>상태</th><th></th></tr></thead>
-          <tbody id="mtb"></tbody>
-        </table>
       </div>
+      <div class="md-wrap">
+        <div class="md-search-sticky">
+          <div class="md-search-box">
+            <span class="md-search-icon" aria-hidden="true">🔍</span>
+            <input type="search" class="md-search-input" placeholder="이름 · 연락처 · 메모 검색" id="ms" autocomplete="off" inputmode="search" enterkeyhint="search" oninput="filterM(this.value)">
+          </div>
+          <div class="fscroll md-filter-tabs">
+            <button class="fc on" id="mf-all" type="button" onclick="setMf('all')">전체</button>
+            <button class="fc" id="mf-top10" type="button" onclick="setMf('top10')">TOP10</button>
+            <button class="fc" id="mf-active" type="button" onclick="setMf('active')">활동 회원</button>
+            <button class="fc" id="mf-recent" type="button" onclick="setMf('recent')">최근 경기</button>
+            <button class="fc" id="mf-doubles" type="button" onclick="setMf('doubles')">복식 강자</button>
+          </div>
+        </div>
+        <div id="members-directory" class="md-directory"></div>
+        <div id="md-load-more" class="md-load-more" style="display:none">
+          <button type="button" class="btn btn-g" onclick="loadMoreMembers()">더 보기</button>
+        </div>
+      </div>
+      <!-- 관리자용 등급 필터 (숨김 유지) -->
+      <select id="mg-grade" style="display:none" onchange="filterG(this.value)">
+        <option value="">전체 등급</option><option>마스터</option><option>고수</option><option>상급</option><option>중급</option><option>초급</option><option>입문</option>
+      </select>
+      <tbody id="mtb" style="display:none" aria-hidden="true"></tbody>
     </div>
 
     <!-- ══ 관리자 ══ -->
@@ -319,7 +325,7 @@
   <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
   <div class="bni"    onclick="nav('my')"        data-p="my"><span class="bi">👤</span><span>마이</span></div>
   <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">📈</span><span>통계</span></div>
-  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">📋</span><span>회원</span></div>
+  <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">🏓</span><span>선수</span></div>
   <div class="bni nav-admin-only admin-only" onclick="nav('admin')" data-p="admin"><span class="bi">⚙️</span><span>관리</span></div>
 </nav>
 
@@ -332,7 +338,7 @@
   <div class="bs-drag-zone" id="bs-drag-zone">
     <div class="bs-handle"></div>
     <div class="bs-hdr">
-      <div class="bs-title">🏓 대결 <em>신청</em></div>
+    <div class="bs-title">🏓 경기 <em>결과 등록</em></div>
       <button class="mc-btn" onclick="closeBS()">✕</button>
     </div>
   </div>
@@ -364,8 +370,8 @@
     <div style="height:8px"></div>
   </div>
   <div class="bs-foot" id="bs-foot2" style="display:none">
-    <button class="btn btn-g" onclick="bsStep(1)">← 이전</button>
-    <button class="btn btn-p" onclick="bsStep(3)">다음 →</button>
+    <button class="btn btn-g" onclick="bsStepInstantBack()">← 이전</button>
+    <button class="btn btn-p ch-foot-next" id="bs-foot2-next" onclick="bsStep(3)">다음 →</button>
   </div>
 
   <!-- ══ STEP 3: 상대팀 ══ -->
@@ -396,9 +402,9 @@
     <div id="wiz-panel-4"></div>
     <div style="height:8px"></div>
   </div>
-  <div class="bs-foot" id="bs-foot4" style="display:none">
+  <div class="bs-foot bs-foot--save" id="bs-foot4" style="display:none">
     <button class="btn btn-g" onclick="bsStep(3)">← 이전</button>
-    <button class="btn btn-p" id="ch-submit-btn" onclick="submitChBS()">🏓 도전장 보내기</button>
+    <button class="btn btn-p ch-submit-save" id="ch-submit-btn" onclick="submitChBS()">🏆 결과 저장</button>
   </div>
 
   <!-- 레거시 그리드 (숨김 — 오픈 수락 등) -->
@@ -424,18 +430,22 @@
       <div id="ri" style="background:var(--c2);border-radius:14px;padding:14px 18px;margin-bottom:16px;text-align:center;font-size:16px;font-weight:700;color:var(--t2)"></div>
 
       <!-- 승리 팀 선택 -->
-      <div class="fg">
-        <label>승리 팀 선택</label>
-        <div style="display:flex;gap:10px">
-          <div id="wa" onclick="setW('a')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
-            <div id="wan" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">A팀 승리</div>
+      <div class="fg res-win-block">
+        <label>승팀 선택</label>
+        <div class="res-win-btns">
+          <div id="wa" onclick="setW('a')" class="res-win-btn">
+            <div class="res-win-btn__team" id="wan">우리팀 승리</div>
           </div>
-          <div id="wb" onclick="setW('b')" style="flex:1;padding:14px 8px;border-radius:14px;border:2px solid var(--b2);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s;min-height:52px;display:flex;align-items:center;justify-content:center">
-            <div id="wbn" style="font-size:13px;font-weight:800;color:var(--t2);word-break:keep-all">B팀 승리</div>
+          <div class="res-vs-pill">VS</div>
+          <div id="wb" onclick="setW('b')" class="res-win-btn">
+            <div class="res-win-btn__team" id="wbn">상대팀 승리</div>
           </div>
         </div>
       </div>
 
+      <details class="res-advanced-fold" id="res-advanced-fold">
+        <summary class="res-advanced-fold__summary">세트 스코어 입력 (고급)</summary>
+        <div class="res-advanced-fold__body">
       <!-- ── 경기 방식 (대결 신청 시 설정 · 변경 가능) ── -->
       <div class="fg">
         <label>경기 방식</label>
@@ -498,6 +508,8 @@
         <div id="sc-summary" style="display:none;margin-top:10px;padding:10px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:13px;font-weight:600;color:var(--t2)"></div>
         <div id="sc-setwins-preview" style="display:none;margin-top:10px;padding:12px 14px;background:var(--c2);border-radius:10px;text-align:center;font-size:15px;font-weight:700;color:var(--t2)"></div>
       </div>
+        </div>
+      </details>
 
     </div>
     <div class="mf">
@@ -639,27 +651,17 @@
   </div>
 </div>
 
-<!-- ══ 회원 상세 / 상대 전적 모달 ══ -->
-<div class="mo write-mo" id="mo-profile">
-  <div class="mw">
-    <div class="mh"><div class="mt">회원 <em>상세</em></div><button class="mc-btn" onclick="closeMo('mo-profile')">✕</button></div>
-    <div class="mb">
-      <div id="prof-header"></div>
-      <div id="prof-doubles"></div>
-      <div id="prof-singles"></div>
-      <div id="prof-streak" style="display:none"></div>
-      <div id="prof-recent" style="display:none"></div>
-      <div id="prof-badges"></div>
-      <div class="fg" style="margin-top:18px;margin-bottom:0">
-        <label>상대 전적 조회 <span style="color:var(--t3);font-size:12px;font-weight:400">(단식·복식 통합)</span></label>
-        <select id="prof-opp" onchange="renderProfileH2H()" style="min-height:44px;width:100%"></select>
-      </div>
-      <div id="prof-h2h" style="margin-top:12px"></div>
+<!-- ══ 선수 프로필 (통합) ══ -->
+<div class="mo mo-player-profile" id="mo-player-profile">
+  <div class="mw md-preview-mw player-prof-mw">
+    <div class="mh"><div class="mt">선수 <em>프로필</em></div><button class="mc-btn" onclick="closeMo('mo-player-profile')">✕</button></div>
+    <div class="mb player-prof-scroll" id="player-profile-content"></div>
+    <div class="mf md-preview-actions player-prof-actions">
+      <button type="button" class="btn btn-g" onclick="openEditFromProfile()">✏️ 정보 수정</button>
+      <button type="button" class="btn btn-p" id="player-prof-instant-btn" onclick="startInstantVsFromProfile()">⚡ 즉시대결</button>
     </div>
-    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-profile')">닫기</button></div>
   </div>
 </div>
-
 
 <!-- ══ 관리자 PIN 모달 ══ -->
 <div class="mo" id="mo-admin-pin">
@@ -793,6 +795,21 @@
 </div>
 
 
+<!-- ══ 앱 종료 확인 ══ -->
+<div class="mo" id="mo-exit-app">
+  <div class="mw" style="max-width:340px">
+    <div class="mh"><div class="mt">앱 <em>종료</em></div></div>
+    <div class="mb" style="text-align:center;padding:8px 0 4px">
+      <p style="font-size:16px;font-weight:700;color:var(--t1);margin:0 0 8px">이사탁을 종료하시겠습니까?</p>
+      <p style="font-size:13px;color:var(--t3);margin:0">확인을 누르면 앱이 종료됩니다.</p>
+    </div>
+    <div class="mf">
+      <button type="button" class="btn btn-g" onclick="cancelAppExit()">취소</button>
+      <button type="button" class="btn btn-d" onclick="confirmAppExit()">종료</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ 내 선수 설정 모달 ══ -->
 <div class="mo" id="mo-my-player">
   <div class="mw" style="max-width:400px">
@@ -807,6 +824,6 @@
   </div>
 </div>
 
-<script type="module" src="js/app/main.js?v=2026.06.24.03"></script>
+<script type="module" src="js/app/main.js?v=2026.06.26.10"></script>
 </body>
 </html>

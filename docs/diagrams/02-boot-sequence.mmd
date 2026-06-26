@@ -1,0 +1,44 @@
+sequenceDiagram
+    autonumber
+    participant HTML as app.html
+    participant Main as main.js
+    participant PWA as pwa.js
+    participant Boot as appBootstrap.js
+    participant FB as firebaseApp.js
+    participant FS as Firestore
+    participant UI as finish() init*
+
+    HTML->>Main: type=module load
+    Main->>Boot: startApp()
+
+    par 버전 확인 (최대 8초)
+        Boot->>PWA: ensureLatestVersion()
+        PWA->>PWA: fetch version.json
+        alt 버전 불일치
+            PWA->>PWA: SW skipWaiting + reload
+        end
+    and 타임아웃 폴백
+        Boot->>Boot: setTimeout(bootOnce, 8000)
+    end
+
+    Boot->>Boot: bootApp()
+    Boot->>Boot: initAppCore()
+    Boot->>Boot: wireScrollBridge()
+    Boot->>FB: initFirebase(hooks)
+
+    FB->>FS: onSnapshot members (orderBy name)
+    FB->>FS: onSnapshot challenges (orderBy createdAt desc)
+    FB->>FS: onSnapshot seasons (orderBy startDate desc)
+    FB->>FS: onSnapshot tournaments
+
+    FS-->>FB: 첫 스냅샷 (각 컬렉션)
+    FB->>FB: requestAnimationFrame 디바운스
+    FB->>Boot: hooks.onReady() → finish()
+
+    Boot->>UI: initMatchStats, initModals, initAppNav...
+    Boot->>UI: initChallenges, initMembersTab, initMyPage...
+    Boot->>UI: initWizard, initPwa, initMemberPhotos
+    Boot->>UI: applyEntryNavigation()
+    Boot->>UI: #ls 숨김, #app 표시
+
+    Note over FS,UI: 이후 스냅샷 변경 시 hooks.onMembers/onChallenges/onSeasons 호출

@@ -1,0 +1,36 @@
+flowchart TB
+    subgraph Client["클라이언트 (PWA)"]
+        UI["app.html + ES Modules<br/>(28 modules)"]
+        LS["localStorage / sessionStorage"]
+        SW["Service Worker<br/>(pass-through, no offline cache)"]
+    end
+
+    subgraph Firebase["Firebase (isatok-ef06a)"]
+        HOST["Firebase Hosting<br/>isatok.web.app"]
+        FS["Cloud Firestore<br/>members · challenges<br/>seasons · tournaments<br/>notices · boards"]
+        CF["Cloud Functions<br/>asia-northeast3<br/>5 AI endpoints"]
+    end
+
+    subgraph External["외부 서비스"]
+        GEMINI["Google Gemini API<br/>gemini-2.5-flash-lite"]
+        GAS["Google Apps Script<br/>회원 사진 API"]
+        KAKAO["Kakao JavaScript SDK<br/>챌린지 공유"]
+        FONTS["Google Fonts"]
+    end
+
+    USER["사용자<br/>(모바일/PC/PWA)"] --> UI
+    UI --> HOST
+    HOST --> UI
+    UI <-->|"onSnapshot 실시간"| FS
+    UI -->|"addDoc / updateDoc / deleteDoc"| FS
+    UI -->|"fetch POST (JSON)"| CF
+    CF -->|"x-goog-api-key"| GEMINI
+    GEMINI --> CF
+    CF --> UI
+    UI -->|"fetch GET"| GAS
+    UI --> KAKAO
+    UI --> FONTS
+    UI <--> LS
+    SW --> UI
+
+    GH["GitHub Actions<br/>push main"] -->|"prepare-deploy.mjs<br/>+ hosting deploy"| HOST

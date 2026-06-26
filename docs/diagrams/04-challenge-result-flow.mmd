@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant U as 사용자
+    participant CH as challenges.js
+    participant FS as Firestore
+    participant MS as matchStats.js
+    participant AI as aiCoach.js
+    participant CF as Cloud Functions
+    participant GM as Gemini
+
+    U->>CH: submitResult (승자, 스코어)
+    alt 관리자 결과 수정
+        CH->>CH: _updateMatchPoints(winner, sign=-1)
+        CH->>FS: updateDoc members (포인트 복원)
+    end
+    CH->>FS: updateDoc challenge (status=completed)
+    CH->>CH: _updateMatchPoints(winner, sign=+1)
+    loop 각 승/패 선수
+        CH->>FS: updateDoc members (individualPoint/doublePoint)
+    end
+    FS-->>CH: onSnapshot → 전 탭 재렌더
+
+    CH->>MS: 전적·포인트 delta 계산
+    CH->>AI: _buildPostMatchCoachComment()
+    alt localStorage 캐시 hit
+        AI-->>CH: cached comment
+    else 캐시 miss
+        AI->>CF: POST postMatchComment
+        CF->>GM: generateContent
+        GM-->>CF: JSON text
+        CF-->>AI: { ok, comment }
+        AI->>AI: savePostMatchCache
+    end
+    CH->>U: showResultFeedback (토스트 + AI 코멘트)

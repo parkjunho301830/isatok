@@ -1,0 +1,21 @@
+stateDiagram-v2
+    [*] --> pending: addDoc (대결 신청)
+
+    pending --> accepted: 수락 (updateDoc status)
+    pending --> rejected: 거절 (updateDoc status)
+    pending --> expired: isOpen + expiresAt 경과 (UI 필터)
+
+    accepted --> completed: submitResult (winner, score)
+    accepted --> rejected: 거절 (드물게)
+
+    completed --> completed: 관리자 결과 수정<br/>(포인트 rollback → 재적용)
+
+    note right of pending
+        instantCreate=true 이면
+        생성 직후 completed 가능
+    end note
+
+    note right of completed
+        _updateMatchPoints()
+        members.individualPoint / doublePoint 갱신
+    end note

@@ -1,0 +1,61 @@
+flowchart LR
+    subgraph Client["브라우저"]
+        UI["myPage.js<br/>hallTab.js<br/>membersTab.js<br/>weeklyReport.js"]
+        AC["aiCoach.js"]
+        LS[("localStorage<br/>+ _memCache Map")]
+        UI --> AC
+        AC <--> LS
+    end
+
+    subgraph CF["Cloud Functions asia-northeast3"]
+        WH["weeklyCoachReport"]
+        PM["postMatchComment"]
+        DB["dailyBriefing"]
+        OA["opponentAnalysis"]
+        MS["monthlyClubStory"]
+        SEC["GEMINI_API_KEY<br/>(Secret)"]
+    end
+
+    subgraph Gemini["Google Gemini"]
+        API["generateContent<br/>gemini-2.5-flash-lite"]
+    end
+
+    AC -->|"POST JSON<br/>statsSummary 등"| WH
+    AC --> PM
+    AC --> DB
+    AC --> OA
+    AC --> MS
+
+    WH --> SEC
+    PM --> SEC
+    DB --> SEC
+    OA --> SEC
+    MS --> SEC
+
+    WH --> API
+    PM --> API
+    DB --> API
+    OA --> API
+    MS --> API
+
+    API --> WH
+    API --> PM
+    API --> DB
+    API --> OA
+    API --> MS
+
+    WH --> AC
+    PM --> AC
+    DB --> AC
+    OA --> AC
+    MS --> AC
+
+    subgraph CacheKeys["캐시 키 (localStorage)"]
+        K1["isatok_weekly_report_v2|name|week"]
+        K2["isatok_daily_briefing_v1|name|date"]
+        K3["isatok_post_match_v1|matchKey"]
+        K4["isatok_opponent_ai_v1|me|opp"]
+        K5["isatok_monthly_story_v1|month"]
+    end
+
+    LS --- CacheKeys

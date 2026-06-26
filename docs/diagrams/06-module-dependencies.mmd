@@ -1,0 +1,46 @@
+flowchart TD
+    main["main.js"] --> boot["appBootstrap.js"]
+
+    boot --> pwa["pwa.js"]
+    boot --> fb["firebaseApp.js"]
+    boot --> nav["appNav.js"]
+    boot --> back["backNav.js"]
+    boot --> scroll["scrollBridge.js"]
+    boot --> core["appCore.js"]
+    boot --> ch["challenges.js"]
+    boot --> wiz["wizard.js"]
+    boot --> mem["membersTab.js"]
+    boot --> rk["rankingTab.js"]
+    boot --> hall["hallTab.js"]
+    boot --> my["myPage.js"]
+    boot --> admin["adminTab.js"]
+    boot --> modals["modals.js"]
+    boot --> stats["matchStats.js"]
+    boot --> seasons["seasons.js"]
+    boot --> photos["memberPhotos.js"]
+    boot --> nb["noticesBoards.js"]
+
+    fb --> const["constants.js"]
+    fb --> core
+    ch --> const
+    ch --> version["version.js"]
+    my --> ai["aiCoach.js"]
+    my --> wr["weeklyReport.js"]
+    my --> coach["coaching.js"]
+    hall --> ai
+    mem --> ai
+    wr --> ai
+    ai --> const
+    coach --> const
+    stats --> const
+    stats --> mcore["memberCore.js"]
+    admin --> const
+    photos --> const
+
+    fb -.->|"CDN import"| fbsdk["Firebase SDK 10.12.0"]
+    ch -.->|"CDN import"| fbsdk
+    nb -.->|"CDN import"| fbsdk
+
+    style boot fill:#007AFF,color:#fff
+    style fb fill:#FF9500,color:#fff
+    style ai fill:#34C759,color:#fff
