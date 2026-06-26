@@ -1,9 +1,10 @@
 /**
  * 하단 네비·딥링크 진입 네비게이션
  */
-import { requireMyPlayer } from './wizard.js?v=2026.06.26.10';
+import { requireMyPlayer, getMyPlayerId } from './wizard.js?v=2026.06.26.10';
 import { isAdmin, renderAdminHub } from './adminTab.js?v=2026.06.26.10';
 import { onPageNav } from './backNav.js?v=2026.06.26.10';
+import { DEEPLINK_PARAM } from './constants.js?v=2026.06.26.10';
 
 let C = null;
 let _navPages = null;
@@ -58,6 +59,13 @@ function parseEntryFromLocation() {
   var pageId = null, params = {};
   try {
     var sp = new URLSearchParams(window.location.search);
+    if (sp.get(DEEPLINK_PARAM)) {
+      return { pageId: null, params: {} };
+    }
+    if (sp.get('tab')) {
+      pageId = sp.get('tab');
+      return { pageId: pageId, params: params };
+    }
     if (sp.get('p')) {
       pageId = sp.get('p');
       if (sp.get('ch')) params.ch = decodeURIComponent(sp.get('ch'));
@@ -85,6 +93,10 @@ export function applyEntryNavigation() {
   var validPages = ['challenge', 'ranking', 'members', 'hall', 'admin', 'my', 'attendance'];
   if (!entry.pageId || validPages.indexOf(entry.pageId) < 0) return;
   nav(entry.pageId);
+  try {
+    var sp = new URLSearchParams(window.location.search);
+    if (sp.get('tab') || sp.get('p')) history.replaceState(null, '', '/');
+  } catch (e) {}
   if (entry.pageId === 'challenge') {
     if (entry.params.ch) C.setDeepLinkCh(entry.params.ch);
     if (entry.params.filter) {

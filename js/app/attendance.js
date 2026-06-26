@@ -5,6 +5,7 @@ import {
   collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { COL_ATTENDANCE } from './constants.js?v=2026.06.26.10';
+import { getMyPlayerId } from './wizard.js?v=2026.06.26.10';
 
 let C = null;
 let _unsubToday = null;
@@ -47,6 +48,12 @@ function _membersSortedForSelect() {
     .sort(function(a, b) { return a.name.localeCompare(b.name, 'ko'); });
 }
 
+function _applyMyPlayerToSelect(sel, list) {
+  var myId = getMyPlayerId();
+  if (!myId || !sel) return;
+  if (list.some(function(m) { return m.id === myId; })) sel.value = myId;
+}
+
 export function renderAttendanceMembers() {
   var sel = g('attendance-member');
   if (!sel) return;
@@ -57,7 +64,11 @@ export function renderAttendanceMembers() {
       return '<option value="' + m.id + '" data-name="' + escapeAttr(m.name) + '">' + escapeHtml(m.name) + '</option>';
     }).join('');
   sel.innerHTML = html;
-  if (prev && list.some(function(m) { return m.id === prev; })) sel.value = prev;
+  if (prev && list.some(function(m) { return m.id === prev; })) {
+    sel.value = prev;
+  } else {
+    _applyMyPlayerToSelect(sel, list);
+  }
 }
 
 function escapeHtml(text) {
@@ -191,7 +202,7 @@ async function submitAttendanceForm(ev) {
       successEl.textContent = '✅ ' + memberName + '님 출석 완료!';
     }
     if (noteEl) noteEl.value = '';
-    sel.selectedIndex = 0;
+    _applyMyPlayerToSelect(sel, _membersSortedForSelect());
     toast('✅ ' + memberName + '님 출석 완료!');
   } catch (e) {
     toast('❌ ' + (e.message || '출석 등록 실패'));
