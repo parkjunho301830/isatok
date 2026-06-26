@@ -2,7 +2,7 @@
  * 출석 체크 — Firestore attendance 컬렉션
  */
 import {
-  collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp
+  collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { COL_ATTENDANCE } from './constants.js?v=2026.06.26.10';
 import { getMyPlayerId } from './wizard.js?v=2026.06.26.10';
@@ -11,6 +11,7 @@ let C = null;
 let _unsubToday = null;
 let _subscribedDate = null;
 let _submitting = false;
+let _todayRows = [];
 
 export function getTodayString() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -88,19 +89,48 @@ function _updateDateLabel() {
   if (el) el.textContent = formatTodayLabel();
 }
 
+function _uniqueRowsByMember(rows) {
+  var seen = {};
+  return rows.filter(function(row) {
+    if (!row.memberId || seen[row.memberId]) return false;
+    seen[row.memberId] = true;
+    return true;
+  });
+}
+
+function hasCheckedInToday(memberId) {
+  if (!memberId) return false;
+  return _todayRows.some(function(row) { return row.memberId === memberId; });
+}
+
+async function _confirmNotDuplicateToday(memberId) {
+  if (hasCheckedInToday(memberId)) return true;
+  if (!db()) return false;
+
+  var today = getTodayString();
+  var snap = await getDocs(
+    query(collection(db(), COL_ATTENDANCE), where('date', '==', today))
+  );
+  return snap.docs.some(function(d) {
+    return (d.data().memberId || '') === memberId;
+  });
+}
+
 function _renderTodayList(rows) {
+  _todayRows = rows || [];
+  var unique = _uniqueRowsByMember(_todayRows);
   var countEl = g('attendance-today-count');
   var listEl = g('attendance-today-list');
   if (!countEl || !listEl) return;
 
-  countEl.textContent = '오늘 출석 인원: ' + rows.length + '명';
+  countEl.textContent = '오늘 출석 인원: ' + unique.length + '명';
 
-  if (!rows.length) {
+  if (!unique.length) {
     listEl.innerHTML = '<p class="attendance-empty">아직 출석한 회원이 없습니다.</p>';
     return;
   }
 
-  listEl.innerHTML = rows.map(function(row) {
+  listEl.innerHTML = unique.map(function(row) {
     var note = row.note ? ' title="' + escapeAttr(row.note) + '"' : '';
     return '<span class="attendance-chip"' + note + '>' + escapeHtml(row.memberName) + '</span>';
   }).join('');
@@ -162,6 +192,10 @@ export async function submitAttendance(memberId, memberName, note) {
   if (!memberId || !memberName) throw new Error('회원을 선택해주세요');
   if (!db()) throw new Error('Firebase에 연결되지 않았습니다');
 
+  if (await _confirmNotDuplicateToday(memberId)) {
+    throw new Error(memberName + '님은 이미 오늘 출석하셨습니다');
+  }
+
   await addDoc(collection(db(), COL_ATTENDANCE), {
     memberId: memberId,
     memberName: memberName,
@@ -197,6 +231,12 @@ async function submitAttendanceForm(ev) {
   }
 
   try {
+    if (await _confirmNotDuplicateToday(memberId)) {
+      toast('⚠️ ' + memberName + '님은 이미 오늘 출석하셨습니다');
+      if (successEl) successEl.hidden = true;
+      return false;
+    }
+
     await submitAttendance(memberId, memberName, note);
     if (successEl) {
       successEl.hidden = false;
