@@ -58,6 +58,12 @@ function db() { return C.getDb(); }
 function members() { return C.getMembers(); }
 function chal() { return C.getChal(); }
 function isAdmin() { return C.isAdmin(); }
+/** 일반: 활성·기타만 / 관리자: 비활성 포함 */
+function _isMemberVisibleInDirectory(m) {
+  if (!m) return false;
+  if (m.status !== '비활성') return true;
+  return isAdmin();
+}
 function requireAdmin(fn) { return C.requireAdmin(fn); }
 function openMo(id) { return C.openMo(id); }
 function closeMo(id) { return C.closeMo(id); }
@@ -126,7 +132,7 @@ export function _getRecentOpponentNames(limit){
   return list.slice(0,limit||6);
 }
 export function _buildMemberRankList(isDbl){
-  return members().filter(function(m){return m.status!=='비활성';})
+  return members().filter(function(m){return _isMemberVisibleInDirectory(m);})
     .map(function(m){
       var pt=_rankPointsForMember(m,isDbl,true);
       var gr=_calcGrade(pt);
@@ -202,15 +208,17 @@ export function _renderMemberCard(entry,opts){
   var rankLbl=rank!=null?rank+'위':'—';
   var medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
   var compareCls=_mdCompareId===m.id?' md-card--compare':'';
+  var inactiveCls=m.status==='비활성'?' md-card--inactive':'';
   var adminActs='<button type="button" class="md-card__admin btn btn-g btn-xs" onclick="event.stopPropagation();openEdit(\''+m.id+'\')">✏️</button>'
     +(isAdmin()?' <button type="button" class="md-card__admin btn btn-d btn-xs" onclick="event.stopPropagation();openDel(\''+m.id+'\')">🗑</button>':'');
-  return '<article class="md-card'+compareCls+'" data-mid="'+m.id+'" onclick="openPlayerProfile(\''+m.id+'\')">'
+  return '<article class="md-card'+compareCls+inactiveCls+'" data-mid="'+m.id+'" onclick="openPlayerProfile(\''+m.id+'\')">'
     +'<div class="md-card__top">'
     +memberAv(m.name,avc(m.name),'md-card__avatar')
     +'<div class="md-card__info">'
     +'<div class="md-card__name">'+m.name+'</div>'
     +_renderMemberPhoneHtml(m.phone)
     +'<div class="md-card__meta"><span class="badge '+gr.badge+'">'+gr.icon+' '+gr.label+'</span>'
+    +(m.status==='비활성'?'<span class="badge br">비활성</span>':'')
     +'<span class="md-act '+act.cls+'">'+act.label+'</span></div>'
     +'</div>'
     +'<div class="md-card__rank">'+(medal||('<span class="md-card__rank-num">'+rankLbl+'</span>'))+'</div>'
@@ -469,7 +477,7 @@ export function renderM(){
   var q=(g('ms')&&g('ms').value||'').trim();
   var rows=_buildMemberRankList(true).filter(function(entry){
     var m=entry.m;
-    if(m.status==='비활성')return false;
+    if(!_isMemberVisibleInDirectory(m))return false;
     if(!_matchMemberQuery(m,q))return false;
     if(_fg&&_memberGrade(m).label!==_fg)return false;
     return true;

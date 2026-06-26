@@ -70,6 +70,7 @@ export function applyAdminUI() {
   updateAdminBtn();
   if (isAdmin()) renderAdminHub();
   if (C.getCurrentPage() === 'admin' && !isAdmin()) nav('challenge');
+  if (C.getCurrentPage() === 'members') C.renderM();
 }
 
 export function onAdminModalClosed(id) {
