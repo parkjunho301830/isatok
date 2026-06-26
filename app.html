@@ -549,6 +549,11 @@
         </div>
       </details>
 
+      <div class="fg" id="res-video-admin" style="display:none;margin-top:16px">
+        <label>경기 영상</label>
+        <div id="res-video-admin-body"></div>
+      </div>
+
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-result')">취소</button>
@@ -625,6 +630,37 @@
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('mo-kakao')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 경기 영상 재생 모달 ══ -->
+<div class="mo" id="mo-match-video">
+  <div class="mw">
+    <div class="mh"><div class="mt">▶ 경기 <em>영상</em></div><button class="mc-btn" onclick="closeMatchVideoMo()">✕</button></div>
+    <div class="mb">
+      <div class="yt-embed-wrap">
+        <iframe id="match-video-iframe" title="경기 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMatchVideoMo()">닫기</button></div>
+  </div>
+</div>
+
+<!-- ══ 경기 영상 URL 등록 모달 (관리자) ══ -->
+<div class="mo write-mo" id="mo-video-register">
+  <div class="mw">
+    <div class="mh"><div class="mt">🎬 영상 <em>등록</em></div><button class="mc-btn" onclick="closeMo('mo-video-register')">✕</button></div>
+    <div class="mb">
+      <div class="fg">
+        <label for="match-video-url">유튜브 URL</label>
+        <input type="url" id="match-video-url" class="fi" placeholder="https://youtu.be/... 또는 youtube.com/watch?v=..." inputmode="url" autocomplete="off">
+        <div class="fg-hint">youtu.be 또는 youtube.com/watch?v= 형식만 지원합니다</div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('mo-video-register')">취소</button>
+      <button class="btn btn-p" onclick="submitMatchVideoUrl()">등록</button>
     </div>
   </div>
 </div>

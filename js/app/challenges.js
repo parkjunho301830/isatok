@@ -1,7 +1,7 @@
 /**
  * 대결 탭·바텀시트·결과 입력·내기·카카오 공유
  */
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, doc, addDoc, updateDoc, deleteDoc, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { SITE_ORIGIN, KAKAO_JS_KEY } from './version.js?v=2026.06.26.10';
 import {
   COL_CHALLENGES, COL_MEMBERS,
@@ -32,6 +32,10 @@ import { _isDoublesType, _memberPt, _calcGrade } from './memberCore.js?v=2026.06
 import { _memberGrade } from './memberUtils.js?v=2026.06.26.10';
 import { _matchMemberSearch, _getRecentPlayers, _saveRecentPlayers } from './membersTab.js?v=2026.06.26.10';
 import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.06.26.10';
+import {
+  extractYouTubeVideoId,
+  buildYouTubeEmbedUrl
+} from './youtubeUtils.js?v=2026.06.26.10';
 
 let C = null;
 const BS_BACK_KEY = 'bs';
@@ -103,6 +107,7 @@ let _acceptTeam=[];
 let _resultFormMountedInWizard=false;
 var _drumsInited=false;
 let _deepLinkTargetId=null;
+let _videoRegisterId=null;
 const LS_DEEPLINK_MATCH='isatok_deeplink_match';
 
 export function isBSOpen(){
@@ -846,8 +851,22 @@ function _buildChCardActions(c,isOpen,hasBet){
   }else if(_chResultReady(c)){
     primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">🏆 결과 입력</button>';
     if(hasBet)secondary='<button class="btn btn-w btn-sm" onclick="openBetPick(\''+c.id+'\')">🎯 내기</button>';
-  }else if(c.status==='completed'&&isAdmin()){
-    primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">✏️ 결과 수정</button>';
+  }else if(c.status==='completed'){
+    if(c.videoUrl&&extractYouTubeVideoId(c.videoUrl)){
+      var videoBtn='<button type="button" class="btn btn-p btn-sm cc-video-btn" onclick="openMatchVideo(\''+c.id+'\')">▶ 경기 영상</button>';
+      if(primary)secondary=videoBtn+secondary;
+      else primary=videoBtn;
+    }
+    if(isAdmin()){
+      var editBtn='<button type="button" class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">✏️ 결과 수정</button>';
+      if(primary)secondary=editBtn+(secondary||'');
+      else primary=editBtn;
+      if(c.videoUrl){
+        secondary+='<button type="button" class="btn btn-d btn-sm" onclick="deleteMatchVideo(\''+c.id+'\')">영상 삭제</button>';
+      }else{
+        secondary+='<button type="button" class="btn btn-g btn-sm" onclick="openVideoRegister(\''+c.id+'\')">영상 URL 등록</button>';
+      }
+    }
   }
   return {primary:primary,secondary:secondary,utility:utility};
 }
@@ -1279,7 +1298,7 @@ export function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(isAdmin()?'1':'0')+'|'+(c.expiresAt?_parseExpiresMs(c.expiresAt)||'':'');
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(isAdmin()?'1':'0')+'|'+(c.videoUrl||'')+'|'+(c.expiresAt?_parseExpiresMs(c.expiresAt)||'':'');
   });
 
   // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
@@ -2156,12 +2175,118 @@ window.openRes=function(id){
   var mtEm=g('mo-result')&&g('mo-result').querySelector('.mt em');
   if(mtEm)mtEm.textContent=_resEditMode?'수정':'입력';
 
+  _renderResultVideoAdmin(c);
   openMo('mo-result');
   }catch(e){
     console.error('openRes error:',e);
     toast('❌ 결과 입력을 열 수 없습니다');
   }
 }
+
+function _renderResultVideoAdmin(c){
+  var wrap=g('res-video-admin');
+  var body=g('res-video-admin-body');
+  if(!wrap||!body)return;
+  if(!c||c.status!=='completed'||!isAdmin()){
+    wrap.style.display='none';
+    body.innerHTML='';
+    return;
+  }
+  wrap.style.display='';
+  if(c.videoUrl&&extractYouTubeVideoId(c.videoUrl)){
+    body.innerHTML='<div class="res-video-admin-url">'+_escHtml(c.videoUrl)+'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
+      +'<button type="button" class="btn btn-p btn-sm" onclick="openMatchVideo(\''+c.id+'\')">▶ 미리보기</button>'
+      +'<button type="button" class="btn btn-g btn-sm" onclick="openVideoRegister(\''+c.id+'\')">URL 변경</button>'
+      +'<button type="button" class="btn btn-d btn-sm" onclick="deleteMatchVideo(\''+c.id+'\')">영상 삭제</button>'
+      +'</div>';
+    return;
+  }
+  body.innerHTML='<div style="color:var(--t3);font-size:13px;margin-bottom:8px">등록된 영상이 없습니다</div>'
+    +'<button type="button" class="btn btn-p btn-sm" onclick="openVideoRegister(\''+c.id+'\')">영상 URL 등록</button>';
+}
+
+function _escHtml(text){
+  return String(text||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+window.openMatchVideo=function(id){
+  var c=chal().find(function(x){return x.id===id;});
+  if(!c||!c.videoUrl)return;
+  var vid=extractYouTubeVideoId(c.videoUrl);
+  if(!vid){toast('⚠️ 등록된 영상 URL이 유효하지 않습니다');return;}
+  var embed=buildYouTubeEmbedUrl(vid);
+  var iframe=g('match-video-iframe');
+  if(iframe)iframe.src=embed+'?rel=0&playsinline=1';
+  openMo('mo-match-video');
+};
+
+window.closeMatchVideoMo=function(){
+  var iframe=g('match-video-iframe');
+  if(iframe)iframe.src='';
+  closeMo('mo-match-video');
+};
+
+window.openVideoRegister=function(id){
+  requireAdmin(function(){
+    var c=chal().find(function(x){return x.id===id;});
+    if(!c||c.status!=='completed'){
+      toast('⚠️ 완료된 경기만 영상을 등록할 수 있습니다');
+      return;
+    }
+    _videoRegisterId=id;
+    var inp=g('match-video-url');
+    if(inp)inp.value=c.videoUrl||'';
+    openMo('mo-video-register');
+    setTimeout(function(){if(inp)inp.focus();},320);
+  });
+};
+
+window.submitMatchVideoUrl=async function(){
+  if(!isAdmin()){toast('⚠️ 관리자만 영상을 등록할 수 있습니다');return;}
+  if(!_videoRegisterId)return;
+  var inp=g('match-video-url');
+  var url=(inp&&inp.value||'').trim();
+  if(!url){toast('⚠️ 유튜브 URL을 입력해주세요');return;}
+  if(!extractYouTubeVideoId(url)){toast('⚠️ 유효하지 않은 유튜브 URL입니다');return;}
+  var id=_videoRegisterId;
+  try{
+    if(db()){
+      await updateDoc(doc(db(),COL_CHALLENGES,id),{videoUrl:url});
+    }else{
+      var c=chal().find(function(x){return x.id===id;});
+      if(c)c.videoUrl=url;
+      renderC();
+    }
+    closeMo('mo-video-register');
+    if(inp)inp.value='';
+    _videoRegisterId=null;
+    var openC=chal().find(function(x){return x.id===id;});
+    if(openC&&_rid===id)_renderResultVideoAdmin(openC);
+    toast('✅ 영상이 등록됐습니다');
+  }catch(e){toast('❌ '+e.message);}
+};
+
+window.deleteMatchVideo=async function(id){
+  if(!isAdmin()){requireAdmin(function(){deleteMatchVideo(id);});return;}
+  var c=chal().find(function(x){return x.id===id;});
+  if(!c||!c.videoUrl)return;
+  if(!confirm('등록된 경기 영상을 삭제할까요?'))return;
+  try{
+    if(db()){
+      await updateDoc(doc(db(),COL_CHALLENGES,id),{videoUrl:deleteField()});
+    }else{
+      delete c.videoUrl;
+      renderC();
+    }
+    if(_rid===id)_renderResultVideoAdmin(chal().find(function(x){return x.id===id;}));
+    toast('🗑 영상이 삭제됐습니다');
+  }catch(e){toast('❌ '+e.message);}
+};
 window.setW=function(t){
   _rw=t;
   ['a','b'].forEach(function(k){
