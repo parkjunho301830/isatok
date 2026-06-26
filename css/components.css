@@ -152,6 +152,21 @@
 #ch-list{
   contain:layout style;
 }
+.ch-load-more-wrap{
+  padding:8px 0 12px;
+  text-align:center;
+}
+.ch-load-more-sentinel{
+  width:100%;
+  height:1px;
+  pointer-events:none;
+}
+.ch-load-more-status{
+  font-size:13px;
+  font-weight:600;
+  color:var(--t3);
+  padding:8px 0 4px;
+}
 .mo.on .mw{
   -webkit-overflow-scrolling:touch;
   overscroll-behavior:contain;

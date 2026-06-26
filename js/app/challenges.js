@@ -89,6 +89,9 @@ let _bsLockTimer=null;
 
 let _cf='all',_rid=null,_rw=null;
 let _chShowCount=CHALLENGES_LIST_DISPLAY_STEP;
+let _chLastFilteredTotal=0;
+let _chAutoLoadBusy=false;
+let _chLoadObserver=null;
 let _resInputMode='winner';
 let _setWinsA=0,_setWinsB=0;
 let _setRowCount=3;
@@ -1132,31 +1135,75 @@ window.setF=function(f){
   if(!window._fcEls)window._fcEls=Array.from(document.querySelectorAll('.fc'));
   window._fcEls.forEach(el=>el.classList.toggle('on',el.id==='f-'+f));
   renderC();
+};
+function _chHasMoreUi(){
+  return hasMoreChallenges()||_chLastFilteredTotal>_chShowCount;
 }
-window.loadMoreChallenges=async function(){
-  var btn=g('ch-load-more-btn');
-  if(btn)btn.disabled=true;
+async function _loadMoreChallengesCore(){
+  if(_chAutoLoadBusy||isChallengesLoadingMore())return;
+  if(!_chHasMoreUi())return;
+  _chAutoLoadBusy=true;
+  _updateChLoadMoreUi(_chLastFilteredTotal);
   try{
     if(hasMoreChallenges())await fetchMoreChallengesPage();
-    _chShowCount+=CHALLENGES_LIST_DISPLAY_STEP;
-    renderC();
+    if(_chLastFilteredTotal>_chShowCount){
+      _chShowCount+=CHALLENGES_LIST_DISPLAY_STEP;
+      renderC();
+    }else{
+      _updateChLoadMoreUi(_chLastFilteredTotal);
+    }
   }finally{
-    if(btn&&!isChallengesLoadingMore())btn.disabled=false;
+    _chAutoLoadBusy=false;
+    _updateChLoadMoreUi(_chLastFilteredTotal);
   }
+}
+window.loadMoreChallenges=function(){
+  return _loadMoreChallengesCore();
 };
-function _updateChLoadMoreBtn(filteredTotal){
+function _triggerChAutoLoad(){
+  if(getCurrentPage()!=='challenge')return;
+  var manage=g('ch-manage');
+  if(manage&&!manage.open)return;
+  _loadMoreChallengesCore();
+}
+function _initChLoadObserver(){
+  if(_chLoadObserver||typeof IntersectionObserver==='undefined')return;
+  var sentinel=g('ch-load-more-sentinel');
+  if(!sentinel)return;
+  _chLoadObserver=new IntersectionObserver(function(entries){
+    if(!entries.some(function(e){return e.isIntersecting;}))return;
+    _triggerChAutoLoad();
+  },{root:null,rootMargin:'160px 0px 0px',threshold:0});
+  _chLoadObserver.observe(sentinel);
+}
+function _maybeChAutoLoadAfterRender(){
+  if(!_chHasMoreUi())return;
+  requestAnimationFrame(function(){
+    var sentinel=g('ch-load-more-sentinel');
+    var wrap=g('ch-load-more-wrap');
+    if(!sentinel||!wrap||wrap.style.display==='none')return;
+    var rect=sentinel.getBoundingClientRect();
+    if(rect.top<=window.innerHeight+160)_triggerChAutoLoad();
+  });
+}
+function _updateChLoadMoreUi(filteredTotal){
   var wrap=g('ch-load-more-wrap');
   if(!wrap)return;
-  var show=hasMoreChallenges()||filteredTotal>_chShowCount;
+  var show=_chHasMoreUi();
   wrap.style.display=show?'block':'none';
-  var btn=g('ch-load-more-btn');
-  if(!btn)return;
-  if(isChallengesLoadingMore()){
-    btn.textContent='불러오는 중…';
-    btn.disabled=true;
+  var status=g('ch-load-more-status');
+  if(!status)return;
+  if(!show){
+    status.hidden=true;
+    status.textContent='';
+    return;
+  }
+  if(_chAutoLoadBusy||isChallengesLoadingMore()){
+    status.hidden=false;
+    status.textContent='불러오는 중…';
   }else{
-    btn.textContent=hasMoreChallenges()?'이전 대결 더 불러오기':'더 보기';
-    btn.disabled=false;
+    status.hidden=true;
+    status.textContent='';
   }
 }
 // ── 오픈 챌린지 대기 중 개수 뱃지 업데이트
@@ -1202,12 +1249,13 @@ export function renderC(){
   else if(_cf==='mx') data=data.filter(c=>c.type==='mx');
   else if(_cf!=='all') data=data.filter(c=>c.type===_cf);
   var filteredTotal=data.length;
+  _chLastFilteredTotal=filteredTotal;
   if(filteredTotal>_chShowCount)data=data.slice(0,_chShowCount);
   if(!data.length){
     // 기존 카드 노드 제거 (깜빡임 없이 개별 제거)
     while(list.firstChild)list.removeChild(list.firstChild);
     empty.style.display='block';
-    _updateChLoadMoreBtn(filteredTotal);
+    _updateChLoadMoreUi(filteredTotal);
     return;
   }
   empty.style.display='none';
@@ -1263,7 +1311,8 @@ export function renderC(){
       childList=Array.from(list.children);
     }
   });
-  _updateChLoadMoreBtn(filteredTotal);
+  _updateChLoadMoreUi(filteredTotal);
+  _maybeChAutoLoadAfterRender();
 }
 
 // ── 대결 카드 HTML 생성 (renderC에서 분리) ──
@@ -2967,4 +3016,5 @@ export function nowDateTimeFields() { return _nowDateTimeFields(); }
 
 export function initChallenges(ctx) {
   C = ctx;
+  _initChLoadObserver();
 }
