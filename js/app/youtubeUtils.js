@@ -18,9 +18,13 @@ export function extractYouTubeVideoId(url) {
   var short = s.match(/(?:^https?:\/\/)?(?:www\.)?youtu\.be\/([A-Za-z0-9_-]{11})(?:[?&#/]|$)/i);
   if (short) id = short[1];
 
-  // youtube.com/watch?v=ID
+  // youtube.com/watch — v 파라미터
   if (!id) {
-    var watch = s.match(/(?:^https?:\/\/)?(?:www\.)?youtube\.com\/watch\?(?:[^#]*&)?v=([A-Za-z0-9_-]{11})/i);
+    var watchRe = new RegExp(
+      '(?:^https?:\\/\\/)?(?:www\\.)?youtube\\.com\\/watch\\?(?:[^#]*&)?v=([A-Za-z0-9_-]{11})',
+      'i'
+    );
+    var watch = s.match(watchRe);
     if (watch) id = watch[1];
   }
 

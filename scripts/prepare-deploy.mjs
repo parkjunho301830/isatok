@@ -57,7 +57,8 @@ function readCurrentVersion(content) {
 }
 
 function bumpAssetQuery(content, appVersion) {
-  return content.replace(/\?v=[^"'?#\s]+/g, '?v=' + appVersion);
+  // 버전 캐시 버스트만 치환 (?v=2026.06.26.10). 유튜브 URL 파싱 등 ?v=(...) 패턴은 건드리지 않음
+  return content.replace(/\?v=\d{4}\.\d{2}\.\d{2}\.\d{2}/g, '?v=' + appVersion);
 }
 
 function syncLocalImports(content, appVersion) {
