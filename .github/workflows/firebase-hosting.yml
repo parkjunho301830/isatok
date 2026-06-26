@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
 
       - name: Prepare deploy version
         run: node scripts/prepare-deploy.mjs
@@ -36,6 +36,11 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: isatok-ef06a
           channelId: live
+
+      - name: Setup Node.js for Functions
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
       - name: Authenticate for Cloud Functions
         uses: google-github-actions/auth@v2

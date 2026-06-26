@@ -17,7 +17,13 @@
         "LICENSE",
         ".gitignore",
         "index.html",
-        "404.html"
+        "404.html",
+        "functions/**",
+        "docs/**",
+        "gas/**",
+        "scripts/**",
+        "lighthouse-full.json",
+        ".agents/**"
       ],
       "rewrites": [
         {
