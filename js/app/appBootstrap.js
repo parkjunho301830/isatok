@@ -217,7 +217,6 @@ function finish() {
       getBodyScrollLock: getBodyScrollLock,
       $ko: $ko
     });
-    applyEntryNavigation();
     applyAdminUI();
     initBsPlayerSearchInputs();
     initVersionUI();
@@ -336,6 +335,7 @@ function finish() {
         return memberAvatarHtml(name, colorClass || '', extraClass || '', inlineStyle || '');
       }
     });
+    applyEntryNavigation();
     initUxDefaults();
     initMyPlayerOnLoad();
     window.setF(getChallengeFilter());

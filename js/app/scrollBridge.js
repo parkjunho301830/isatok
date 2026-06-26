@@ -39,6 +39,7 @@ function flushPendingRenders() {
   var page = C.getCurrentPage();
   if (_pendingRender.m && page === 'members') C.renderM();
   if (_pendingRender.m && page === 'ranking') C.renderR();
+  if (_pendingRender.m && page === 'attendance') C.renderAttendanceMembers();
   if (_pendingRender.grids && C.isBSOpen() && !C.isBsPlayerSearchActive() && !C.isBsFormInputFocused()) {
     C.renderGridsBS({ force: true });
   }

@@ -36,10 +36,10 @@ export function initAttendance(ctx) {
   window.submitAttendanceForm = submitAttendanceForm;
 }
 
-function g(id) { return C.g(id); }
-function toast(msg) { return C.toast(msg); }
-function db() { return C.getDb(); }
-function members() { return C.getMembers(); }
+function g(id) { return C ? C.g(id) : null; }
+function toast(msg) { return C && C.toast(msg); }
+function db() { return C ? C.getDb() : null; }
+function members() { return C ? C.getMembers() : []; }
 
 function _membersSortedForSelect() {
   return members()
@@ -149,6 +149,7 @@ export function subscribeToday(callback) {
 }
 
 export function initAttendancePage() {
+  if (!C) return;
   _updateDateLabel();
   renderAttendanceMembers();
 
