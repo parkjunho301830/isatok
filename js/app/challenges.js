@@ -826,14 +826,14 @@ window.openResultPicker=function(){
 };
 
 function _chShareBtn(id){
-  return '<button type="button" class="btn btn-g btn-sm cc-aux-btn" onclick="shareKakao(\''+id+'\')" title="카톡 공유" aria-label="카톡 공유"><span class="kt-icon">💬</span></button>';
+  return '<button type="button" class="btn btn-kakao cc-kakao-share-btn" onclick="shareKakao(\''+id+'\')" title="카카오톡으로 공유하기" aria-label="카카오톡 공유하기"><span class="kt-icon" aria-hidden="true">💬</span><span class="cc-kakao-share-label">카톡 공유하기</span></button>';
 }
 function _chDeleteBtn(id){
   return '<button type="button" class="btn btn-d btn-sm cc-aux-btn" onclick="delC(\''+id+'\')" title="삭제" aria-label="삭제">🗑</button>';
 }
 function _buildChCardActions(c,isOpen,hasBet){
   var primary='',secondary='',utility='';
-  utility+=_chShareBtn(c.id);
+  secondary+=_chShareBtn(c.id);
   if(isAdmin())utility+=_chDeleteBtn(c.id);
   if(isOpen){
     primary='<button class="btn btn-p cc-primary-btn" onclick="openAcceptOpen(\''+c.id+'\')">🔥 수락하기</button>';
