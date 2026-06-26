@@ -125,6 +125,7 @@
     <div class="nav-i"     data-page="my"       onclick="nav('my')"><span class="ni-icon">👤</span>마이</div>
     <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">📈</span>통계</div>
     <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">🏓</span>선수</div>
+    <div class="nav-i"     data-page="attendance" onclick="nav('attendance')"><span class="ni-icon">✅</span>출석</div>
     <div class="nav-i nav-admin-only admin-only" data-page="admin" onclick="nav('admin')"><span class="ni-icon">⚙️</span>관리자</div>
     <div class="admin-bar" id="admin-bar">
       <button class="btn btn-g btn-sm" id="btn-admin" type="button" onclick="toggleAdmin()" style="width:100%;min-height:40px">🔐 관리자</button>
@@ -299,6 +300,41 @@
       <tbody id="mtb" style="display:none" aria-hidden="true"></tbody>
     </div>
 
+    <!-- ══ 출석 체크 ══ -->
+    <div class="page" id="page-attendance">
+      <section id="attendance-section" class="attendance-section">
+        <div class="ph">
+          <div class="ph-t">✅ <em>출석 체크</em></div>
+        </div>
+        <p class="attendance-date" id="attendance-date-label"></p>
+
+        <div class="card card-p attendance-form-card">
+          <form id="attendance-form" onsubmit="return submitAttendanceForm(event)">
+            <div class="fg">
+              <label for="attendance-member">이름</label>
+              <select id="attendance-member" required>
+                <option value="">선택해주세요</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label for="attendance-note">비고 <span class="attendance-note-opt">(선택)</span></label>
+              <input type="text" id="attendance-note" placeholder="하실 말씀이 있으시면 입력해주세요" autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-p attendance-submit-btn" id="attendance-submit-btn">출석 체크하기</button>
+          </form>
+          <div id="attendance-success" class="attendance-success" hidden></div>
+        </div>
+
+        <div class="card card-p attendance-today-card">
+          <div class="attendance-today-header">
+            <h2 class="attendance-today-title">오늘의 출석 현황</h2>
+            <p class="attendance-today-count" id="attendance-today-count">오늘 출석 인원: 0명</p>
+          </div>
+          <div id="attendance-today-list" class="attendance-chip-list"></div>
+        </div>
+      </section>
+    </div>
+
     <!-- ══ 관리자 ══ -->
     <div class="page admin-only" id="page-admin">
       <div class="ph">
@@ -327,6 +363,7 @@
   <div class="bni"    onclick="nav('my')"        data-p="my"><span class="bi">👤</span><span>마이</span></div>
   <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">📈</span><span>통계</span></div>
   <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">🏓</span><span>선수</span></div>
+  <div class="bni"    onclick="nav('attendance')" data-p="attendance"><span class="bi">✅</span><span>출석</span></div>
   <div class="bni nav-admin-only admin-only" onclick="nav('admin')" data-p="admin"><span class="bi">⚙️</span><span>관리</span></div>
 </nav>
 

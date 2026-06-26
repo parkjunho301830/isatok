@@ -87,6 +87,7 @@ export function applyMembersSnapshotRender() {
   if (page === 'members') C.renderM();
   if (page === 'ranking') C.renderR();
   if (page === 'hall') C.renderHall();
+  if (page === 'attendance') C.renderAttendanceMembers();
   if (C.isBSOpen()) {
     if (C.isBsPlayerSearchActive() || C.isBsFormInputFocused()) C.deferBsGridRefresh();
     else C.renderGridsBS();

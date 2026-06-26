@@ -33,6 +33,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /attendance/{attendanceId} {
+      allow read, write: if true;
+    }
+
     function isValidSeasonWrite() {
       let d = request.resource.data;
       return d.name is string

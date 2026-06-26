@@ -42,6 +42,7 @@ import { initModals, openMo, closeMo } from './modals.js?v=2026.06.26.10';
 import { initAdminTab, isAdmin, requireAdmin, applyAdminUI, onAdminModalClosed } from './adminTab.js?v=2026.06.26.10';
 import { initNoticesBoards } from './noticesBoards.js?v=2026.06.26.10';
 import { initAppNav, applyEntryNavigation } from './appNav.js?v=2026.06.26.10';
+import { initAttendance, initAttendancePage, renderAttendanceMembers } from './attendance.js?v=2026.06.26.10';
 import { initBackNav } from './backNav.js?v=2026.06.26.10';
 import {
   g, toast, $ko, renderEmptyState, scrollToElement, waitForElement,
@@ -127,7 +128,8 @@ function finish() {
       renderM: renderM,
       renderR: renderR,
       renderHall: renderHall,
-      renderMyPage: renderMyPage
+      renderMyPage: renderMyPage,
+      initAttendancePage: initAttendancePage
     });
     initBackNav({
       g: g,
@@ -282,6 +284,13 @@ function finish() {
       getRecommendedOpponents: getRecommendedOpponents,
       renderMyPage: renderMyPage
     });
+    initAttendance({
+      g: g,
+      toast: toast,
+      getDb: getDb,
+      getMembers: getMembers,
+      getCurrentPage: function() { return _currentPage; }
+    });
     initWizard({
       g: g,
       getMembers: getMembers,
@@ -350,6 +359,7 @@ function wireScrollBridge() {
     renderM: renderM,
     renderR: renderR,
     renderHall: renderHall,
+    renderAttendanceMembers: renderAttendanceMembers,
     renderC: renderC,
     renderGridsBS: renderGridsBS,
     isBSOpen: isBSOpen,

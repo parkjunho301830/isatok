@@ -47,6 +47,7 @@ function nav(id, fromBack) {
   else if (id === 'ranking') C.renderR();
   else if (id === 'hall') C.renderHall();
   else if (id === 'my') C.renderMyPage();
+  else if (id === 'attendance') C.initAttendancePage();
   else if (id === 'admin') {
     if (isAdmin()) renderAdminHub();
     else nav('challenge');
@@ -81,7 +82,7 @@ function parseEntryFromLocation() {
 
 export function applyEntryNavigation() {
   var entry = parseEntryFromLocation();
-  var validPages = ['challenge', 'ranking', 'members', 'hall', 'admin', 'my'];
+  var validPages = ['challenge', 'ranking', 'members', 'hall', 'admin', 'my', 'attendance'];
   if (!entry.pageId || validPages.indexOf(entry.pageId) < 0) return;
   nav(entry.pageId);
   if (entry.pageId === 'challenge') {

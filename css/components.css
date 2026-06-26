@@ -729,3 +729,40 @@ html.is-admin .nav-admin-only{display:flex!important;}
 }
 .inst-res-opt input{width:18px;height:18px;accent-color:var(--a);flex-shrink:0;}
 
+/* ══ 출석 체크 ══ */
+.attendance-section{padding-bottom:24px;}
+.attendance-date{
+  margin:-4px 0 16px;padding:0 4px;
+  font-size:15px;font-weight:600;color:var(--t2);
+}
+.attendance-form-card{margin-bottom:16px;}
+.attendance-note-opt{font-weight:500;color:var(--t3);}
+.attendance-submit-btn{
+  width:100%;min-height:48px;margin-top:4px;font-size:16px;
+}
+.attendance-success{
+  margin-top:14px;padding:12px 14px;border-radius:12px;
+  background:rgba(52,199,89,.12);color:#248A3D;
+  font-size:15px;font-weight:700;text-align:center;
+}
+.attendance-today-card{margin-bottom:8px;}
+.attendance-today-header{margin-bottom:14px;}
+.attendance-today-title{
+  margin:0 0 6px;font-size:17px;font-weight:800;color:var(--t1);
+}
+.attendance-today-count{
+  margin:0;font-size:14px;font-weight:600;color:var(--t2);
+}
+.attendance-chip-list{
+  display:flex;flex-wrap:wrap;gap:8px;min-height:32px;
+}
+.attendance-chip{
+  display:inline-flex;align-items:center;
+  padding:8px 12px;border-radius:999px;
+  background:var(--adim);color:var(--a);
+  font-size:13px;font-weight:700;letter-spacing:-.2px;
+}
+.attendance-empty{
+  margin:0;font-size:14px;color:var(--t3);line-height:1.5;
+}
+
