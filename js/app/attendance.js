@@ -6,6 +6,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { COL_ATTENDANCE } from './constants.js?v=2026.06.26.10';
 import { getMyPlayerId } from './wizard.js?v=2026.06.26.10';
+import { refreshCustomSelect } from './customSelect.js?v=2026.06.26.10';
 
 let C = null;
 let _unsubToday = null;
@@ -70,6 +71,7 @@ export function renderAttendanceMembers() {
   } else {
     _applyMyPlayerToSelect(sel, list);
   }
+  refreshCustomSelect(sel);
 }
 
 function escapeHtml(text) {

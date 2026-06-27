@@ -128,6 +128,11 @@ function consumeDomOverlay() {
     return true;
   }
 
+  if (C.isCustomSelectOpen && C.isCustomSelectOpen()) {
+    C.closeCustomSelectPanel(true);
+    return true;
+  }
+
   if (C.isLightboxOpen && C.isLightboxOpen()) {
     C.closeLightbox();
     return true;

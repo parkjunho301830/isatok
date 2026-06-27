@@ -46,7 +46,11 @@ import {
 import { initNoticesBoards } from './noticesBoards.js?v=2026.06.26.10';
 import { initAppNav, applyEntryNavigation } from './appNav.js?v=2026.06.26.10';
 import { initAttendance, initAttendancePage, renderAttendanceMembers } from './attendance.js?v=2026.06.26.10';
-import { initBackNav } from './backNav.js?v=2026.06.26.10';
+import { initBackNav, registerOverlay, unregisterOverlay } from './backNav.js?v=2026.06.26.10';
+import {
+  initCustomSelects, watchCustomSelects, setCustomSelectBackNav,
+  isCustomSelectOpen, closeCustomSelectPanel
+} from './customSelect.js?v=2026.06.26.10';
 import {
   g, toast, $ko, renderEmptyState, scrollToElement, scrollChManageIntoView, waitForElement,
   cssEscape, isMobileUa, lockBodyScroll, unlockBodyScroll, getBodyScrollLock,
@@ -140,11 +144,16 @@ function finish() {
       closeMo: function(id) { closeMo(id); },
       isLightboxOpen: isMemberPhotoLightboxOpen,
       closeLightbox: function() { closeMemberPhotoLightbox(); },
+      isCustomSelectOpen: isCustomSelectOpen,
+      closeCustomSelectPanel: closeCustomSelectPanel,
       handleBsBackPress: handleBsBackPress,
       isBSOpen: isBSOpen,
       closeBottomSheet: function() { window.closeBS(); },
       isMyPlayerMandatory: isMyPlayerSetupMandatory
     });
+    setCustomSelectBackNav({ registerOverlay: registerOverlay, unregisterOverlay: unregisterOverlay });
+    initCustomSelects();
+    watchCustomSelects();
     initAdminTab({
       g: g,
       toast: toast,
