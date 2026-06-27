@@ -1356,7 +1356,7 @@ export function renderC(){
     }else{
       empty.innerHTML='<div style="font-size:48px;margin-bottom:14px">🏓</div>'
         +'<div style="font-size:16px;font-weight:800;color:var(--t2);margin-bottom:8px">대결이 없어요</div>'
-        +'<div style="font-size:13px;color:var(--t3);line-height:1.5">즉시 등록하거나 아래 대결 신청을 이용하세요</div>';
+        +'<div style="font-size:13px;color:var(--t3);line-height:1.5">위에서 즉시 등록하거나 대결 신청을 이용하세요</div>';
     }
     _updateChLoadMoreUi(filteredTotal);
     return;

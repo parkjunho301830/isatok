@@ -174,15 +174,15 @@
           <span class="ch-register-cta__label">즉시 등록하기</span>
         </button>
       </section>
-      <details class="ch-manage" id="ch-manage">
+      <div class="ch-register-secondary">
+        <button type="button" class="ch-apply-btn" onclick="openBS()">📨 대결 신청</button>
+      </div>
+      <details class="ch-manage" id="ch-manage" open>
         <summary class="ch-manage__toggle">
           <span class="ch-manage__title">📋 대결 관리</span>
           <span class="ch-manage__sub">목록 · 필터 · 오픈챌린지</span>
         </summary>
         <div class="ch-manage__body">
-          <div class="ch-manage__actions">
-            <button type="button" class="ch-manage-apply-btn" onclick="openBS()">📨 대결 신청</button>
-          </div>
           <div class="fscroll ch-manage-filters">
             <button class="fc on" id="f-all"       onclick="setF('all')">전체</button>
             <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기</button>
@@ -199,7 +199,7 @@
           <div id="ch-empty" style="display:none;text-align:center;padding:48px 20px;color:var(--t3)">
             <div style="font-size:48px;margin-bottom:14px">🏓</div>
             <div style="font-size:16px;font-weight:800;color:var(--t2);margin-bottom:8px">대결이 없어요</div>
-            <div style="font-size:13px;color:var(--t3);line-height:1.5">즉시 등록하거나 아래 대결 신청을 이용하세요</div>
+            <div style="font-size:13px;color:var(--t3);line-height:1.5">위에서 즉시 등록하거나 대결 신청을 이용하세요</div>
           </div>
           <div id="ch-list"></div>
           <div id="ch-load-more-wrap" class="ch-load-more-wrap" style="display:none">
