@@ -582,13 +582,6 @@
 .player-video-date{font-size:11px;color:var(--t3);}
 .player-video-vs{font-size:12px;font-weight:700;color:var(--t2);line-height:1.4;}
 
-#mo-match-video .mf{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-#mo-match-video .mf .btn-kakao{flex:1;min-width:0;}
-
 .yt-embed-wrap{
   position:relative;
   width:100%;

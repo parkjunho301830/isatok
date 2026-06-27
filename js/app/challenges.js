@@ -109,7 +109,6 @@ let _resultFormMountedInWizard=false;
 var _drumsInited=false;
 let _deepLinkTargetId=null;
 let _videoRegisterId=null;
-let _matchVideoId=null;
 const LS_DEEPLINK_MATCH='isatok_deeplink_match';
 
 export function isBSOpen(){
@@ -196,6 +195,7 @@ export function applyChallengesSnapshotRender(){
   if(!isDeepLinkHandled()){
     var matchId=peekDeepLinkMatchIdLocal();
     if(matchId){
+      _openChManagePanel();
       var matchCh=chal().find(function(x){return x.id===matchId;});
       if(matchCh)window.setF(shareFilterFor(matchCh));
     }
@@ -232,11 +232,16 @@ function clearDeepLinkMatchIdLocal(){
   _deepLinkTargetId=null;
   try{sessionStorage.removeItem(LS_DEEPLINK_MATCH);}catch(e){}
 }
+function _openChManagePanel(){
+  var manage=g('ch-manage');
+  if(manage&&!manage.open)manage.open=true;
+}
 /**
  * 대결 카드로 스크롤하고 하이라이트 효과를 적용한다.
  * @param {string} id - Firestore 대결 문서 ID
  */
 export function scrollToChallenge(id){
+  _openChManagePanel();
   var sel="[data-match-id='"+cssEscape(id)+"']";
   var el=document.querySelector(sel)||document.querySelector('[data-cid="'+cssEscape(id)+'"]');
   if(!el)return;
@@ -260,6 +265,7 @@ export function handleDeepLink(){
     history.replaceState(null,'','/');
 
     nav('challenge');
+    _openChManagePanel();
     if(getCurrentPage()==='challenge'&&!isBSFocused())renderC();
 
     var isMobile=isMobileUa();
@@ -267,16 +273,20 @@ export function handleDeepLink(){
     var maxWait=isMobile?DEEPLINK_MAX_WAIT_MOBILE:DEEPLINK_MAX_WAIT_PC;
 
     setTimeout(function(){
+      _openChManagePanel();
       var selector="[data-match-id='"+CSS.escape(matchId)+"']";
 
       waitForElement(selector,function(el){
         setDeepLinkHandled(true);
+        setDeepLinkInFlight(false);
         clearDeepLinkMatchIdLocal();
+        _openChManagePanel();
         scrollToElement(el);
         el.classList.add('deep-link-highlight');
         setTimeout(function(){el.classList.remove('deep-link-highlight');},HIGHLIGHT_REMOVE_MS);
       },maxWait,function(){
         setDeepLinkHandled(true);
+        setDeepLinkInFlight(false);
         clearDeepLinkMatchIdLocal();
       });
     },tabDelay);
@@ -871,11 +881,6 @@ function _buildChCardActions(c,isOpen,hasBet){
     primary='<button class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">🏆 결과 입력</button>';
     if(hasBet)secondary='<button class="btn btn-w btn-sm" onclick="openBetPick(\''+c.id+'\')">🎯 내기</button>';
   }else if(c.status==='completed'){
-    if(c.videoUrl&&extractYouTubeVideoId(c.videoUrl)){
-      var videoBtn='<button type="button" class="btn btn-p btn-sm cc-video-btn" onclick="openMatchVideo(\''+c.id+'\')">▶ 경기 영상</button>';
-      if(primary)secondary=videoBtn+secondary;
-      else primary=videoBtn;
-    }
     if(isAdmin()){
       var editBtn='<button type="button" class="btn btn-p cc-primary-btn" onclick="openRes(\''+c.id+'\')">✏️ 결과 수정</button>';
       if(primary)secondary=editBtn+(secondary||'');
@@ -2278,19 +2283,12 @@ window.openMatchVideo=function(id){
   var embed=buildYouTubeEmbedUrl(vid);
   var iframe=g('match-video-iframe');
   if(iframe)iframe.src=embed+'?rel=0&playsinline=1';
-  _matchVideoId=id;
   openMo('mo-match-video');
-};
-
-window.shareMatchVideoMo=function(){
-  if(!_matchVideoId)return;
-  shareKakao(_matchVideoId);
 };
 
 window.closeMatchVideoMo=function(){
   var iframe=g('match-video-iframe');
   if(iframe)iframe.src='';
-  _matchVideoId=null;
   closeMo('mo-match-video');
 };
 
@@ -2659,12 +2657,12 @@ function _ensureKakaoCallerDomain(){
   );
   return false;
 }
+function _shareVideoLine(c){
+  if(!c||!c.videoUrl)return '';
+  var yt=String(c.videoUrl).trim();
+  return yt&&extractYouTubeVideoId(yt)?yt:'';
+}
 function _sendKakaoFeed(c,meta,url,imageUrl){
-  var buttons=[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}];
-  if(c&&c.videoUrl){
-    var yt=String(c.videoUrl).trim();
-    if(yt)buttons.push({title:'영상 보기 ▶',link:{mobileWebUrl:yt,webUrl:yt}});
-  }
   Kakao.Share.sendDefault({
     objectType:'feed',
     content:{
@@ -2673,7 +2671,7 @@ function _sendKakaoFeed(c,meta,url,imageUrl){
       imageUrl:imageUrl,
       link:{mobileWebUrl:url,webUrl:url}
     },
-    buttons:buttons,
+    buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
     installTalk:true
   });
 }
@@ -2732,6 +2730,8 @@ function _shareFeedMeta(c){
   if(dtStr||c.time)descParts.push('📅 '+(dtStr||'날짜 미정')+(c.time?' '+c.time:''));
   if(betLabel)descParts.push(betLabel);
   if(c.message)descParts.push('💬 '+c.message);
+  var videoUrl=_shareVideoLine(c);
+  if(videoUrl)descParts.push('🎬 영상: '+videoUrl);
   return {title:title,description:descParts.join(' · ')||'이사탁 탁구 대결'};
 }
 function buildShareText(c,template){
@@ -2758,6 +2758,8 @@ function buildShareText(c,template){
     else { head='🏓 도전장 · '+v.vs; }
     if(dtStr||c.time)sub.push((dtStr||'날짜 미정')+(c.time?' '+c.time:''));
     if(betLabel)sub.push(betLabel);
+    var videoUrl=_shareVideoLine(c);
+    if(videoUrl)sub.push('🎬 '+videoUrl);
     var cta=c.status==='completed'?'결과 확인 👀':c.status==='accepted'?'경기 화이팅!':isOpen?'수락 환영 🙌':'수락 부탁 🙏';
     return head+'\n'+(sub.length?sub.join(' · ')+'\n':'')+cta+'\n'+url;
   }
@@ -2809,6 +2811,8 @@ function buildShareText(c,template){
   }
   if(betLabel)lines.push('🎰 내기: '+betLabel);
   if(c.message)lines.push('💬 '+c.message);
+  var detailVideo=_shareVideoLine(c);
+  if(detailVideo)lines.push('🎬 경기 영상: '+detailVideo);
   if(c.status==='completed')lines.push('─────────────────','결과 확인은 아래 링크! 👀');
   else if(c.status==='accepted')lines.push('─────────────────','경기 후 결과 입력 예정! 🏓');
   else if(!isOpen)lines.push('─────────────────','아래 링크에서 수락/거절해주세요! 🙏');
