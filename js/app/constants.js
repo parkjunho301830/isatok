@@ -45,6 +45,7 @@ export const OPEN_CHALLENGE_EXPIRE_MS   =
 
 // ── 딥링크 ────────────────────────────────────────────
 export const DEEPLINK_PARAM             = 'match';
+export const DEEPLINK_VIDEO_PARAM       = 'video';
 export const DEEPLINK_TAB_DELAY_PC      = 500;
 export const DEEPLINK_TAB_DELAY_MOBILE  = 1000;
 export const DEEPLINK_MAX_WAIT_PC       = 6000;

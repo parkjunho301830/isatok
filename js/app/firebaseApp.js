@@ -10,7 +10,7 @@ import {
 import {
   COL_CHALLENGES, COL_MEMBERS, COL_SEASONS, COL_TOURNAMENTS,
   CHALLENGES_PAGE_SIZE,
-  DEEPLINK_PARAM,
+  DEEPLINK_PARAM, DEEPLINK_VIDEO_PARAM,
   FIREBASE_TIMEOUT_MS
 } from './constants.js?v=2026.06.26.10';
 import { g, toast } from './appCore.js?v=2026.06.26.10';
@@ -25,6 +25,7 @@ const FB = {
 };
 
 const LS_DEEPLINK_MATCH = 'isatok_deeplink_match';
+const LS_DEEPLINK_VIDEO = 'isatok_deeplink_video';
 
 let db = null;
 let MEMBERS = [];
@@ -43,8 +44,12 @@ let _chalHooks = null;
 let _chalRaf = null;
 
 try {
-  var _bootMatch = new URLSearchParams(location.search).get(DEEPLINK_PARAM);
+  var _bootParams = new URLSearchParams(location.search);
+  var _bootMatch = _bootParams.get(DEEPLINK_PARAM);
   if (_bootMatch) sessionStorage.setItem(LS_DEEPLINK_MATCH, _bootMatch);
+  if (_bootParams.get(DEEPLINK_VIDEO_PARAM) === '1') {
+    sessionStorage.setItem(LS_DEEPLINK_VIDEO, '1');
+  }
 } catch (e) {}
 
 function _docToChallenge(d) {

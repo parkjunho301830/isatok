@@ -35,8 +35,10 @@
   };
   if(isAndroid){
     try{
-      var m=new URLSearchParams(location.search).get('match');
+      var sp=new URLSearchParams(location.search);
+      var m=sp.get('match');
       if(m)sessionStorage.setItem('isatok_deeplink_match',m);
+      if(sp.get('video')==='1')sessionStorage.setItem('isatok_deeplink_video','1');
     }catch(e){}
     var fullUrl='https://isatok.web.app'+(location.search||'')+(location.hash||'');
     var path=fullUrl.replace(/^https?:\/\//,'');
