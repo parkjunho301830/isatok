@@ -238,7 +238,7 @@ function _openChManagePanel(){
 }
 function _scrollToDeepLinkMatch(el){
   _openChManagePanel();
-  scrollChManageIntoView();
+  scrollChManageIntoView(el);
   if(!el)return;
   el.classList.add('deep-link-highlight');
   setTimeout(function(){el.classList.remove('deep-link-highlight');},HIGHLIGHT_REMOVE_MS);
@@ -252,7 +252,7 @@ export function scrollToChallenge(id){
   var sel="[data-match-id='"+cssEscape(id)+"']";
   var el=document.querySelector(sel)||document.querySelector('[data-cid="'+cssEscape(id)+'"]');
   if(isMobileUa()){
-    scrollChManageIntoView();
+    scrollChManageIntoView(el);
   }else if(el){
     scrollToElement(el);
   }
@@ -275,6 +275,7 @@ export function handleDeepLink(){
 
     history.replaceState(null,'','/');
 
+    if(isMobileUa())window.scrollTo(0,0);
     nav('challenge');
     _openChManagePanel();
     if(getCurrentPage()==='challenge'&&!isBSFocused())renderC();
@@ -296,6 +297,8 @@ export function handleDeepLink(){
         setDeepLinkHandled(true);
         setDeepLinkInFlight(false);
         clearDeepLinkMatchIdLocal();
+        _openChManagePanel();
+        scrollChManageIntoView();
       });
     },tabDelay);
   }
@@ -2671,17 +2674,23 @@ function _shareVideoLine(c){
   return yt&&extractYouTubeVideoId(yt)?yt:'';
 }
 function _sendKakaoFeed(c,meta,url,imageUrl){
+  var contentLink=_kakaoContentLink(c,url);
   Kakao.Share.sendDefault({
     objectType:'feed',
     content:{
       title:_kakaoClamp(meta.title,200),
       description:_kakaoClamp(meta.description,200),
       imageUrl:imageUrl,
-      link:{mobileWebUrl:url,webUrl:url}
+      link:contentLink
     },
     buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
     installTalk:true
   });
+}
+function _kakaoContentLink(c,matchUrl){
+  var yt=_shareVideoLine(c);
+  if(yt)return {mobileWebUrl:yt,webUrl:yt};
+  return {mobileWebUrl:matchUrl,webUrl:matchUrl};
 }
 function _shareLinkUrl(c){
   var url=buildShareUrl(c);
@@ -3174,7 +3183,7 @@ function findMemberByName(name) { return C.findMemberByName(name); }
 function lockBodyScroll() { return C.lockBodyScroll(); }
 function unlockBodyScroll() { return C.unlockBodyScroll(); }
 function scrollToElement(el, opts) { return C.scrollToElement(el, opts); }
-function scrollChManageIntoView() { return C.scrollChManageIntoView(); }
+function scrollChManageIntoView(el) { return C.scrollChManageIntoView(el); }
 function waitForElement(sel, cb, max, onTimeout) { return C.waitForElement(sel, cb, max, onTimeout); }
 function isMobileUa() { return C.isMobileUa(); }
 function cssEscape(value) { return C.cssEscape(value); }

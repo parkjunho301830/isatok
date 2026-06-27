@@ -1779,7 +1779,10 @@ body.has-kakao-banner .ch-manage{
 .ch-manage__toggle::-webkit-details-marker{display:none;}
 .ch-manage__title{font-size:15px;font-weight:800;color:var(--t1);}
 .ch-manage__sub{font-size:11px;color:var(--t3);font-weight:600;}
-.ch-manage__body{padding:0 12px 12px;}
+.ch-manage__body{padding:0 12px 12px;scroll-margin-top:calc(12px + 52px + env(safe-area-inset-top, 0px));}
+body.has-kakao-banner .ch-manage__body{
+  scroll-margin-top:calc(12px + 52px + env(safe-area-inset-top, 0px) + 68px);
+}
 .ch-manage-filters{margin-bottom:10px;}
 .bs-ch--instant .wiz-bar-item#wiz-bar-1{display:none !important;}
 .wiz-bar--instant .wiz-bar-item#wiz-bar-1{display:none !important;}

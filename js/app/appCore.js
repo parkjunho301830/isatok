@@ -179,16 +179,58 @@ export function scrollToElement(el, opts) {
   }
 }
 
-/** 딥링크 진입 시 대결 관리 패널 전체가 보이도록 상단 정렬 스크롤 */
-export function scrollChManageIntoView() {
+function getDeepLinkBottomInset() {
+  var bnav = document.querySelector('.bnav');
+  if (bnav && window.getComputedStyle(bnav).display !== 'none') {
+    return bnav.getBoundingClientRect().height + 8;
+  }
+  return isMobileUa() ? 76 : 16;
+}
+
+/** 딥링크 진입 시 대결 관리 패널·목록이 보이도록 스크롤 (모바일 카톡 인앱 대응) */
+export function scrollChManageIntoView(highlightEl) {
   var manage = document.getElementById('ch-manage');
   if (!manage) return;
-  var inset = getDeepLinkScrollInset();
-  function run() {
-    scrollToElement(manage, { align: 'start', offsetTop: inset });
+
+  var instant = isMobileUa();
+  var behavior = instant ? 'auto' : 'smooth';
+
+  function openPanel() {
+    if (!manage.open) manage.open = true;
   }
-  requestAnimationFrame(function() {
-    requestAnimationFrame(run);
+
+  function scrollPanel() {
+    openPanel();
+    var anchor = manage.querySelector('.ch-manage__body') || manage;
+    var inset = getDeepLinkScrollInset();
+    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var rect = anchor.getBoundingClientRect();
+    var targetY = rect.top + scrollTop - inset;
+    targetY = Math.max(0, targetY);
+    window.scrollTo({ top: targetY, behavior: behavior });
+
+    if (highlightEl && highlightEl.isConnected) {
+      var cardRect = highlightEl.getBoundingClientRect();
+      var topLimit = inset + 4;
+      var bottomLimit = window.innerHeight - getDeepLinkBottomInset();
+      if (cardRect.bottom > bottomLimit) {
+        window.scrollBy({ top: cardRect.bottom - bottomLimit + 8, behavior: behavior });
+      } else if (cardRect.top < topLimit) {
+        window.scrollBy({ top: cardRect.top - topLimit, behavior: behavior });
+      }
+    }
+  }
+
+  openPanel();
+  var delays = instant ? [0, 80, 200, 500, 1000, 1500] : [0, 120, 450];
+  delays.forEach(function(ms) {
+    if (ms === 0) {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(scrollPanel);
+      });
+    } else {
+      setTimeout(scrollPanel, ms);
+    }
   });
 }
 
