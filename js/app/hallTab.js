@@ -1,20 +1,20 @@
 /**
  * 통계 탭 (명예의 전당) 렌더링
  */
-import { PT_INIT } from './constants.js?v=2026.06.26.10';
-import { getMyPlayer } from './wizard.js?v=2026.06.26.10';
+import { PT_INIT } from './constants.js?v=2026.06.26.14';
+import { getMyPlayer } from './wizard.js?v=2026.06.26.14';
 import {
   _computeDoublesRecord, _computeSinglesRecord, _getMemberRankPosition,
   _computeTopPartner, _computeBestWinRatePartner, _countTournamentWins,
   _computeRatingHistory, _buildRatingChartSvg
-} from './matchStats.js?v=2026.06.26.10';
-import { _memberPt } from './memberCore.js?v=2026.06.26.10';
-import { _computeClubAvgWinRate, _renderMyRecentMatchesHtml } from './hallReportCore.js?v=2026.06.26.10';
+} from './matchStats.js?v=2026.06.26.14';
+import { _memberPt } from './memberCore.js?v=2026.06.26.14';
+import { _computeClubAvgWinRate, _renderMyRecentMatchesHtml } from './hallReportCore.js?v=2026.06.26.14';
 import {
   renderMonthlyStoryShellHtml, updateMonthlyStoryCard,
   loadMonthlyStoryCache, saveMonthlyStoryCache, fetchMonthlyClubStory,
   getKstMonthKey, formatMonthLabel, yieldToPaint
-} from './aiCoach.js?v=2026.06.26.10';
+} from './aiCoach.js?v=2026.06.26.14';
 
 let C = null;
 let _monthlyStoryReqId = 0;
@@ -168,6 +168,7 @@ export function _renderHallRatingChartHtml(me,isDbl){
     +'<div class="rating-chart-note">경기 완료 순 포인트 재계산 (시작 '+PT_INIT+'pt)</div></div></div>';
 }
 export function renderHall(){
+  _syncHallFilterUi();
   var box=g('hall-content');
   if(!box)return;
   var isDbl=getHallMode()==='double';
@@ -209,11 +210,15 @@ export function renderHall(){
 }
 export function setHallMode(mode){
   setHallModeState(mode);
+  renderHall();
+}
+
+function _syncHallFilterUi(){
+  var mode=getHallMode();
   var dbl=g('hall-dbl'),ind=g('hall-ind');
   if(dbl)dbl.classList.toggle('on',mode==='double');
   if(ind)ind.classList.toggle('on',mode==='individual');
-  renderHall();
-};
+}
 export function _monthDateFilter(monthKey){
   return function(c){
     var d=c.date||'';

@@ -48,7 +48,10 @@ function nav(id, fromBack) {
   if (id !== 'admin') unbindAdminPresencePanel();
   if (id === 'members') C.renderM();
   else if (id === 'ranking') C.renderR();
-  else if (id === 'hall') C.renderHall();
+  else if (id === 'hall') {
+    if (C.alignHallModeFromRanking) C.alignHallModeFromRanking();
+    C.renderHall();
+  }
   else if (id === 'my') C.renderMyPage();
   else if (id === 'attendance') C.initAttendancePage();
   else if (id === 'admin') {

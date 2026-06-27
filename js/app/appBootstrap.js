@@ -23,7 +23,7 @@ import {
   showResultFeedback, showInstantRegisterSuccess
 } from './myPage.js?v=2026.06.26.10';
 import { gradeAvatarStyle } from './memberUtils.js?v=2026.06.26.10';
-import { initRankingTab, renderR, setRkScope, setRk } from './rankingTab.js?v=2026.06.26.10';
+import { initRankingTab, renderR, setRkScope, setRk, getRkMode } from './rankingTab.js?v=2026.06.26.10';
 import {
   initMembersTab, renderM, getRecommendedOpponents, _refreshPlayerProfileIfOpen
 } from './membersTab.js?v=2026.06.26.10';
@@ -135,7 +135,11 @@ function finish() {
       renderR: renderR,
       renderHall: renderHall,
       renderMyPage: renderMyPage,
-      initAttendancePage: initAttendancePage
+      initAttendancePage: initAttendancePage,
+      alignHallModeFromRanking: function() {
+        var rk = getRkMode();
+        if (rk === 'double' || rk === 'individual') _hallMode = rk;
+      }
     });
     initBackNav({
       g: g,
