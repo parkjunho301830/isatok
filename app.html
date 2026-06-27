@@ -190,6 +190,7 @@
             <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기</button>
             <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 진행</button>
             <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
+            <button class="fc"    id="f-video"      onclick="setF('video')">🎬 영상</button>
             <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈</button>
             <button class="fc"    id="f-md"         onclick="setF('md')">남복</button>
             <button class="fc"    id="f-fd"         onclick="setF('fd')">여복</button>
@@ -643,7 +644,10 @@
         <iframe id="match-video-iframe" title="경기 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
     </div>
-    <div class="mf"><button class="btn btn-g" onclick="closeMatchVideoMo()">닫기</button></div>
+    <div class="mf">
+      <button type="button" class="btn btn-kakao" onclick="shareMatchVideoMo()">카톡으로 공유 📤</button>
+      <button class="btn btn-g" onclick="closeMatchVideoMo()">닫기</button>
+    </div>
   </div>
 </div>
 

@@ -34,7 +34,8 @@ import { _matchMemberSearch, _getRecentPlayers, _saveRecentPlayers } from './mem
 import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.06.26.10';
 import {
   extractYouTubeVideoId,
-  buildYouTubeEmbedUrl
+  buildYouTubeEmbedUrl,
+  buildYouTubeThumbUrl
 } from './youtubeUtils.js?v=2026.06.26.10';
 
 let C = null;
@@ -108,6 +109,7 @@ let _resultFormMountedInWizard=false;
 var _drumsInited=false;
 let _deepLinkTargetId=null;
 let _videoRegisterId=null;
+let _matchVideoId=null;
 const LS_DEEPLINK_MATCH='isatok_deeplink_match';
 
 export function isBSOpen(){
@@ -833,6 +835,23 @@ window.openResultPicker=function(){
 function _chShareBtn(id){
   return '<button type="button" class="btn btn-kakao cc-kakao-share-btn" onclick="shareKakao(\''+id+'\')" title="카카오톡으로 공유하기" aria-label="카카오톡 공유하기"><span class="kt-icon" aria-hidden="true">💬</span><span class="cc-kakao-share-label">카톡 공유하기</span></button>';
 }
+function _chShareIconBtn(id){
+  return '<button type="button" class="cc-vg-share" onclick="event.stopPropagation();shareKakao(\''+id+'\')" title="카카오톡 공유" aria-label="카카오톡 공유">💬</button>';
+}
+function _challengeVideoId(c){
+  if(!c||!c.videoUrl)return null;
+  return extractYouTubeVideoId(c.videoUrl);
+}
+function _ccThumbHtml(c){
+  if(c.status!=='completed')return '';
+  var vid=_challengeVideoId(c);
+  if(!vid)return '';
+  var thumb=buildYouTubeThumbUrl(vid);
+  return '<div class="cc-thumb" onclick="openMatchVideo(\''+c.id+'\')" role="button" tabindex="0" aria-label="경기 영상 재생">'
+    +'<img src="'+thumb+'" alt="" loading="lazy" decoding="async" onerror="this.closest(\'.cc-thumb\').style.display=\'none\'">'
+    +'<span class="cc-thumb-play" aria-hidden="true">▶</span>'
+    +'</div>';
+}
 function _chDeleteBtn(id){
   return '<button type="button" class="btn btn-d btn-sm cc-aux-btn" onclick="delC(\''+id+'\')" title="삭제" aria-label="삭제">🗑</button>';
 }
@@ -1153,6 +1172,8 @@ window.setF=function(f){
   // ★ 성능 최적화: querySelectorAll 결과 캐싱 (setF 호출마다 DOM 탐색 방지)
   if(!window._fcEls)window._fcEls=Array.from(document.querySelectorAll('.fc'));
   window._fcEls.forEach(el=>el.classList.toggle('on',el.id==='f-'+f));
+  var list=g('ch-list');
+  if(list)list.classList.toggle('ch-list--video-grid',f==='video');
   renderC();
 };
 function _chHasMoreUi(){
@@ -1261,6 +1282,7 @@ export function renderC(){
   else if(_cf==='open')      data=data.filter(c=>c.isOpen&&c.status==='pending'); // 오픈 챌린지 필터
   else if(_cf==='accepted')  data=data.filter(c=>_chResultReady(c));
   else if(_cf==='completed') data=data.filter(c=>c.status==='completed');
+  else if(_cf==='video')     data=data.filter(c=>_challengeVideoId(c));
   else if(_cf==='ms') data=data.filter(c=>c.type==='ms'||c.type==='singles');
   else if(_cf==='md') data=data.filter(c=>c.type==='md'||c.type==='doubles');
   else if(_cf==='fs') data=data.filter(c=>c.type==='fs');
@@ -1274,10 +1296,22 @@ export function renderC(){
     // 기존 카드 노드 제거 (깜빡임 없이 개별 제거)
     while(list.firstChild)list.removeChild(list.firstChild);
     empty.style.display='block';
+    if(_cf==='video'){
+      empty.innerHTML='<div style="font-size:48px;margin-bottom:14px">🎬</div>'
+        +'<div style="font-size:16px;font-weight:800;color:var(--t2);margin-bottom:8px">등록된 경기 영상이 없어요</div>'
+        +'<div style="font-size:13px;color:var(--t3);line-height:1.5">완료된 경기에 영상이 등록되면 여기에 모아서 볼 수 있어요</div>';
+    }else{
+      empty.innerHTML='<div style="font-size:48px;margin-bottom:14px">🏓</div>'
+        +'<div style="font-size:16px;font-weight:800;color:var(--t2);margin-bottom:8px">대결이 없어요</div>'
+        +'<div style="font-size:13px;color:var(--t3);line-height:1.5">위에서 즉시 등록하거나 대결 신청을 이용하세요</div>';
+    }
     _updateChLoadMoreUi(filteredTotal);
     return;
   }
   empty.style.display='none';
+  if(list)list.classList.toggle('ch-list--video-grid',_cf==='video');
+
+  var buildCard=_cf==='video'?buildVideoGalleryCard:buildCCard;
 
   // ── diff-patch: DOM 노드를 유지하며 innerHTML만 갱신하여 깜빡임 완전 제거 ──
   // outerHTML 교체는 노드 파괴→생성으로 깜빡임 발생 → innerHTML 갱신 방식으로 변경
@@ -1298,7 +1332,7 @@ export function renderC(){
   // PHASE 3: 해시 계산 (READ only, DOM 접근 없음)
   const hashMap={};
   data.forEach(c=>{
-    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(isAdmin()?'1':'0')+'|'+(c.videoUrl||'')+'|'+(c.expiresAt?_parseExpiresMs(c.expiresAt)||'':'');
+    hashMap[c.id]=c.id+'|'+c.status+'|'+(c.isOpen?'1':'0')+'|'+(c.instantCreate?'1':'0')+'|'+(c.winner||'')+'|'+(c.score||'')+'|'+(c.place||'')+'|'+(c.bet||'')+'|'+JSON.stringify(c.betPicks||{})+'|'+(c.date||'')+'|'+(c.time||'')+'|'+(c.type||'')+'|'+JSON.stringify(c.myTeam||[])+'|'+JSON.stringify(c.oppTeam||[])+'|'+(isAdmin()?'1':'0')+'|'+(c.videoUrl||'')+'|'+( _cf==='video'?'vg':'ln')+'|'+(c.expiresAt?_parseExpiresMs(c.expiresAt)||'':'');
   });
 
   // PHASE 4: WRITE - 삽입/업데이트 (children 배열 캐싱으로 반복 layout read 제거)
@@ -1311,7 +1345,7 @@ export function renderC(){
       existing.dataset.matchId=c.id;
       if(existing.dataset.chash!==newHash){
         const tmp=document.createElement('div');
-        tmp.innerHTML=buildCCard(c);
+        tmp.innerHTML=buildCard(c);
         const newNode=tmp.firstElementChild;
         existing.className=newNode.className;
         existing.dataset.chash=newHash;
@@ -1323,7 +1357,7 @@ export function renderC(){
       }
     } else {
       const div=document.createElement('div');
-      div.innerHTML=buildCCard(c);
+      div.innerHTML=buildCard(c);
       const node=div.firstElementChild;
       node.dataset.chash=newHash;
       list.insertBefore(node,childList[idx]||null);
@@ -1439,6 +1473,7 @@ function buildCCard(c){
       }
     }
     return `<div class="${cardClass}" data-cid="${c.id}" data-match-id="${c.id}">
+      ${_ccThumbHtml(c)}
       <div class="cc-head"><div class="cc-badges"><span class="badge ${tm.badge}">${tm.lb}</span>${statusBadge}${openBadge}${betBadge}${c.instantCreate&&!isOpen?'<span class="badge bg">⚡ 즉시</span>':''}</div></div>
       <div class="cc-vs-title">${vsHtml}</div>
       ${formatChallengeCreatorHtml(c)}
@@ -1448,6 +1483,27 @@ function buildCCard(c){
       ${expireHtml}
       <div class="cc-acts">${actsParts}</div>
     </div>`;
+}
+
+function buildVideoGalleryCard(c){
+  var tm=TM[c.type]||TM.ms;
+  var vid=_challengeVideoId(c);
+  if(!vid)return buildCCard(c);
+  var dt=c.date?$ko(c.date+'T00:00'):'';
+  var vs=_chVsTitle(c,false);
+  var thumb=buildYouTubeThumbUrl(vid);
+  return '<div class="cc cc-video-grid-item '+tm.cls+' completed" data-cid="'+c.id+'" data-match-id="'+c.id+'">'
+    +'<div class="cc-vg-thumb" onclick="openMatchVideo(\''+c.id+'\')" role="button" tabindex="0" aria-label="경기 영상 재생">'
+    +'<img src="'+thumb+'" alt="" loading="lazy" decoding="async" onerror="this.closest(\'.cc-vg-thumb\').classList.add(\'cc-vg-thumb--fail\')">'
+    +'<span class="cc-vg-play" aria-hidden="true">▶</span>'
+    +_chShareIconBtn(c.id)
+    +'</div>'
+    +'<div class="cc-vg-body">'
+    +(dt?'<div class="cc-vg-date">'+dt+'</div>':'')
+    +'<div class="cc-vg-vs">'+vs+'</div>'
+    +'<div class="cc-vg-type">'+tm.lb+'</div>'
+    +'</div>'
+    +'</div>';
 }
 
 // ── toggleOC: 오픈 챌린지 토글 처리 ──
@@ -2222,12 +2278,19 @@ window.openMatchVideo=function(id){
   var embed=buildYouTubeEmbedUrl(vid);
   var iframe=g('match-video-iframe');
   if(iframe)iframe.src=embed+'?rel=0&playsinline=1';
+  _matchVideoId=id;
   openMo('mo-match-video');
+};
+
+window.shareMatchVideoMo=function(){
+  if(!_matchVideoId)return;
+  shareKakao(_matchVideoId);
 };
 
 window.closeMatchVideoMo=function(){
   var iframe=g('match-video-iframe');
   if(iframe)iframe.src='';
+  _matchVideoId=null;
   closeMo('mo-match-video');
 };
 
@@ -2567,7 +2630,11 @@ var _SHARE_IMG_VER='6';
 function _shareOgImageUrl(){
   return _siteBase()+'assets/share-kakao.jpg?v='+_SHARE_IMG_VER;
 }
-function _kakaoFeedImageUrl(){
+function _kakaoFeedImageUrl(c){
+  if(c){
+    var vid=_challengeVideoId(c);
+    if(vid)return buildYouTubeThumbUrl(vid);
+  }
   return _siteBase()+'assets/share-kakao.jpg';
 }
 function _kakaoClamp(s,max){
@@ -2593,6 +2660,11 @@ function _ensureKakaoCallerDomain(){
   return false;
 }
 function _sendKakaoFeed(c,meta,url,imageUrl){
+  var buttons=[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}];
+  if(c&&c.videoUrl){
+    var yt=String(c.videoUrl).trim();
+    if(yt)buttons.push({title:'영상 보기 ▶',link:{mobileWebUrl:yt,webUrl:yt}});
+  }
   Kakao.Share.sendDefault({
     objectType:'feed',
     content:{
@@ -2601,7 +2673,7 @@ function _sendKakaoFeed(c,meta,url,imageUrl){
       imageUrl:imageUrl,
       link:{mobileWebUrl:url,webUrl:url}
     },
-    buttons:[{title:'대결 보러 가기',link:{mobileWebUrl:url,webUrl:url}}],
+    buttons:buttons,
     installTalk:true
   });
 }
@@ -2868,7 +2940,7 @@ window.doKakaoShare=function(){
     try{
       if(c){
         var meta=_shareFeedMeta(c);
-        _sendKakaoFeed(c,meta,url,_kakaoFeedImageUrl());
+        _sendKakaoFeed(c,meta,url,_kakaoFeedImageUrl(c));
       }else{
         Kakao.Share.sendDefault({
           objectType:'text',

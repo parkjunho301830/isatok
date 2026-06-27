@@ -40,3 +40,12 @@ export function buildYouTubeEmbedUrl(videoId) {
   if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
   return 'https://www.youtube.com/embed/' + videoId;
 }
+
+/**
+ * @param {string} videoId
+ * @returns {string|null}
+ */
+export function buildYouTubeThumbUrl(videoId) {
+  if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
+  return 'https://img.youtube.com/vi/' + videoId + '/0.jpg';
+}

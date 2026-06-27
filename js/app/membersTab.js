@@ -17,6 +17,7 @@ import {
   _buildMemberBadgesHtml, _rankPointsForMember
 } from './matchStats.js?v=2026.06.26.10';
 import { getRkScope } from './rankingTab.js?v=2026.06.26.10';
+import { extractYouTubeVideoId, buildYouTubeThumbUrl } from './youtubeUtils.js?v=2026.06.26.10';
 
 let C = null;
 let _mf = 'all';
@@ -334,6 +335,33 @@ export function _buildProfileH2hSelectHtml(memberId){
   return '<option value="">상대 회원 선택</option>'
     +others.map(function(x){return '<option value="'+x.name+'">'+x.name+'</option>';}).join('');
 }
+function _buildPlayerVideoSectionHtml(playerName){
+  var matches=_getAllMatchesFor(playerName).filter(function(c){
+    return c.videoUrl&&extractYouTubeVideoId(c.videoUrl);
+  });
+  if(!matches.length){
+    return '<div class="player-video-section"><div class="stat-box-t">🎬 경기 영상</div>'
+      +'<div class="prof-empty">아직 등록된 영상이 없습니다 🏓</div></div>';
+  }
+  var items=matches.slice(0,12).map(function(c){
+    var vid=extractYouTubeVideoId(c.videoUrl);
+    var thumb=buildYouTubeThumbUrl(vid);
+    var dt=c.date||'';
+    var vs=(c.myTeam||[]).join(' · ')+' vs '+(c.oppTeam||[]).join(' · ');
+    return '<button type="button" class="player-video-item" onclick="openMatchVideo(\''+c.id+'\')">'
+      +'<span class="player-video-thumb">'
+      +'<img src="'+thumb+'" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add(\'player-video-thumb--fail\')">'
+      +'<span class="player-video-play" aria-hidden="true">▶</span>'
+      +'</span>'
+      +'<span class="player-video-meta">'
+      +(dt?'<span class="player-video-date">'+dt+'</span>':'')
+      +'<span class="player-video-vs">'+vs+'</span>'
+      +'</span>'
+      +'</button>';
+  }).join('');
+  return '<div class="player-video-section"><div class="stat-box-t">🎬 경기 영상</div>'
+    +'<div class="player-video-grid">'+items+'</div></div>';
+}
 export function _renderPlayerProfileHtml(id){
   var m=members().find(function(x){return x.id===id;});
   if(!m)return '';
@@ -376,6 +404,7 @@ export function _renderPlayerProfileHtml(id){
     +'<div class="md-preview-kpi"><span class="md-preview-kpi-val">'+rec.wins+'승 '+rec.losses+'패</span><span class="md-preview-kpi-lbl">복식</span></div>'
     +'</div>'
     +(recent.length?'<div class="md-preview-recent"><div class="md-preview-recent-t">최근 10경기</div><div class="md-preview-recent-v">'+rw+'승 '+rl+'패</div></div>':'')
+    +_buildPlayerVideoSectionHtml(m.name)
     +aiShell
     +'<details class="player-prof-fold"><summary class="player-prof-fold__sum">🤝 복식 전적</summary><div class="player-prof-fold__body">'
     +_buildProfileModeBlock('🤝 복식',dblRec,dblRank,partner,true,bestPartner)
