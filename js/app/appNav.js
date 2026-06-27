@@ -3,6 +3,7 @@
  */
 import { requireMyPlayer, getMyPlayerId } from './wizard.js?v=2026.06.26.10';
 import { isAdmin, renderAdminHub } from './adminTab.js?v=2026.06.26.10';
+import { unbindAdminPresencePanel } from './playerPresence.js?v=2026.06.26.10';
 import { onPageNav } from './backNav.js?v=2026.06.26.10';
 import { DEEPLINK_PARAM } from './constants.js?v=2026.06.26.10';
 
@@ -44,6 +45,7 @@ function nav(id, fromBack) {
   var fabDisplay = id === 'challenge' ? 'flex' : 'none';
   _navFab.forEach(function(f) { f.style.display = fabDisplay; });
   document.body.classList.toggle('has-fab', id === 'challenge');
+  if (id !== 'admin') unbindAdminPresencePanel();
   if (id === 'members') C.renderM();
   else if (id === 'ranking') C.renderR();
   else if (id === 'hall') C.renderHall();

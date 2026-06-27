@@ -236,6 +236,13 @@ function _openChManagePanel(){
   var manage=g('ch-manage');
   if(manage&&!manage.open)manage.open=true;
 }
+function _scrollToDeepLinkMatch(el){
+  _openChManagePanel();
+  scrollChManageIntoView();
+  if(!el)return;
+  el.classList.add('deep-link-highlight');
+  setTimeout(function(){el.classList.remove('deep-link-highlight');},HIGHLIGHT_REMOVE_MS);
+}
 /**
  * 대결 카드로 스크롤하고 하이라이트 효과를 적용한다.
  * @param {string} id - Firestore 대결 문서 ID
@@ -244,8 +251,12 @@ export function scrollToChallenge(id){
   _openChManagePanel();
   var sel="[data-match-id='"+cssEscape(id)+"']";
   var el=document.querySelector(sel)||document.querySelector('[data-cid="'+cssEscape(id)+'"]');
+  if(isMobileUa()){
+    scrollChManageIntoView();
+  }else if(el){
+    scrollToElement(el);
+  }
   if(!el)return;
-  scrollToElement(el);
   el.classList.add('ch-highlight');
   setTimeout(function(){el.classList.remove('ch-highlight');},2800);
 }
@@ -280,10 +291,7 @@ export function handleDeepLink(){
         setDeepLinkHandled(true);
         setDeepLinkInFlight(false);
         clearDeepLinkMatchIdLocal();
-        _openChManagePanel();
-        scrollToElement(el);
-        el.classList.add('deep-link-highlight');
-        setTimeout(function(){el.classList.remove('deep-link-highlight');},HIGHLIGHT_REMOVE_MS);
+        _scrollToDeepLinkMatch(el);
       },maxWait,function(){
         setDeepLinkHandled(true);
         setDeepLinkInFlight(false);
@@ -3165,7 +3173,8 @@ function closeMo(id) { return C.closeMo(id); }
 function findMemberByName(name) { return C.findMemberByName(name); }
 function lockBodyScroll() { return C.lockBodyScroll(); }
 function unlockBodyScroll() { return C.unlockBodyScroll(); }
-function scrollToElement(el) { return C.scrollToElement(el); }
+function scrollToElement(el, opts) { return C.scrollToElement(el, opts); }
+function scrollChManageIntoView() { return C.scrollChManageIntoView(); }
 function waitForElement(sel, cb, max, onTimeout) { return C.waitForElement(sel, cb, max, onTimeout); }
 function isMobileUa() { return C.isMobileUa(); }
 function cssEscape(value) { return C.cssEscape(value); }

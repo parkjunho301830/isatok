@@ -2,6 +2,7 @@
  * 관리자 PIN·관리자 허브
  */
 import { ADMIN_PIN } from './constants.js?v=2026.06.26.10';
+import { bindAdminPresencePanel, unbindAdminPresencePanel } from './playerPresence.js?v=2026.06.26.10';
 
 const ADMIN_STORAGE_KEY = 'isatok_admin';
 
@@ -43,12 +44,14 @@ function setAdmin(on) {
   } catch (e) {}
   document.documentElement.classList.toggle('is-admin', on);
   updateAdminBtn();
+  if (!on) unbindAdminPresencePanel();
   if (C.getCurrentPage() === 'challenge') C.renderC();
   if (C.getCurrentPage() === 'members') C.renderM();
   if (C.getCurrentPage() === 'ranking') C.renderR();
   var snMo = g('mo-season');
   if (snMo && snMo.classList.contains('on')) C.renderSeasonList();
   if (isAdmin()) renderAdminHub();
+  else unbindAdminPresencePanel();
 }
 
 function updateAdminBtn() {
@@ -71,6 +74,7 @@ export function applyAdminUI() {
   if (isAdmin()) renderAdminHub();
   if (C.getCurrentPage() === 'admin' && !isAdmin()) nav('challenge');
   if (C.getCurrentPage() === 'members') C.renderM();
+  if (!isAdmin()) unbindAdminPresencePanel();
 }
 
 export function onAdminModalClosed(id) {
@@ -132,6 +136,7 @@ export function renderAdminHub() {
       + '<div class="admin-hub-text"><div class="admin-hub-t">' + it.title + '</div><div class="admin-hub-d">' + it.desc + '</div></div>'
       + '</button>';
   }).join('');
+  bindAdminPresencePanel();
 }
 
 function adminGoResultEdit() {

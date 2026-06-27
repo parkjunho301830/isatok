@@ -6,7 +6,7 @@ import { initMemberPhotos, memberAvatarHtml, initMemberPhotoLightbox, isMemberPh
 import {
   initWizard, checkMyPlayerSetup, initMyPlayerOnLoad,
   renderMyRecordHome, renderMyPage, renderChHomeShortcuts,
-  isMyPlayerSetupMandatory
+  isMyPlayerSetupMandatory, getMyPlayerId, getMyPlayerName
 } from './wizard.js?v=2026.06.26.10';
 import { initMatchStats } from './matchStats.js?v=2026.06.26.10';
 import { initHallReportCore } from './hallReportCore.js?v=2026.06.26.10';
@@ -40,12 +40,15 @@ import {
 } from './challenges.js?v=2026.06.26.10';
 import { initModals, openMo, closeMo } from './modals.js?v=2026.06.26.10';
 import { initAdminTab, isAdmin, requireAdmin, applyAdminUI, onAdminModalClosed } from './adminTab.js?v=2026.06.26.10';
+import {
+  initPlayerPresence, startPlayerPresenceTracking, touchPlayerPresence
+} from './playerPresence.js?v=2026.06.26.10';
 import { initNoticesBoards } from './noticesBoards.js?v=2026.06.26.10';
 import { initAppNav, applyEntryNavigation } from './appNav.js?v=2026.06.26.10';
 import { initAttendance, initAttendancePage, renderAttendanceMembers } from './attendance.js?v=2026.06.26.10';
 import { initBackNav } from './backNav.js?v=2026.06.26.10';
 import {
-  g, toast, $ko, renderEmptyState, scrollToElement, waitForElement,
+  g, toast, $ko, renderEmptyState, scrollToElement, scrollChManageIntoView, waitForElement,
   cssEscape, isMobileUa, lockBodyScroll, unlockBodyScroll, getBodyScrollLock,
   initAppCore, initVersionUI
 } from './appCore.js?v=2026.06.26.10';
@@ -156,6 +159,14 @@ function finish() {
       renderHall: renderHall,
       renderSeasonList: _renderSeasonList
     });
+    initPlayerPresence({
+      g: g,
+      getDb: getDb,
+      getMyPlayerId: getMyPlayerId,
+      getMyPlayerName: getMyPlayerName,
+      isAdmin: isAdmin,
+      getCurrentPage: function() { return _currentPage; }
+    });
     initNoticesBoards({
       g: g,
       toast: toast,
@@ -185,6 +196,7 @@ function finish() {
       lockBodyScroll: lockBodyScroll,
       unlockBodyScroll: unlockBodyScroll,
       scrollToElement: scrollToElement,
+      scrollChManageIntoView: scrollChManageIntoView,
       waitForElement: waitForElement,
       isMobileUa: isMobileUa,
       cssEscape: cssEscape,
@@ -330,6 +342,7 @@ function finish() {
         renderMyRecordHome();
         renderMyPage();
         renderChHomeShortcuts();
+        touchPlayerPresence();
       },
       memberAvatarHtml: function(name, colorClass, extraClass, inlineStyle) {
         return memberAvatarHtml(name, colorClass || '', extraClass || '', inlineStyle || '');
@@ -338,6 +351,7 @@ function finish() {
     applyEntryNavigation();
     initUxDefaults();
     initMyPlayerOnLoad();
+    startPlayerPresenceTracking();
     window.setF(getChallengeFilter());
     document.body.classList.toggle('has-fab', _currentPage === 'challenge');
   } catch (e) {

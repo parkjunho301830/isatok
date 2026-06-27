@@ -1767,6 +1767,10 @@ body.has-pwa-banner .toast{
 .ch-manage{
   background:var(--c1);border:1px solid var(--b1);border-radius:16px;
   box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:16px;
+  scroll-margin-top:calc(12px + 52px + env(safe-area-inset-top, 0px));
+}
+body.has-kakao-banner .ch-manage{
+  scroll-margin-top:calc(12px + 52px + env(safe-area-inset-top, 0px) + 68px);
 }
 .ch-manage__toggle{
   display:flex;align-items:center;justify-content:space-between;gap:8px;

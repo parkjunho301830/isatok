@@ -13,6 +13,7 @@ export const COL_NOTICES     = 'notices';
 export const COL_BOARDS      = 'boards';
 export const COL_TOURNAMENTS = 'tournaments';
 export const COL_ATTENDANCE   = 'attendance';
+export const COL_PLAYER_PRESENCE = 'playerPresence';
 
 // ── 포인트 기준 ───────────────────────────────────────
 export const PT_INDIVIDUAL_WIN  = 10;

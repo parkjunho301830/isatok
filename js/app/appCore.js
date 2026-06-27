@@ -116,6 +116,19 @@ function getScrollContainer(el) {
   return window;
 }
 
+function getDeepLinkScrollInset() {
+  var inset = 8;
+  var mhdr = document.querySelector('.mhdr');
+  if (mhdr && window.getComputedStyle(mhdr).display !== 'none') {
+    inset += mhdr.getBoundingClientRect().height;
+  }
+  var banner = document.querySelector('.kakao-inapp-banner');
+  if (banner && !banner.hidden && window.getComputedStyle(banner).display !== 'none') {
+    inset += banner.getBoundingClientRect().height;
+  }
+  return inset;
+}
+
 function smoothScrollTo(targetY, duration) {
   var startY = window.pageYOffset || document.documentElement.scrollTop || 0;
   var diff = targetY - startY;
@@ -132,13 +145,19 @@ function smoothScrollTo(targetY, duration) {
   requestAnimationFrame(step);
 }
 
-export function scrollToElement(el) {
-  var navHeight = isMobileUa() ? NAV_HEIGHT_MOBILE : NAV_HEIGHT_PC;
+export function scrollToElement(el, opts) {
+  opts = opts || {};
+  var align = opts.align || 'center';
+  var navHeight = opts.offsetTop != null
+    ? opts.offsetTop
+    : (isMobileUa() ? NAV_HEIGHT_MOBILE : NAV_HEIGHT_PC);
   var container = getScrollContainer(el);
   var rect = el.getBoundingClientRect();
   if (container === window) {
     var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-    var targetY = rect.top + scrollTop - (window.innerHeight / 2) + (rect.height / 2) - navHeight;
+    var targetY = align === 'start'
+      ? rect.top + scrollTop - navHeight
+      : rect.top + scrollTop - (window.innerHeight / 2) + (rect.height / 2) - navHeight;
     targetY = Math.max(0, targetY);
     if ('scrollBehavior' in document.documentElement.style) {
       window.scrollTo({ top: targetY, behavior: 'smooth' });
@@ -148,14 +167,29 @@ export function scrollToElement(el) {
     return;
   }
   var containerRect = container.getBoundingClientRect();
-  var targetScroll = container.scrollTop + rect.top - containerRect.top
-    - (container.clientHeight / 2) + (rect.height / 2);
+  var targetScroll = align === 'start'
+    ? container.scrollTop + rect.top - containerRect.top - navHeight
+    : container.scrollTop + rect.top - containerRect.top
+      - (container.clientHeight / 2) + (rect.height / 2);
   targetScroll = Math.max(0, targetScroll);
   if ('scrollBehavior' in document.documentElement.style) {
     container.scrollTo({ top: targetScroll, behavior: 'smooth' });
   } else {
     container.scrollTop = targetScroll;
   }
+}
+
+/** 딥링크 진입 시 대결 관리 패널 전체가 보이도록 상단 정렬 스크롤 */
+export function scrollChManageIntoView() {
+  var manage = document.getElementById('ch-manage');
+  if (!manage) return;
+  var inset = getDeepLinkScrollInset();
+  function run() {
+    scrollToElement(manage, { align: 'start', offsetTop: inset });
+  }
+  requestAnimationFrame(function() {
+    requestAnimationFrame(run);
+  });
 }
 
 export function waitForElement(selector, callback, maxWait, onTimeout) {
