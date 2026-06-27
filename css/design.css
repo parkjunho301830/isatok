@@ -1783,6 +1783,13 @@ body.has-kakao-banner .ch-manage{
 body.has-kakao-banner .ch-manage__body{
   scroll-margin-top:calc(12px + 52px + env(safe-area-inset-top, 0px) + 68px);
 }
+.ch-manage__actions{margin-bottom:10px;}
+.ch-manage-apply-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;width:100%;
+  min-height:44px;padding:10px 14px;border:1px solid var(--b1);border-radius:12px;
+  background:var(--c1);font-size:13px;font-weight:700;color:var(--t2);cursor:pointer;
+}
+.ch-manage-apply-btn:active{background:var(--c2);}
 .ch-manage-filters{margin-bottom:10px;}
 .bs-ch--instant .wiz-bar-item#wiz-bar-1{display:none !important;}
 .wiz-bar--instant .wiz-bar-item#wiz-bar-1{display:none !important;}

@@ -5,7 +5,7 @@ import { ensureLatestVersion, initPwa } from './pwa.js?v=2026.06.26.10';
 import { initMemberPhotos, memberAvatarHtml, initMemberPhotoLightbox, isMemberPhotoLightboxOpen, closeMemberPhotoLightbox } from './memberPhotos.js?v=2026.06.26.10';
 import {
   initWizard, checkMyPlayerSetup, initMyPlayerOnLoad,
-  renderMyRecordHome, renderMyPage, renderChHomeShortcuts,
+  renderMyPage,
   isMyPlayerSetupMandatory, getMyPlayerId, getMyPlayerName
 } from './wizard.js?v=2026.06.26.10';
 import { initMatchStats } from './matchStats.js?v=2026.06.26.10';
@@ -85,7 +85,6 @@ function refreshAfterMemberPhotos() {
   if (_currentPage === 'members') renderM();
   if (_currentPage === 'ranking') renderR();
   if (_currentPage === 'hall') renderHall();
-  renderMyRecordHome();
   renderMyPage();
   _refreshPlayerProfileIfOpen();
 }
@@ -205,7 +204,6 @@ function finish() {
       renderR: renderR,
       renderM: renderM,
       renderHall: renderHall,
-      renderMyRecordHome: renderMyRecordHome,
       renderMyPage: renderMyPage,
       refreshPlayerProfileIfOpen: _refreshPlayerProfileIfOpen,
       nav: window.nav,
@@ -339,9 +337,7 @@ function finish() {
       renderEmptyState: renderEmptyState,
       openInstantBS: function(opts) { window.openInstantBS(opts); },
       onMyPlayerChanged: function() {
-        renderMyRecordHome();
         renderMyPage();
-        renderChHomeShortcuts();
         touchPlayerPresence();
       },
       memberAvatarHtml: function(name, colorClass, extraClass, inlineStyle) {

@@ -23,7 +23,6 @@ import {
 } from './firebaseApp.js?v=2026.06.26.10';
 import { isKakaoInApp } from './pwa.js?v=2026.06.26.10';
 import {
-  renderChHomeShortcuts,
   wizResetFlow, wizRenderStep, wizValidateStep, saveWizRecentCombos, wizPrefillEdit,
   requireMyPlayer, validateMyPlayer, buildCreatorFields, formatChallengeCreatorHtml,
   shouldSkipInstantMyTeamStep
@@ -1190,7 +1189,7 @@ window.submitChBS = async function(){
         var coachMsg=buildPostMatchCoachComment(myTeamWon,ptDelta,saved);
         showInstantRegisterSuccess(myTeamWon,ptDelta,coachMsg,saved);
         if(getCurrentPage()==='ranking')renderR();
-        renderMyRecordHome();renderMyPage();renderChHomeShortcuts();
+        renderMyPage();
         return;
       }catch(e2){toast('⚠️ 결과 저장 실패 — 결과 입력에서 다시 시도해주세요');}
     }
@@ -1322,7 +1321,6 @@ function updateOpenBadge(){
 }
 
 export function renderC(){
-  renderChHomeShortcuts();
   const list=g('ch-list'),empty=g('ch-empty');
   // ── 스크롤 중 뱃지 DOM 조작 스킵 (Forced Reflow 방지)
   if(!isScrolling())updateOpenBadge();
@@ -1358,7 +1356,7 @@ export function renderC(){
     }else{
       empty.innerHTML='<div style="font-size:48px;margin-bottom:14px">🏓</div>'
         +'<div style="font-size:16px;font-weight:800;color:var(--t2);margin-bottom:8px">대결이 없어요</div>'
-        +'<div style="font-size:13px;color:var(--t3);line-height:1.5">위에서 즉시 등록하거나 대결 신청을 이용하세요</div>';
+        +'<div style="font-size:13px;color:var(--t3);line-height:1.5">즉시 등록하거나 아래 대결 신청을 이용하세요</div>';
     }
     _updateChLoadMoreUi(filteredTotal);
     return;
@@ -2660,7 +2658,7 @@ window.submitResult=async function(){
     if(mtEm)mtEm.textContent='입력';
     if(getCurrentPage()==='ranking')renderR();
     if(getCurrentPage()==='members')renderM();
-    renderMyRecordHome();renderMyPage();
+    renderMyPage();
     if(!wasEdit){
       var ptDelta=myPointDeltaForResult(c,_rw);
       var coachMsg=buildPostMatchCoachComment(ptDelta>0,ptDelta,c);
@@ -3237,7 +3235,6 @@ function isScrolling() { return C.isScrolling(); }
 function renderR() { return C.renderR(); }
 function renderM() { return C.renderM(); }
 function renderHall() { return C.renderHall(); }
-function renderMyRecordHome() { return C.renderMyRecordHome(); }
 function renderMyPage() { return C.renderMyPage(); }
 function refreshPlayerProfileIfOpen() { return C.refreshPlayerProfileIfOpen(); }
 function nav(id) { return C.nav(id); }
