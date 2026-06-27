@@ -116,11 +116,7 @@ export function _hasRankingData(isDbl,season,isSeason){
 export function setRkScope(scope){
   _rkScope=scope;
   _rkGradeFilter='all';
-  var all=g('rk-scope-all'),sn=g('rk-scope-season');
-  if(all)all.classList.toggle('on',scope==='all');
-  if(sn)sn.classList.toggle('on',scope==='season');
-  var ptH=g('rk-pt-h');
-  if(ptH)ptH.textContent=scope==='season'?'시즌 포인트':'포인트';
+  _syncRkFilterUi();
   renderR();
 };
 export function _renderHallOfFame(){
@@ -145,10 +141,18 @@ export function _renderHallOfFame(){
 export function setRk(mode){
   _rkMode=mode;
   _rkGradeFilter='all';
-  var ind=g('rk-ind'),dbl=g('rk-dbl');
-  if(ind)ind.classList.toggle('on',mode==='individual');
-  if(dbl)dbl.classList.toggle('on',mode==='double');
+  _syncRkFilterUi();
   renderR();
+}
+function _syncRkFilterUi(){
+  var all=g('rk-scope-all'),sn=g('rk-scope-season');
+  if(all)all.classList.toggle('on',_rkScope==='all');
+  if(sn)sn.classList.toggle('on',_rkScope==='season');
+  var ind=g('rk-ind'),dbl=g('rk-dbl');
+  if(ind)ind.classList.toggle('on',_rkMode==='individual');
+  if(dbl)dbl.classList.toggle('on',_rkMode==='double');
+  var ptH=g('rk-pt-h');
+  if(ptH)ptH.textContent=_rkScope==='season'?'시즌 포인트':'포인트';
 }
 export function _rankRowHash(m,rank,pt,gr,streak,recentKey){
   return m.id+'|'+rank+'|'+(m.name||'')+'|'+gr.label+'|'+pt+'|'+streak+'|'+_rkScope+'|'+_rkMode+'|'+recentKey;
@@ -567,6 +571,7 @@ export function _rankRowClass(rank){ ... }
 */
 
 export function renderR(){
+  _syncRkFilterUi();
   var isDbl=_rkMode==='double';
   var isSeason=_rkScope==='season';
   var season=_getCurrentSeason();
