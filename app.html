@@ -39,6 +39,11 @@
       var m=sp.get('match');
       if(m)sessionStorage.setItem('isatok_deeplink_match',m);
       if(sp.get('video')==='1')sessionStorage.setItem('isatok_deeplink_video','1');
+      var lesson=sp.get('lesson');
+      if(lesson)sessionStorage.setItem('isatok_deeplink_lesson',lesson);
+      if(sp.get('lessonPlay')==='1')sessionStorage.setItem('isatok_deeplink_lesson_play','1');
+      var matchVideo=sp.get('matchVideo');
+      if(matchVideo)sessionStorage.setItem('isatok_deeplink_match_video',matchVideo);
     }catch(e){}
     var fullUrl=location.origin+location.pathname+(location.search||'')+(location.hash||'');
     if(location.host!=='isatok.web.app')fullUrl='https://isatok.web.app'+(location.search||'')+(location.hash||'');
@@ -52,6 +57,42 @@
     else window.showIosGuide();
   }
 })();
+(function(){
+  function bootVideoDeepLinkPage(){
+    try{
+      var sp=new URLSearchParams(location.search);
+      var lesson=sp.get('lesson')||sessionStorage.getItem('isatok_deeplink_lesson');
+      var matchVideo=sp.get('matchVideo')||sessionStorage.getItem('isatok_deeplink_match_video');
+      if(lesson){
+        document.querySelectorAll('.page').forEach(function(p){
+          p.classList.toggle('on',p.id==='page-videos');
+        });
+        document.querySelectorAll('.bni').forEach(function(n){
+          n.classList.toggle('on',n.dataset.p==='videos');
+        });
+        document.querySelectorAll('.nav-i').forEach(function(n){
+          n.classList.toggle('on',n.dataset.page==='videos');
+        });
+        if(document.body)document.body.classList.remove('has-fab');
+        return;
+      }
+      if(matchVideo){
+        document.querySelectorAll('.page').forEach(function(p){
+          p.classList.toggle('on',p.id==='page-videos');
+        });
+        document.querySelectorAll('.bni').forEach(function(n){
+          n.classList.toggle('on',n.dataset.p==='videos');
+        });
+        document.querySelectorAll('.nav-i').forEach(function(n){
+          n.classList.toggle('on',n.dataset.page==='videos');
+        });
+        if(document.body)document.body.classList.remove('has-fab');
+      }
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootVideoDeepLinkPage);
+  else bootVideoDeepLinkPage();
+})();
 </script>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -63,8 +104,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="이사탁">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json?v=2026.06.26.10">
-<script type="module" src="js/app/pwa.js?v=2026.06.26.10"></script>
+<link rel="manifest" href="manifest.json?v=2026.07.07.01">
+<script type="module" src="js/app/pwa.js?v=2026.07.07.01"></script>
 <meta property="og:title" content="이사탁">
 <meta property="og:description" content="이사탁 탁구 동호회 — 대결 신청, 랭킹, 통계">
 <meta property="og:type" content="website">
@@ -79,10 +120,10 @@
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
   integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
   crossorigin="anonymous"></script>
-<link rel="stylesheet" href="css/style.css?v=2026.06.26.10">
-<link rel="stylesheet" href="css/components.css?v=2026.06.26.10">
-<link rel="stylesheet" href="css/design.css?v=2026.06.26.10">
-<link rel="stylesheet" href="css/custom-select.css?v=2026.06.26.10">
+<link rel="stylesheet" href="css/style.css?v=2026.07.07.01">
+<link rel="stylesheet" href="css/components.css?v=2026.07.07.01">
+<link rel="stylesheet" href="css/design.css?v=2026.07.07.01">
+<link rel="stylesheet" href="css/custom-select.css?v=2026.07.07.01">
 </head>
 <body>
 
@@ -124,9 +165,8 @@
     </div>
     <span class="nav-g">메뉴</span>
     <div class="nav-i on"  data-page="challenge" onclick="nav('challenge')"><span class="ni-icon">🏓</span>대결</div>
-    <div class="nav-i"     data-page="ranking"  onclick="nav('ranking')"><span class="ni-icon">🏆</span>랭킹</div>
-    <div class="nav-i"     data-page="my"       onclick="nav('my')"><span class="ni-icon">👤</span>마이</div>
-    <div class="nav-i"     data-page="hall"     onclick="nav('hall')"><span class="ni-icon">📈</span>통계</div>
+    <div class="nav-i"     data-page="videos"   onclick="nav('videos')"><span class="ni-icon">🎬</span>영상</div>
+    <div class="nav-i"     data-page="stats"    onclick="nav('stats')"><span class="ni-icon">🏆</span>기록</div>
     <div class="nav-i"     data-page="members" onclick="nav('members')"><span class="ni-icon">🏓</span>선수</div>
     <div class="nav-i"     data-page="attendance" onclick="nav('attendance')"><span class="ni-icon">✅</span>출석</div>
     <div class="nav-i nav-admin-only admin-only" data-page="admin" onclick="nav('admin')"><span class="ni-icon">⚙️</span>관리자</div>
@@ -189,7 +229,6 @@
             <button class="fc"    id="f-pending"    onclick="setF('pending')">⏳ 대기</button>
             <button class="fc"    id="f-accepted"   onclick="setF('accepted')">✅ 진행</button>
             <button class="fc"    id="f-completed"  onclick="setF('completed')">🏆 완료</button>
-            <button class="fc"    id="f-video"      onclick="setF('video')">🎬 영상</button>
             <button class="fc"    id="f-open"       onclick="setF('open')">🔥 오픈</button>
             <button class="fc"    id="f-md"         onclick="setF('md')">남복</button>
             <button class="fc"    id="f-fd"         onclick="setF('fd')">여복</button>
@@ -211,59 +250,79 @@
       </details>
     </div>
 
-    <!-- ══ 회원 랭킹 ══ -->
-    <div class="page" id="page-ranking">
+    <!-- ══ 영상 ══ -->
+    <div class="page page-videos" id="page-videos">
       <div class="ph">
-        <div class="ph-t">회원 <em>랭킹</em></div>
-        <button class="btn btn-g btn-sm" onclick="nav('hall')">📈 통계 보기</button>
-      </div>
-      <div class="fscroll">
-        <button class="fc" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
-        <button class="fc on" id="rk-scope-season" type="button" onclick="setRkScope('season')">시즌 랭킹</button>
-      </div>
-      <div id="rk-season-info" class="season-info-bar" style="display:none"></div>
-      <div class="fscroll">
-        <button class="fc" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
-        <button class="fc on" id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
-      </div>
-      <div id="my-rank-card-container"></div>
-      <div class="card card-p rank-ux-card">
-        <div id="rank-grade-chips" class="rank-grade-chips"></div>
-        <div id="rank-podium-wrap"></div>
-        <div id="rank-streak-banner-wrap"></div>
-        <div id="rank-rows-list"></div>
-        <div id="rank-empty-msg" style="display:none;padding:24px;text-align:center;color:var(--t3)"></div>
-      </div>
-      <div class="card card-p" id="rk-hall-wrap" style="margin-top:16px;display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:18px;font-weight:800;color:var(--t1)">🔥 연승 하이라이트</div>
-          <button class="btn btn-g btn-sm" onclick="nav('hall')">통계 보기 →</button>
+        <div class="ph-t">🎬 <em>영상</em></div>
+        <div class="ph-actions">
+          <button class="btn btn-g btn-sm admin-only" type="button" onclick="openVideoViewLogs()">📋 조회 이력</button>
+          <button class="btn btn-p btn-sm admin-only" type="button" id="btn-club-video-add" onclick="openClubVideoRegister()">+ 영상 등록</button>
         </div>
-        <div id="rk-hall"></div>
+      </div>
+      <div class="fscroll club-video-filter-tabs" id="club-video-filter-tabs"></div>
+      <div id="videos-panel-club" class="videos-panel on">
+        <div id="match-videos-filter" class="videos-match-filter" hidden>
+          <span id="match-videos-filter-label" class="videos-match-filter__label"></span>
+          <button type="button" class="videos-match-filter__clear" onclick="clearMatchPlayerFilter()">전체 보기</button>
+        </div>
+        <div id="club-videos-grid" class="videos-grid videos-grid--cards"></div>
+        <div id="club-videos-empty" class="videos-empty" style="display:none"></div>
       </div>
     </div>
 
-    <!-- ══ 마이 (개인 코칭) ══ -->
-    <div class="page page-my" id="page-my">
+    <!-- ══ 기록 (순위 · 코칭 · 동호회) ══ -->
+    <div class="page page-stats" id="page-stats">
       <div class="ph">
-        <div class="ph-t">👤 <em>마이 코칭</em></div>
+        <div class="ph-t">🏆 <em>기록</em></div>
       </div>
-      <div id="my-page-dashboard" class="my-dash-wrap"></div>
-      <div class="card card-p my-dash-setting" id="my-page-setting"></div>
+      <div class="fscroll stats-subtabs">
+        <button class="fc on" id="stats-sec-ranking" type="button" onclick="setStatsSection('ranking')">순위</button>
+        <button class="fc" id="stats-sec-coaching" type="button" onclick="setStatsSection('coaching')">코칭</button>
+        <button class="fc" id="stats-sec-club" type="button" onclick="setStatsSection('club')">동호회</button>
+      </div>
+
+      <div id="stats-panel-ranking" class="stats-panel on">
+        <div class="fscroll">
+          <button class="fc" id="rk-scope-all" type="button" onclick="setRkScope('all')">전체 랭킹</button>
+          <button class="fc on" id="rk-scope-season" type="button" onclick="setRkScope('season')">시즌 랭킹</button>
+        </div>
+        <div id="rk-season-info" class="season-info-bar" style="display:none"></div>
+        <div class="fscroll">
+          <button class="fc" id="rk-ind" onclick="setRk('individual')">🏓 개인 랭킹</button>
+          <button class="fc on" id="rk-dbl" onclick="setRk('double')">🤝 복식 랭킹</button>
+        </div>
+        <div id="my-rank-card-container"></div>
+        <div class="card card-p rank-ux-card">
+          <div id="rank-grade-chips" class="rank-grade-chips"></div>
+          <div id="rank-podium-wrap"></div>
+          <div id="rank-streak-banner-wrap"></div>
+          <div id="rank-rows-list"></div>
+          <div id="rank-empty-msg" style="display:none;padding:24px;text-align:center;color:var(--t3)"></div>
+        </div>
+        <div class="card card-p" id="rk-hall-wrap" style="margin-top:16px;display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:18px;font-weight:800;color:var(--t1)">🔥 연승 하이라이트</div>
+            <button class="btn btn-g btn-sm" type="button" onclick="setStatsSection('club')">동호회 통계 →</button>
+          </div>
+          <div id="rk-hall"></div>
+        </div>
+      </div>
+
+      <div id="stats-panel-coaching" class="stats-panel page-my">
+        <div class="card card-p my-dash-setting" id="my-page-setting"></div>
+        <div id="my-page-dashboard" class="my-dash-wrap"></div>
+      </div>
+
+      <div id="stats-panel-club" class="stats-panel page-hall">
+        <div class="fscroll hall-mode-tabs">
+          <button class="fc on" id="hall-dbl" type="button" onclick="setHallMode('double')">🤝 복식</button>
+          <button class="fc" id="hall-ind" type="button" onclick="setHallMode('individual')">🏓 단식</button>
+        </div>
+        <div id="hall-content" class="hall-content-wrap"></div>
+      </div>
     </div>
 
-    <!-- ══ 통계 (동호회 · 명예의 전당) ══ -->
-    <div class="page page-hall" id="page-hall">
-      <div class="ph">
-        <div class="ph-t">📈 <em>동호회 통계</em></div>
-        <button class="btn btn-g btn-sm" onclick="nav('my')">👤 마이</button>
-      </div>
-      <div class="fscroll hall-mode-tabs">
-        <button class="fc on" id="hall-dbl" type="button" onclick="setHallMode('double')">🤝 복식</button>
-        <button class="fc" id="hall-ind" type="button" onclick="setHallMode('individual')">🏓 단식</button>
-      </div>
-      <div id="hall-content" class="hall-content-wrap"></div>
-    </div>
+    <!-- (legacy page ids removed — ranking/my/hall merged into page-stats) -->
 
     <!-- ══ 회원 (선수 탐색) ══ -->
     <div class="page page-members" id="page-members">
@@ -368,12 +427,10 @@
 </div>
 <nav class="bnav">
   <div class="bni on" onclick="nav('challenge')" data-p="challenge"><span class="bi">🏓</span><span>대결</span></div>
-  <div class="bni"    onclick="nav('ranking')"   data-p="ranking"><span class="bi">🏆</span><span>랭킹</span></div>
-  <div class="bni"    onclick="nav('my')"        data-p="my"><span class="bi">👤</span><span>마이</span></div>
-  <div class="bni"    onclick="nav('hall')"      data-p="hall"><span class="bi">📈</span><span>통계</span></div>
+  <div class="bni"    onclick="nav('videos')"    data-p="videos"><span class="bi">🎬</span><span>영상</span></div>
+  <div class="bni"    onclick="nav('stats')"     data-p="stats"><span class="bi">🏆</span><span>기록</span></div>
   <div class="bni"    onclick="nav('members')"   data-p="members"><span class="bi">🏓</span><span>선수</span></div>
   <div class="bni"    onclick="nav('attendance')" data-p="attendance"><span class="bi">✅</span><span>출석</span></div>
-  <div class="bni nav-admin-only admin-only" onclick="nav('admin')" data-p="admin"><span class="bi">⚙️</span><span>관리</span></div>
 </nav>
 
 <!-- ══ 대결 신청 Bottom Sheet ══ -->
@@ -643,6 +700,88 @@
   </div>
 </div>
 
+<!-- ══ 동호회 영상 등록·수정 모달 (관리자) ══ -->
+<div class="mo write-mo" id="mo-club-video">
+  <div class="mw">
+    <div class="mh"><div class="mt" id="club-video-modal-title">🎬 영상 <em>등록</em></div><button class="mc-btn" onclick="closeMo('mo-club-video')">✕</button></div>
+    <div class="mb">
+      <div class="fg">
+        <label id="club-video-category-label">카테고리</label>
+        <div id="club-video-category" class="club-video-category-pick" role="group" aria-labelledby="club-video-category-label"></div>
+      </div>
+      <div class="fg" id="club-video-date-wrap">
+        <label for="club-video-date">날짜</label>
+        <input type="date" id="club-video-date" class="fi">
+        <div class="fg-hint">점심·저녁경기는 날짜순으로 정렬됩니다</div>
+      </div>
+      <div class="fg">
+        <label id="club-video-members-label">선수 <span class="fg-hint">(복수 선택 가능)</span></label>
+        <div id="club-video-members" class="lesson-member-pick" role="group" aria-labelledby="club-video-members-label"></div>
+        <div class="fg-hint">선택한 선수의 「내 영상」 목록에 표시됩니다</div>
+      </div>
+      <div class="fg">
+        <label for="club-video-url">유튜브 URL</label>
+        <input type="url" id="club-video-url" class="fi" placeholder="youtu.be / watch / shorts" inputmode="url" autocomplete="off">
+      </div>
+      <div class="fg">
+        <label for="club-video-desc">설명 <span class="fg-hint">(선택, 200자)</span></label>
+        <textarea id="club-video-desc" class="fi" rows="3" maxlength="200" placeholder="영상 설명"></textarea>
+      </div>
+    </div>
+    <div class="mf club-video-modal-actions">
+      <button type="button" class="btn btn-d admin-only" id="btn-club-video-delete" onclick="deleteClubVideoFromModal()" hidden>🗑 삭제</button>
+      <div class="club-video-modal-actions__main">
+        <button class="btn btn-g" onclick="closeMo('mo-club-video')">취소</button>
+        <button class="btn btn-p" id="btn-club-video-save" onclick="submitClubVideo()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 영상 조회 이력 (관리자) ══ -->
+<div class="mo write-mo" id="mo-video-view-logs">
+  <div class="mw mw--wide">
+    <div class="mh"><div class="mt">📋 영상 <em>조회 이력</em></div><button class="mc-btn" onclick="closeMo('mo-video-view-logs')">✕</button></div>
+    <div class="mb">
+      <div id="video-view-logs-summary" class="video-view-logs-summary">총 0건</div>
+      <div class="video-view-logs-filters">
+        <div class="fg">
+          <label for="video-view-logs-video-filter">영상</label>
+          <select id="video-view-logs-video-filter" class="fi" onchange="applyVideoViewLogFilters()">
+            <option value="">전체 영상</option>
+          </select>
+        </div>
+        <div class="video-view-logs-date-range">
+          <div class="fg">
+            <label for="video-view-logs-date-from">시작일</label>
+            <input type="date" id="video-view-logs-date-from" class="fi" onchange="applyVideoViewLogFilters()">
+          </div>
+          <div class="fg">
+            <label for="video-view-logs-date-to">종료일</label>
+            <input type="date" id="video-view-logs-date-to" class="fi" onchange="applyVideoViewLogFilters()">
+          </div>
+        </div>
+      </div>
+      <div id="video-view-logs-list" class="video-view-logs-list"></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('mo-video-view-logs')">닫기</button></div>
+  </div>
+</div>
+
+<!-- ══ 레슨 및 훈련 영상 재생 모달 ══ -->
+<div class="mo" id="mo-lesson-video-play">
+  <div class="mw">
+    <div class="mh"><div class="mt">▶ 레슨 및 훈련 <em>영상</em></div><button class="mc-btn" onclick="closeLessonVideoMo()">✕</button></div>
+    <div class="mb">
+      <div id="lesson-video-play-meta" class="vid-lesson-play-meta" hidden></div>
+      <div class="yt-embed-wrap">
+        <iframe id="lesson-video-iframe" title="레슨 및 훈련 영상" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeLessonVideoMo()">닫기</button></div>
+  </div>
+</div>
+
 <!-- ══ 경기 영상 재생 모달 ══ -->
 <div class="mo" id="mo-match-video">
   <div class="mw">
@@ -907,6 +1046,6 @@
   </div>
 </div>
 
-<script type="module" src="js/app/main.js?v=2026.06.26.10"></script>
+<script type="module" src="js/app/main.js?v=2026.07.07.01"></script>
 </body>
 </html>

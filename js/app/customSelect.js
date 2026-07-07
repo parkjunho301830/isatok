@@ -2,7 +2,7 @@
  * 커스텀 Select — 모바일 Bottom Sheet / PC 드롭다운
  * 네이티브 <select>는 숨기고 value·change·required·폼 제출은 그대로 유지
  */
-import { lockBodyScroll, unlockBodyScroll } from './appCore.js?v=2026.06.26.10';
+import { lockBodyScroll, unlockBodyScroll } from './appCore.js?v=2026.07.07.01';
 
 const OVERLAY_KEY = 'csel';
 

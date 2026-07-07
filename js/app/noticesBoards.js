@@ -2,7 +2,7 @@
  * 공지사항·자유게시판 (오프라인/관리용 CRUD)
  */
 import { collection, doc, addDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { COL_NOTICES, COL_BOARDS } from './constants.js?v=2026.06.26.10';
+import { COL_NOTICES, COL_BOARDS } from './constants.js?v=2026.07.07.01';
 
 let C = null;
 

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>이사탁 — AI 영상 분석 (Beta)</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/style.css?v=2026.07.07.01">
+  <link rel="stylesheet" href="../css/components.css?v=2026.07.07.01">
+  <link rel="stylesheet" href="../css/design.css?v=2026.07.07.01">
+  <link rel="stylesheet" href="../css/ai-analysis.css?v=2026.07.07.04">
+</head>
+<body>
+  <div id="ai-gate" class="ai-gate" hidden>
+    <div class="ai-gate__icon">🔐</div>
+    <div class="ai-gate__title">관리자 전용</div>
+    <p class="ai-gate__desc">AI 영상 분석은 관리자 모드에서만 사용할 수 있습니다.<br>메인 앱에서 관리자 PIN을 입력한 후 다시 접속해 주세요.</p>
+    <a href="../app.html" class="btn btn-p">메인 앱으로 이동</a>
+  </div>
+
+  <div id="ai-app" class="ai-page" hidden>
+    <a href="../app.html#admin" class="ai-page__back">← 관리자 허브</a>
+
+    <div class="ph">
+      <div class="ph-t">🤖 AI 영상 <em>분석</em><span class="ai-page-beta">Beta v1.0</span></div>
+    </div>
+    <p class="ai-page-sub">대결 · 레슨 · 훈련 영상만 분석할 수 있습니다. 원본 영상은 저장하지 않습니다.</p>
+
+    <!-- 입력 폼 -->
+    <div class="card card-p ai-form-card">
+      <div class="fg">
+        <label id="ai-type-label">영상 종류</label>
+        <div id="ai-type-pick" class="ai-type-pick" role="group" aria-labelledby="ai-type-label"></div>
+      </div>
+
+      <div class="fg">
+        <label for="ai-youtube-url">유튜브 URL</label>
+        <input type="url" id="ai-youtube-url" class="fi"
+          placeholder="https://youtu.be/xxxxxxxx" inputmode="url" autocomplete="off">
+      </div>
+
+      <div class="fg">
+        <label for="ai-local-video">분석용 영상 파일 <span class="fg-hint">(PC 로컬 · 저장·업로드 없음)</span></label>
+        <input type="file" id="ai-local-video" class="fi" accept="video/*">
+        <div class="fg-hint">유튜브 URL 자동 분석이 안 될 때 같은 영상 파일을 선택하세요. Firebase에는 저장되지 않습니다.</div>
+        <div id="ai-local-file-name" class="ai-local-file-name" hidden></div>
+      </div>
+
+      <div class="fg">
+        <label>영상 미리보기</label>
+        <div id="ai-preview" class="ai-preview ai-preview--empty">
+          URL을 입력하면 미리보기가 표시됩니다
+        </div>
+      </div>
+    </div>
+
+    <!-- 액션 -->
+    <div class="ai-actions">
+      <button type="button" class="btn btn-p" id="btn-ai-analyze" disabled>🤖 AI 분석 시작</button>
+      <button type="button" class="btn btn-g" id="btn-ai-register" disabled hidden>✅ 영상 등록</button>
+    </div>
+
+    <!-- 분석 결과 -->
+    <div id="ai-report-area"></div>
+
+    <!-- 등록 폼 -->
+    <div id="ai-register-section" hidden>
+      <h2 class="ai-section-title">영상 등록</h2>
+      <p class="ai-section-hint">분석 확인 후 유튜브 링크와 AI 분석 결과를 Firebase에 저장합니다. 원본 영상 파일은 저장되지 않습니다.</p>
+      <div class="card card-p" id="ai-register-form"></div>
+    </div>
+
+    <!-- 분석 이력 -->
+    <div id="ai-history-section">
+      <h2 class="ai-section-title">분석 이력</h2>
+      <p class="ai-section-hint">최근 저장된 AI 분석 기록</p>
+      <div class="card card-p">
+        <p class="ai-history-empty" id="ai-history-empty">아직 저장된 분석 이력이 없습니다.</p>
+        <div id="ai-history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ai-toast" class="ai-toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="ai-analysis.js?v=2026.07.07.04"></script>
+</body>
+</html>

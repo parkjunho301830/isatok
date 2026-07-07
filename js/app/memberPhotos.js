@@ -1,8 +1,8 @@
 /**
  * 조직도(GAS) 회원 사진 — fetch · 캐시 · 아바타 HTML
  */
-import { ORG_CHART_API_URL, MEMBER_PHOTO_CACHE_TTL_MS } from './constants.js?v=2026.06.26.10';
-import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.06.26.10';
+import { ORG_CHART_API_URL, MEMBER_PHOTO_CACHE_TTL_MS } from './constants.js?v=2026.07.07.01';
+import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.07.07.01';
 
 const LS_PHOTO_CACHE = 'isatok_member_photos_v2';
 const LB_BACK_KEY = 'lightbox';

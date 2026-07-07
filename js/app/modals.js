@@ -1,8 +1,8 @@
 /**
  * 모달 열기/닫기·배경 클릭 처리
  */
-import { isMyPlayerSetupMandatory } from './wizard.js?v=2026.06.26.10';
-import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.06.26.10';
+import { isMyPlayerSetupMandatory } from './wizard.js?v=2026.07.07.01';
+import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.07.07.01';
 
 let C = null;
 
@@ -17,8 +17,12 @@ export function initModals(ctx) {
     m.addEventListener('click', function(e) {
       if (e.target === m && m.classList.contains('on')) {
         if (m.id === 'mo-my-player' && isMyPlayerSetupMandatory()) return;
+        var moId = m.id;
         m.classList.remove('on');
-        requestAnimationFrame(C.unlockBodyScroll);
+        requestAnimationFrame(function() {
+          C.unlockBodyScroll();
+          if (C.onModalClosed) C.onModalClosed(moId);
+        });
       }
     });
   });
@@ -49,6 +53,8 @@ export function closeMo(id, fromBack) {
   if (!el || !el.classList.contains('on')) return;
   el.classList.remove('on');
   if (!fromBack && id !== 'mo-my-player') unregisterOverlay(_moBackKey(id));
-  if (C.onModalClosed) C.onModalClosed(id);
-  requestAnimationFrame(C.unlockBodyScroll);
+  requestAnimationFrame(function() {
+    C.unlockBodyScroll();
+    if (C.onModalClosed) C.onModalClosed(id);
+  });
 }

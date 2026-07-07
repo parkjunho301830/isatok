@@ -4,9 +4,9 @@
 import {
   collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { COL_ATTENDANCE } from './constants.js?v=2026.06.26.10';
-import { getMyPlayerId } from './wizard.js?v=2026.06.26.10';
-import { refreshCustomSelect } from './customSelect.js?v=2026.06.26.10';
+import { COL_ATTENDANCE } from './constants.js?v=2026.07.07.01';
+import { getMyPlayerId } from './wizard.js?v=2026.07.07.01';
+import { refreshCustomSelect } from './customSelect.js?v=2026.07.07.01';
 
 let C = null;
 let _unsubToday = null;

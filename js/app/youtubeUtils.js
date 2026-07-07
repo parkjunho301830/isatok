@@ -28,6 +28,18 @@ export function extractYouTubeVideoId(url) {
     if (watch) id = watch[1];
   }
 
+  // youtube.com/shorts/ID
+  if (!id) {
+    var shorts = s.match(/(?:^https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([A-Za-z0-9_-]{11})(?:[?&#/]|$)/i);
+    if (shorts) id = shorts[1];
+  }
+
+  // youtube.com/embed/ID
+  if (!id) {
+    var embed = s.match(/(?:^https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([A-Za-z0-9_-]{11})(?:[?&#/]|$)/i);
+    if (embed) id = embed[1];
+  }
+
   if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) return null;
   return id;
 }
@@ -48,4 +60,19 @@ export function buildYouTubeEmbedUrl(videoId) {
 export function buildYouTubeThumbUrl(videoId) {
   if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
   return 'https://img.youtube.com/vi/' + videoId + '/0.jpg';
+}
+
+/** 조회수 표시용 — 유튜브 스타일 (1만 미만은 1,234 / 이상은 1.2만) */
+export function formatViewCount(n) {
+  n = Number(n) || 0;
+  if (n < 1) return '0';
+  if (n >= 100000000) {
+    var eok = n / 100000000;
+    return (eok >= 10 ? Math.round(eok) : eok.toFixed(1).replace(/\.0$/, '')) + '억';
+  }
+  if (n >= 10000) {
+    var man = n / 10000;
+    return (man >= 10 ? Math.round(man) : man.toFixed(1).replace(/\.0$/, '')) + '만';
+  }
+  return n.toLocaleString('ko-KR');
 }

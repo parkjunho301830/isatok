@@ -1,7 +1,7 @@
 /**
  * 회원 등급·아바타 색상 유틸
  */
-import { _memberPt, _calcGrade } from './memberCore.js?v=2026.06.26.10';
+import { _memberPt, _calcGrade } from './memberCore.js?v=2026.07.07.01';
 
 export function _memberGrade(m) {
   return _calcGrade(_memberPt(m, false));

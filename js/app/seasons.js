@@ -2,8 +2,8 @@
  * 시즌 생성·종료·현재 시즌 지정 (관리자)
  */
 import { collection, doc, addDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { COL_SEASONS } from './constants.js?v=2026.06.26.10';
-import { _computeSeasonPoints } from './matchStats.js?v=2026.06.26.10';
+import { COL_SEASONS } from './constants.js?v=2026.07.07.01';
+import { _computeSeasonPoints } from './matchStats.js?v=2026.07.07.01';
 
 let C = null;
 
@@ -23,8 +23,8 @@ function closeMo(id) { return C.closeMo(id); }
 
 export function _applySeasonsSnapshotRender(){
   if(C.isScrolling()){C.markPendingSeasonRender();return;}
-  if(C.getCurrentPage()==='ranking')C.renderR();
-  if(C.getCurrentPage()==='hall')C.renderHall();
+  if(C.getCurrentPage()==='stats'&&C.isStatsRankingView&&C.isStatsRankingView())C.renderR();
+  if(C.getCurrentPage()==='stats'&&C.isStatsClubView&&C.isStatsClubView())C.renderHall();
   var snMo=g('mo-season');
   if(snMo&&snMo.classList.contains('on'))_renderSeasonList();
   C.refreshPlayerProfileIfOpen();

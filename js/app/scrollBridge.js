@@ -5,7 +5,7 @@ let C = null;
 let _isScrolling = false;
 let _scrollTimer = null;
 let _scrollRaf = null;
-let _pendingRender = { c: false, m: false, grids: false, sn: false, h: false };
+let _pendingRender = { c: false, m: false, grids: false, sn: false, h: false, v: false };
 let _pendingDeepLink = false;
 
 export function initScrollBridge(ctx) {
@@ -38,19 +38,22 @@ export function markPendingSeasonRender() {
 function flushPendingRenders() {
   var page = C.getCurrentPage();
   if (_pendingRender.m && page === 'members') C.renderM();
-  if (_pendingRender.m && page === 'ranking') C.renderR();
+  if (_pendingRender.m && C.isStatsRankingView && C.isStatsRankingView()) C.renderR();
   if (_pendingRender.m && page === 'attendance') C.renderAttendanceMembers();
   if (_pendingRender.grids && C.isBSOpen() && !C.isBsPlayerSearchActive() && !C.isBsFormInputFocused()) {
     C.renderGridsBS({ force: true });
   }
   if (_pendingRender.c && page === 'challenge' && !C.isBSFocused()) C.renderC();
+  if (_pendingRender.c && C.isVideosPage && C.isVideosPage()) C.renderVideos();
   if (_pendingRender.sn) C.applySeasonsSnapshotRender();
-  if (_pendingRender.h && page === 'hall') C.renderHall();
+  if (_pendingRender.h && C.isStatsClubView && C.isStatsClubView()) C.renderHall();
+  if (_pendingRender.v && C.isVideosPage && C.isVideosPage()) C.renderVideos();
   _pendingRender.c = false;
   _pendingRender.m = false;
   _pendingRender.grids = false;
   _pendingRender.sn = false;
   _pendingRender.h = false;
+  _pendingRender.v = false;
   if (_pendingDeepLink && !C.isDeepLinkHandled()) {
     _pendingDeepLink = false;
     C.handleDeepLink();
@@ -86,8 +89,8 @@ export function applyMembersSnapshotRender() {
   }
   var page = C.getCurrentPage();
   if (page === 'members') C.renderM();
-  if (page === 'ranking') C.renderR();
-  if (page === 'hall') C.renderHall();
+  if (C.isStatsRankingView && C.isStatsRankingView()) C.renderR();
+  if (C.isStatsClubView && C.isStatsClubView()) C.renderHall();
   if (page === 'attendance') C.renderAttendanceMembers();
   if (C.isBSOpen()) {
     if (C.isBsPlayerSearchActive() || C.isBsFormInputFocused()) C.deferBsGridRefresh();

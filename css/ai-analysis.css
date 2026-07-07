@@ -1,0 +1,435 @@
+/* ═══════════════════════════════════════════════════════════
+   AI 영상 분석 페이지 전용 스타일
+   design.css 변수·컴포넌트를 재사용합니다.
+   ═══════════════════════════════════════════════════════════ */
+
+.ai-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+}
+
+.ai-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--a);
+  text-decoration: none;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.ai-page__back:active { opacity: 0.7; }
+
+.ai-page-sub {
+  font-size: var(--text-sm);
+  color: var(--t3, #8E8E93);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.ai-page-beta {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--a);
+  background: var(--primary-dim);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── 폼 카드 ── */
+.ai-form-card {
+  margin-bottom: 16px;
+}
+
+.ai-type-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-type-chip {
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--c3);
+  background: var(--c1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--t2, #3C3C43);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ai-type-chip.on {
+  border-color: var(--a);
+  background: var(--primary-dim);
+  color: var(--a);
+}
+
+.ai-type-chip:active { transform: scale(0.98); }
+
+/* ── 미리보기 ── */
+.ai-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--c2);
+  margin-top: 8px;
+}
+
+.ai-preview--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--t3, #8E8E93);
+  font-size: var(--text-sm);
+}
+
+.ai-preview iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ── 액션 버튼 ── */
+.ai-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.ai-actions .btn {
+  flex: 1;
+  min-width: 140px;
+}
+
+.ai-actions .btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* ── 결과 카드 ── */
+.ai-report {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(155deg, #0a1628 0%, #122038 45%, #1a2d4a 100%);
+  border: 1px solid rgba(100, 181, 255, 0.28);
+  box-shadow: 0 10px 32px rgba(0, 30, 70, 0.28);
+  color: #e8f0ff;
+  margin-bottom: 16px;
+}
+
+.ai-report--placeholder,
+.ai-report--loading {
+  background: var(--c1);
+  border: 1px solid var(--c3);
+  box-shadow: var(--shadow-card);
+  color: var(--t2, #3C3C43);
+}
+
+.ai-report__placeholder-text {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--t3, #8E8E93);
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.ai-report__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.ai-report__badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #7ec8ff;
+  background: rgba(100, 181, 255, 0.15);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.ai-report__meta {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 6px;
+}
+
+.ai-local-file-name {
+  font-size: var(--text-sm);
+  color: var(--a);
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+input[type="file"].fi {
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+}
+
+.ai-report__total {
+  text-align: right;
+}
+
+.ai-report__total-label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 2px;
+}
+
+.ai-report__total-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.ai-report__score-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ai-report__score-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ai-report__score-bar-wrap {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ai-report__score-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #007AFF, #64B5FF);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.ai-report__score-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  text-align: right;
+}
+
+.ai-report__section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-report__section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #7ec8ff;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-report__gemini-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a8d4ff;
+  background: rgba(0, 122, 255, 0.2);
+  border: 1px solid rgba(100, 181, 255, 0.35);
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+}
+
+.ai-report__section-text {
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: #eef4ff;
+  margin: 0;
+}
+
+.ai-report__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.ai-report__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--c3);
+  border-top-color: var(--a);
+  border-radius: 50%;
+  animation: ai-spin 0.8s linear infinite;
+}
+
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 등록·이력 섹션 (4단계) ── */
+.ai-section-title {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--t1, #1C1C1E);
+  margin: 24px 0 10px;
+}
+
+.ai-section-hint {
+  font-size: var(--text-xs);
+  color: var(--t3, #8E8E93);
+  margin: 0 0 12px;
+}
+
+.ai-history-empty {
+  font-size: var(--text-sm);
+  color: var(--t3, #8E8E93);
+  text-align: center;
+  padding: 20px;
+}
+
+.ai-history-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--c3);
+}
+
+.ai-history-item:last-child {
+  border-bottom: none;
+}
+
+.ai-history-item__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ai-history-item__type {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--a);
+  background: var(--primary-dim);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.ai-history-item__score {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--t1, #1C1C1E);
+}
+
+.ai-history-item__status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.ai-history-item__status--completed {
+  color: var(--success-text, #248A3D);
+  background: var(--success-dim);
+}
+
+.ai-history-item__status--error {
+  color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.ai-history-item__status--processing {
+  color: var(--warning);
+  background: var(--warning-dim);
+}
+
+.ai-history-item__url {
+  font-size: var(--text-xs);
+  color: var(--t3, #8E8E93);
+  word-break: break-all;
+  margin-bottom: 4px;
+}
+
+.ai-history-item__meta {
+  font-size: 11px;
+  color: var(--t3, #8E8E93);
+  line-height: 1.4;
+}
+
+.ai-register-actions {
+  margin-top: 16px;
+}
+
+.ai-register-actions .btn {
+  width: 100%;
+}
+
+.lesson-member-pick .ai-type-chip.on {
+  border-color: var(--a);
+  background: var(--primary-dim);
+  color: var(--a);
+}
+
+/* ── 관리자 차단 화면 ── */
+.ai-gate {
+  max-width: 400px;
+  margin: 80px auto;
+  text-align: center;
+  padding: 24px;
+}
+
+.ai-gate__icon { font-size: 48px; margin-bottom: 12px; }
+
+.ai-gate__title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.ai-gate__desc {
+  font-size: var(--text-sm);
+  color: var(--t3, #8E8E93);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* ── 토스트 ── */
+.ai-toast {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: rgba(28, 28, 30, 0.92);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  z-index: 9999;
+  opacity: 0;
+  transition: transform 0.25s, opacity 0.25s;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+.ai-toast.on {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}

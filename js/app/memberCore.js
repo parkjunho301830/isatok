@@ -6,12 +6,32 @@ import {
   GRADE_TIERS,
   COLOR_PRIMARY,
   COLOR_GOLD
-} from './constants.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
 
 const DOUBLES_TYPES = ['md', 'fd', 'mx', 'doubles'];
 
 export function _isDoublesType(t) {
   return DOUBLES_TYPES.indexOf(t) >= 0;
+}
+
+/** 양 팀 1:1 → 단식 포인트·전적 */
+export function _isSinglesFormat(myTeam, oppTeam) {
+  return (myTeam || []).length === 1 && (oppTeam || []).length === 1;
+}
+
+/** 양 팀 2:2 이상 → 복식 포인트·전적 */
+export function _isDoublesFormat(myTeam, oppTeam) {
+  return (myTeam || []).length >= 2 && (oppTeam || []).length >= 2;
+}
+
+export function _isSinglesFormatChallenge(c) {
+  if (!c) return false;
+  return _isSinglesFormat(c.myTeam, c.oppTeam);
+}
+
+export function _isDoublesFormatChallenge(c) {
+  if (!c) return false;
+  return _isDoublesFormat(c.myTeam, c.oppTeam);
 }
 
 export function _memberPt(m, isDouble) {

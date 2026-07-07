@@ -1,8 +1,8 @@
 /**
  * 관리자 PIN·관리자 허브
  */
-import { ADMIN_PIN } from './constants.js?v=2026.06.26.10';
-import { bindAdminPresencePanel, unbindAdminPresencePanel } from './playerPresence.js?v=2026.06.26.10';
+import { ADMIN_PIN } from './constants.js?v=2026.07.07.01';
+import { bindAdminPresencePanel, unbindAdminPresencePanel } from './playerPresence.js?v=2026.07.07.01';
 
 const ADMIN_STORAGE_KEY = 'isatok_admin';
 
@@ -47,7 +47,9 @@ function setAdmin(on) {
   if (!on) unbindAdminPresencePanel();
   if (C.getCurrentPage() === 'challenge') C.renderC();
   if (C.getCurrentPage() === 'members') C.renderM();
-  if (C.getCurrentPage() === 'ranking') C.renderR();
+  if (C.isStatsRankingView && C.isStatsRankingView()) C.renderR();
+  if (C.getCurrentPage() === 'stats' && C.renderHall) C.renderHall();
+  if (C.getCurrentPage() === 'videos' && C.renderVideos) C.renderVideos();
   var snMo = g('mo-season');
   if (snMo && snMo.classList.contains('on')) C.renderSeasonList();
   if (isAdmin()) renderAdminHub();
@@ -74,6 +76,8 @@ export function applyAdminUI() {
   if (isAdmin()) renderAdminHub();
   if (C.getCurrentPage() === 'admin' && !isAdmin()) nav('challenge');
   if (C.getCurrentPage() === 'members') C.renderM();
+  if (C.isStatsRankingView && C.isStatsRankingView()) C.renderR();
+  if (C.getCurrentPage() === 'videos' && C.renderVideos) C.renderVideos();
   if (!isAdmin()) unbindAdminPresencePanel();
 }
 
@@ -123,6 +127,7 @@ export function renderAdminHub() {
   var box = g('admin-hub');
   if (!box || !isAdmin()) return;
   var items = [
+    { icon: '🤖', title: 'AI 영상 분석', desc: '포즈 분석 · 코치 코멘트 (Beta)', fn: "location.href='pages/ai-analysis.html'" },
     { icon: '✏️', title: '결과 수정', desc: '완료된 경기 결과 변경', fn: 'adminGoResultEdit()' },
     { icon: '🗑', title: '결과 삭제', desc: '대결 카드 삭제', fn: 'adminGoDelete()' },
     { icon: '👤', title: '회원 관리', desc: '등록 · 수정 · 삭제', fn: "nav('members')" },
@@ -153,6 +158,6 @@ function adminGoDelete() {
 
 function adminRefreshStats() {
   C.renderHall();
-  if (C.getCurrentPage() === 'ranking') C.renderR();
+  if (C.isStatsRankingView && C.isStatsRankingView()) C.renderR();
   toast('📈 통계를 새로고침했습니다');
 }

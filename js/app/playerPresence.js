@@ -4,7 +4,7 @@
 import {
   collection, doc, onSnapshot, orderBy, query, setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { COL_PLAYER_PRESENCE } from './constants.js?v=2026.06.26.10';
+import { COL_PLAYER_PRESENCE } from './constants.js?v=2026.07.07.01';
 
 const TOUCH_INTERVAL_MS = 3 * 60 * 1000;
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;

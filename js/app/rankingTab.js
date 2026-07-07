@@ -1,17 +1,17 @@
 /**
  * 랭킹 탭 렌더링·순위 스냅샷
  */
-import { RANK_SNAPSHOT_KEY_PREFIX, PT_INIT, COLOR_GRAY } from './constants.js?v=2026.06.26.10';
-import { getMyPlayerId } from './wizard.js?v=2026.06.26.10';
-import { _memberPt, _calcGrade } from './memberCore.js?v=2026.06.26.10';
-import { _memberGrade, avc, gradeAvatarStyle } from './memberUtils.js?v=2026.06.26.10';
+import { RANK_SNAPSHOT_KEY_PREFIX, PT_INIT, COLOR_GRAY } from './constants.js?v=2026.07.07.01';
+import { getMyPlayerId } from './wizard.js?v=2026.07.07.01';
+import { _memberPt, _calcGrade } from './memberCore.js?v=2026.07.07.01';
+import { _memberGrade, avc, gradeAvatarStyle } from './memberUtils.js?v=2026.07.07.01';
 import {
   _computeDoublesRecord, _computeSinglesRecord, _computeSeasonPoints, _rankPointsForMember,
   _getCurrentSeason, _seasonFilterFn,
   _getMatchesForMode, _playerWonAnyMatch, _playerWonMatch, _getRecentMatchLines,
   _buildCompetitionRankMap
-} from './matchStats.js?v=2026.06.26.10';
-import { _updateRkSeasonBar } from './seasons.js?v=2026.06.26.10';
+} from './matchStats.js?v=2026.07.07.01';
+import { _updateRkSeasonBar } from './seasons.js?v=2026.07.07.01';
 
 let C = null;
 let _rkMode = 'double';

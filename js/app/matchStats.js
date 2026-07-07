@@ -3,8 +3,10 @@
  */
 import {
   PT_INDIVIDUAL_WIN, PT_INDIVIDUAL_LOSS, PT_DOUBLE_WIN, PT_DOUBLE_LOSS, PT_INIT
-} from './constants.js?v=2026.06.26.10';
-import { _isDoublesType, _memberPt } from './memberCore.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
+import {
+  _isDoublesType, _isDoublesFormatChallenge, _isSinglesFormatChallenge, _memberPt
+} from './memberCore.js?v=2026.07.07.01';
 
 const PT = {
   individual: { win: PT_INDIVIDUAL_WIN, loss: PT_INDIVIDUAL_LOSS },
@@ -35,9 +37,8 @@ export function _fmtStatDate(c){
   return d||'-';
 }
 export function _isSinglesMatch(c){
-  if(c.status!=='completed'||!_isSinglesType(c.type))return false;
-  var my=c.myTeam||[],opp=c.oppTeam||[];
-  return my.length===1&&opp.length===1;
+  if(c.status!=='completed')return false;
+  return _isSinglesFormatChallenge(c);
 }
 export function _playerSideInMatch(c,name){
   var my=c.myTeam||[],opp=c.oppTeam||[];
@@ -58,7 +59,7 @@ export function _getSinglesMatchesFor(playerName){
 }
 export function _getDoublesMatchesFor(playerName){
   return chal().filter(function(c){
-    if(c.status!=='completed'||!_isDoublesType(c.type))return false;
+    if(c.status!=='completed'||!_isDoublesFormatChallenge(c))return false;
     return _playerSideInAnyMatch(c,playerName);
   }).sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
 }
@@ -232,7 +233,7 @@ export function _areOpponentsInMatch(c,nameA,nameB){
 export function _getHeadToHeadMatches(nameA,nameB){
   return chal().filter(function(c){
     if(c.status!=='completed')return false;
-    if(_isSinglesMatch(c)||_isDoublesType(c.type))return _areOpponentsInMatch(c,nameA,nameB);
+    if(_isSinglesFormatChallenge(c)||_isDoublesFormatChallenge(c))return _areOpponentsInMatch(c,nameA,nameB);
     return false;
   }).sort(function(a,b){return _matchSortKey(b).localeCompare(_matchSortKey(a));});
 }
@@ -307,7 +308,7 @@ export function _playerWonAnyMatch(c,name){
 }
 export function _isMatchForRkMode(c,isDbl){
   if(c.status!=='completed')return false;
-  return isDbl?_isDoublesType(c.type):_isSinglesType(c.type);
+  return isDbl?_isDoublesFormatChallenge(c):_isSinglesFormatChallenge(c);
 }
 export function _computeSeasonPoints(member,season,isDbl){
   var pt=PT_INIT,name=member.name;

@@ -8,12 +8,13 @@ import {
   startAfter, getDocs, getDoc, doc
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import {
-  COL_CHALLENGES, COL_MEMBERS, COL_SEASONS, COL_TOURNAMENTS,
+  COL_CHALLENGES, COL_MEMBERS, COL_SEASONS, COL_TOURNAMENTS, COL_VIDEOS,
   CHALLENGES_PAGE_SIZE,
-  DEEPLINK_PARAM, DEEPLINK_VIDEO_PARAM,
+  DEEPLINK_PARAM, DEEPLINK_VIDEO_PARAM, DEEPLINK_LESSON_PARAM, DEEPLINK_LESSON_PLAY_PARAM,
+  DEEPLINK_MATCH_VIDEO_PARAM,
   FIREBASE_TIMEOUT_MS
-} from './constants.js?v=2026.06.26.10';
-import { g, toast } from './appCore.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
+import { g, toast } from './appCore.js?v=2026.07.07.01';
 
 const FB = {
   apiKey: 'AIzaSyDttEMgDQx3iS2siRzVIizxBBDZ4KjcJEw',
@@ -26,6 +27,8 @@ const FB = {
 
 const LS_DEEPLINK_MATCH = 'isatok_deeplink_match';
 const LS_DEEPLINK_VIDEO = 'isatok_deeplink_video';
+const LS_DEEPLINK_LESSON = 'isatok_deeplink_lesson';
+const LS_DEEPLINK_LESSON_PLAY = 'isatok_deeplink_lesson_play';
 
 let db = null;
 let MEMBERS = [];
@@ -34,6 +37,7 @@ let NOTICES = [];
 let BOARDS = [];
 let SEASONS = [];
 let TOURNAMENTS = [];
+let VIDEOS = [];
 
 /** challenges 커서 페이지네이션 상태 */
 let _chalCursor = null;
@@ -50,6 +54,13 @@ try {
   if (_bootParams.get(DEEPLINK_VIDEO_PARAM) === '1') {
     sessionStorage.setItem(LS_DEEPLINK_VIDEO, '1');
   }
+  var _bootLesson = _bootParams.get(DEEPLINK_LESSON_PARAM);
+  if (_bootLesson) sessionStorage.setItem(LS_DEEPLINK_LESSON, _bootLesson);
+  if (_bootParams.get(DEEPLINK_LESSON_PLAY_PARAM) === '1') {
+    sessionStorage.setItem(LS_DEEPLINK_LESSON_PLAY, '1');
+  }
+  var _bootMatchVideo = _bootParams.get(DEEPLINK_MATCH_VIDEO_PARAM);
+  if (_bootMatchVideo) sessionStorage.setItem('isatok_deeplink_match_video', _bootMatchVideo);
 } catch (e) {}
 
 function _docToChallenge(d) {
@@ -151,6 +162,7 @@ export function getNotices() { return NOTICES; }
 export function getBoards() { return BOARDS; }
 export function getSeasons() { return SEASONS; }
 export function getTournaments() { return TOURNAMENTS; }
+export function getVideos() { return VIDEOS; }
 
 export function hasMoreChallenges() { return _chalHasMore; }
 export function isChallengesLoadingMore() { return _chalLoadingMore; }
@@ -217,6 +229,19 @@ export function updateBoardLocal(id, u) {
 }
 export function removeBoardLocal(id) {
   BOARDS = BOARDS.filter(function(b) { return b.id !== id; });
+}
+
+export function unshiftVideoLocal(v) { VIDEOS.unshift(v); }
+export function removeVideoLocal(id) {
+  VIDEOS = VIDEOS.filter(function(v) { return v.id !== id; });
+}
+export function bumpVideoViewLocal(id) {
+  var v = VIDEOS.find(function(x) { return x.id === id; });
+  if (v) v.viewCount = (v.viewCount || 0) + 1;
+}
+export function bumpChallengeVideoViewLocal(id) {
+  var c = CHAL.find(function(x) { return x.id === id; });
+  if (c) c.videoViewCount = (c.videoViewCount || 0) + 1;
 }
 
 export function setDb(ok) {
@@ -288,6 +313,18 @@ export async function initFirebase(hooks) {
       onSnapshot(collection(db, COL_TOURNAMENTS), function(s) {
         TOURNAMENTS = s.docs.map(function(d) { return { id: d.id, ...d.data() }; });
         hooks.onTournaments();
+      });
+    } catch (e) {}
+
+    var rafV = null;
+    try {
+      onSnapshot(query(collection(db, COL_VIDEOS), orderBy('createdAt', 'desc')), function(s) {
+        VIDEOS = s.docs.map(function(d) { return { id: d.id, ...d.data() }; });
+        if (rafV) cancelAnimationFrame(rafV);
+        rafV = requestAnimationFrame(function() {
+          if (hooks.onVideos) hooks.onVideos();
+          rafV = null;
+        });
       });
     } catch (e) {}
 

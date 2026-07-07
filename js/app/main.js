@@ -3,6 +3,6 @@
  *
  * 수정일: 2026-06-25 — appCore·firebaseApp·scrollBridge·appBootstrap 분리 (6차 리팩토링)
  */
-import { startApp } from './appBootstrap.js?v=2026.06.26.10';
+import { startApp } from './appBootstrap.js?v=2026.07.07.01';
 
 startApp();

@@ -4,16 +4,16 @@
 import {
   PT_INDIVIDUAL_WIN, PT_INDIVIDUAL_LOSS, PT_DOUBLE_WIN, PT_DOUBLE_LOSS,
   PT_INIT, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_DANGER, FEEDBACK_AUTO_CLOSE_MS
-} from './constants.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
 import {
   buildTodayFortune, buildRecommendReason, buildPostMatchComment,
   buildClubCompareLine, getGradeNudge, buildTodayPicks, kstDateKey
-} from './coaching.js?v=2026.06.26.10';
+} from './coaching.js?v=2026.07.07.01';
 import {
   getKstWeekStartKey, formatWeekLabel,
   loadWeeklyReportCache, saveWeeklyReportCache, fetchWeeklyCoachReport,
   updateWeeklyReportCard, renderWeeklyReportShellHtml
-} from './weeklyReport.js?v=2026.06.26.10';
+} from './weeklyReport.js?v=2026.07.07.01';
 import {
   fetchPostMatchComment, fetchDailyBriefing, fetchOpponentAnalysis,
   loadPostMatchCache, savePostMatchCache,
@@ -21,23 +21,25 @@ import {
   loadOpponentAiCache, saveOpponentAiCache,
   updateDailyBriefingCard, updateOpponentAiCard,
   formatPostMatchComment, renderDailyBriefingShellHtml, yieldToPaint
-} from './aiCoach.js?v=2026.06.26.10';
-import { getMyPlayer } from './wizard.js?v=2026.06.26.10';
-import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.06.26.10';
+} from './aiCoach.js?v=2026.07.07.01';
+import { getMyPlayer } from './wizard.js?v=2026.07.07.01';
+import { registerOverlay, unregisterOverlay } from './backNav.js?v=2026.07.07.01';
 
 const FEEDBACK_BACK_KEY = 'feedback';
-import { _isDoublesType, _memberPt, _calcGrade, _renderGradeProgressHtml } from './memberCore.js?v=2026.06.26.10';
+import {
+  _isDoublesFormatChallenge, _memberPt, _calcGrade, _renderGradeProgressHtml
+} from './memberCore.js?v=2026.07.07.01';
 import {
   _getMatchesForMode, _playerWonAnyMatch, _playerWonMatch,
   _computeDoublesRecord, _computeSinglesRecord, _computeMemberBadges,
   _computeBestWinRatePartner, _getMemberRankPosition, _computeHeadToHead,
   _buildRatingChartSvg
-} from './matchStats.js?v=2026.06.26.10';
+} from './matchStats.js?v=2026.07.07.01';
 import {
   calcRivalStats, _renderRivalStatsHtml, _myDashStreak, _renderMyRecentMatchesHtml,
   _collectHallReportData, _computeClubAvgWinRate, _computeRecentForm,
   _buildWinLossDonutSvg, _buildFormStripHtml, _renderHallInsightCardsHtml
-} from './hallReportCore.js?v=2026.06.26.10';
+} from './hallReportCore.js?v=2026.07.07.01';
 
 const PT = {
   individual: { win: PT_INDIVIDUAL_WIN, loss: PT_INDIVIDUAL_LOSS },
@@ -292,7 +294,7 @@ async function _hydrateMyWeeklyReportCore(forceRefresh){
 }
 export function refreshWeeklyReport(force){_hydrateMyWeeklyReport(!!force);}
 export function _buildPostMatchMatchSummary(me,challenge,isWin,ptDelta){
-  var isDbl=_isDoublesType(challenge.type);
+  var isDbl=_isDoublesFormatChallenge(challenge);
   var myTeam=challenge.myTeam||[];
   var oppTeam=challenge.oppTeam||[];
   var opps=myTeam.indexOf(me.name)>=0?oppTeam.filter(function(n){return n&&n!==me.name;}):myTeam.filter(function(n){return n&&n!==me.name;});
@@ -505,7 +507,8 @@ export function _renderMyPlayerReportHtml(me,isDbl){
     +'<div class="hall-hero__eyebrow">MY COACHING · '+modeLbl.toUpperCase()+'</div>'
     +'<div class="hall-hero__top">'
     +memberAv(me.name,'','hall-hero__avatar',gradeAvatarStyle(d.gr.label))
-    +'<div class="hall-hero__info"><div class="hall-hero__name">'+me.name+'</div>'
+    +'<div class="hall-hero__info"><div class="hall-hero__name">'+me.name
+    +'<button type="button" class="my-player-change-link" onclick="event.stopPropagation();openMyPlayerSetup(false)">변경</button></div>'
     +'<span class="hall-hero__grade">'+d.gr.icon+' '+d.gr.label+'</span>'
     +(topPctLbl?'<span class="hall-hero__pct">'+topPctLbl+'</span>':'')
     +'</div>'
@@ -563,10 +566,11 @@ export function _renderMyPlayerReportHtml(me,isDbl){
       +'<div class="hall-report__section hall-anim" style="animation-delay:.48s"><div class="hall-card">'
       +'<div class="hall-card__head"><span class="hall-card__title">등급 진행</span><span class="hall-card__sub">단식</span></div>'
       +_renderGradeProgressHtml(_memberPt(me,false))+'</div></div>':'')
-    +(_renderRivalStatsHtml(me.name,true)?''
-      +'<div class="hall-report__section hall-anim" style="animation-delay:.52s"><div class="hall-card">'
-      +'<div class="hall-card__head"><span class="hall-card__title">라이벌</span></div>'
-      +_renderRivalStatsHtml(me.name,true)+'</div></div>':'')
+    +'<div class="hall-report__section hall-anim" style="animation-delay:.52s"><div class="hall-card">'
+    +'<div class="hall-card__head"><span class="hall-card__title">라이벌</span></div>'
+    +(_renderRivalStatsHtml(me.name,true)||'<p class="my-rival-empty">아직 뚜렷한 라이벌이 없어요</p>')
+    +'<button type="button" class="my-h2h-link" onclick="openMyMemberH2H()">⚔️ 상대 전적 보기</button>'
+    +'</div></div>'
     +'</div>';
 }
 /**
@@ -586,7 +590,7 @@ export function setMyDashMode(mode){
 export function _myPointDeltaForResult(challenge,winnerSide){
   var me=getMyPlayer();
   if(!me||!challenge||!winnerSide)return null;
-  var isDbl=_isDoublesType(challenge.type);
+  var isDbl=_isDoublesFormatChallenge(challenge);
   var pts=isDbl?PT.double:PT.individual;
   var winTeam=winnerSide==='a'?(challenge.myTeam||[]):(challenge.oppTeam||[]);
   var loseTeam=winnerSide==='a'?(challenge.oppTeam||[]):(challenge.myTeam||[]);

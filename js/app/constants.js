@@ -14,6 +14,10 @@ export const COL_BOARDS      = 'boards';
 export const COL_TOURNAMENTS = 'tournaments';
 export const COL_ATTENDANCE   = 'attendance';
 export const COL_PLAYER_PRESENCE = 'playerPresence';
+export const COL_VIDEOS       = 'videos';
+export const COL_VIDEO_VIEW_LOGS = 'video_view_logs';
+/** AI 영상 분석 결과 (신규 컬렉션 — 기존 videos/challenges와 분리) */
+export const COL_VIDEO_ANALYSES = 'video_analyses';
 
 // ── 포인트 기준 ───────────────────────────────────────
 export const PT_INDIVIDUAL_WIN  = 10;
@@ -46,6 +50,9 @@ export const OPEN_CHALLENGE_EXPIRE_MS   =
 // ── 딥링크 ────────────────────────────────────────────
 export const DEEPLINK_PARAM             = 'match';
 export const DEEPLINK_VIDEO_PARAM       = 'video';
+export const DEEPLINK_LESSON_PARAM      = 'lesson';
+export const DEEPLINK_LESSON_PLAY_PARAM = 'lessonPlay';
+export const DEEPLINK_MATCH_VIDEO_PARAM = 'matchVideo';
 export const DEEPLINK_TAB_DELAY_PC      = 500;
 export const DEEPLINK_TAB_DELAY_MOBILE  = 1000;
 export const DEEPLINK_MAX_WAIT_PC       = 6000;
@@ -81,11 +88,48 @@ export const POST_MATCH_COMMENT_URL = AI_FN_BASE + '/postMatchComment';
 export const DAILY_BRIEFING_URL = AI_FN_BASE + '/dailyBriefing';
 export const OPPONENT_ANALYSIS_URL = AI_FN_BASE + '/opponentAnalysis';
 export const MONTHLY_CLUB_STORY_URL = AI_FN_BASE + '/monthlyClubStory';
+export const YOUTUBE_VIDEO_STATS_URL = AI_FN_BASE + '/youtubeVideoStats';
+/** AI 영상 분석 — 포즈 요약 기반 코치 코멘트 (3단계에서 활성화) */
+export const AI_VIDEO_COACH_URL = AI_FN_BASE + '/videoPoseCoach';
 export const WEEKLY_REPORT_CACHE_KEY_PREFIX = 'isatok_weekly_report_v2';
 export const DAILY_BRIEFING_CACHE_PREFIX = 'isatok_daily_briefing_v1';
 export const POST_MATCH_CACHE_PREFIX = 'isatok_post_match_v1';
 export const OPPONENT_AI_CACHE_PREFIX = 'isatok_opponent_ai_v1';
 export const MONTHLY_STORY_CACHE_PREFIX = 'isatok_monthly_story_v1';
+
+/** @deprecated 클라이언트 직접 호출 금지 — youtubeVideoStats Cloud Function 사용 */
+export const YOUTUBE_DATA_API_KEY = '';
+
+// ── 영상(videos) 카테고리 ─────────────────────────────
+/** 필터 탭·정렬 기준 순서: 점심 → 저녁 → 대결 → 레슨 → 훈련 */
+export const VIDEO_FILTER_TABS = ['점심경기', '저녁경기', '대결', '레슨', '훈련'];
+export const VIDEO_CATEGORIES = VIDEO_FILTER_TABS;
+/** 관리자 등록 모달에서 선택 가능한 카테고리 (대결은 challenges 연동) */
+export const VIDEO_CLUB_CATEGORIES = ['점심경기', '저녁경기', '레슨', '훈련'];
+export const VIDEO_FILTER_CHALLENGE = '대결';
+/** AI 분석 대상 영상 종류 (점심·저녁·기타 제외) */
+export const AI_ANALYSIS_ELIGIBLE_TYPES = ['대결', '레슨', '훈련'];
+/** AI 분석 스키마 버전 */
+export const ANALYSIS_VERSION = '1.0';
+export const VIDEO_CATEGORY_DEFAULT = '레슨';
+/** 날짜 내림차순 정렬 대상 카테고리 */
+export const VIDEO_CATEGORY_DATE_SORT = ['점심경기', '저녁경기'];
+export const VIDEO_CATEGORY_BADGE = {
+  '대결': 'vid-cat-challenge',
+  '점심경기': 'vid-cat-lunch',
+  '저녁경기': 'vid-cat-evening',
+  '레슨': 'vid-cat-lesson',
+  '훈련': 'vid-cat-training'
+};
+export const VIDEO_CATEGORY_EMOJI = {
+  all: '🎬',
+  '점심경기': '🌞',
+  '저녁경기': '🌙',
+  '대결': '🏓',
+  '레슨': '📚',
+  '훈련': '🏋',
+  mine: '👤'
+};
 
 // ── 관리자 ────────────────────────────────────────────
 export const ADMIN_PIN = '2580';

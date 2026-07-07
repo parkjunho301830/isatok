@@ -1,7 +1,7 @@
 /**
  * 규칙 기반 코칭 · 운세 · 추천 이유 (LLM 없음)
  */
-import { GRADE_TIERS, PT_INIT } from './constants.js?v=2026.06.26.10';
+import { GRADE_TIERS, PT_INIT } from './constants.js?v=2026.07.07.01';
 
 const FORTUNE_TEMPLATES = [
   { icon: '🏓', text: '오늘은 짧은 랠리보다 길게 붙는 플레이가 운이 좋아요.' },

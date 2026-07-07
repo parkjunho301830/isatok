@@ -2,22 +2,22 @@
  * 회원 탭·선수 프로필 모달·회원 CRUD
  */
 import { collection, doc, addDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { COL_MEMBERS, PT_INIT } from './constants.js?v=2026.06.26.10';
-import { buildRecommendReason } from './coaching.js?v=2026.06.26.10';
-import { renderOpponentAiShellHtml } from './aiCoach.js?v=2026.06.26.10';
+import { COL_MEMBERS, PT_INIT } from './constants.js?v=2026.07.07.01';
+import { buildRecommendReason } from './coaching.js?v=2026.07.07.01';
+import { renderOpponentAiShellHtml } from './aiCoach.js?v=2026.07.07.01';
 import {
   getMyPlayer, getMyPlayerId, wizApplyOpponentName, requireMyPlayer
-} from './wizard.js?v=2026.06.26.10';
-import { _memberPt, _calcGrade } from './memberCore.js?v=2026.06.26.10';
-import { _memberGrade, avc } from './memberUtils.js?v=2026.06.26.10';
+} from './wizard.js?v=2026.07.07.01';
+import { _memberPt, _calcGrade } from './memberCore.js?v=2026.07.07.01';
+import { _memberGrade, avc } from './memberUtils.js?v=2026.07.07.01';
 import {
   _getAllMatchesFor, _getMatchesForMode, _computeDoublesRecord, _computeSinglesRecord,
   _getMemberRankPosition, _computeHeadToHead, _computeTopPartner, _computeBestWinRatePartner,
   _getDoublesMatchesFor, _getSinglesMatchesFor, _playerWonAnyMatch, _formatRecentMatchLine,
   _buildMemberBadgesHtml, _rankPointsForMember
-} from './matchStats.js?v=2026.06.26.10';
-import { getRkScope } from './rankingTab.js?v=2026.06.26.10';
-import { extractYouTubeVideoId, buildYouTubeThumbUrl } from './youtubeUtils.js?v=2026.06.26.10';
+} from './matchStats.js?v=2026.07.07.01';
+import { getRkScope } from './rankingTab.js?v=2026.07.07.01';
+import { extractYouTubeVideoId } from './youtubeUtils.js?v=2026.07.07.01';
 
 let C = null;
 let _mf = 'all';
@@ -34,6 +34,7 @@ export function initMembersTab(ctx) {
   window.openMemberPreview = openPlayerProfile;
   window.openMemberProfile = openPlayerProfile;
   window.openMyMemberProfile = openMyMemberProfile;
+  window.openMyMemberH2H = openMyMemberH2H;
   window.renderProfileH2H = renderProfileH2H;
   window.setMf = setMf;
   window.loadMoreMembers = loadMoreMembers;
@@ -335,7 +336,7 @@ export function _buildProfileH2hSelectHtml(memberId){
   return '<option value="">상대 회원 선택</option>'
     +others.map(function(x){return '<option value="'+x.name+'">'+x.name+'</option>';}).join('');
 }
-function _buildPlayerVideoSectionHtml(playerName){
+function _buildPlayerVideoSectionHtml(memberId, playerName){
   var matches=_getAllMatchesFor(playerName).filter(function(c){
     return c.videoUrl&&extractYouTubeVideoId(c.videoUrl);
   });
@@ -343,24 +344,10 @@ function _buildPlayerVideoSectionHtml(playerName){
     return '<div class="player-video-section"><div class="stat-box-t">🎬 경기 영상</div>'
       +'<div class="prof-empty">아직 등록된 영상이 없습니다 🏓</div></div>';
   }
-  var items=matches.slice(0,12).map(function(c){
-    var vid=extractYouTubeVideoId(c.videoUrl);
-    var thumb=buildYouTubeThumbUrl(vid);
-    var dt=c.date||'';
-    var vs=(c.myTeam||[]).join(' · ')+' vs '+(c.oppTeam||[]).join(' · ');
-    return '<button type="button" class="player-video-item" onclick="openMatchVideo(\''+c.id+'\')">'
-      +'<span class="player-video-thumb">'
-      +'<img src="'+thumb+'" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add(\'player-video-thumb--fail\')">'
-      +'<span class="player-video-play" aria-hidden="true">▶</span>'
-      +'</span>'
-      +'<span class="player-video-meta">'
-      +(dt?'<span class="player-video-date">'+dt+'</span>':'')
-      +'<span class="player-video-vs">'+vs+'</span>'
-      +'</span>'
-      +'</button>';
-  }).join('');
   return '<div class="player-video-section"><div class="stat-box-t">🎬 경기 영상</div>'
-    +'<div class="player-video-grid">'+items+'</div></div>';
+    +'<p class="player-video-summary">'+matches.length+'개의 경기 영상이 등록되어 있어요</p>'
+    +'<button type="button" class="btn btn-g player-video-link" onclick="openMatchVideosForMember(\''+memberId+'\')">영상 탭에서 보기</button>'
+    +'</div>';
 }
 export function _renderPlayerProfileHtml(id){
   var m=members().find(function(x){return x.id===id;});
@@ -404,7 +391,7 @@ export function _renderPlayerProfileHtml(id){
     +'<div class="md-preview-kpi"><span class="md-preview-kpi-val">'+rec.wins+'승 '+rec.losses+'패</span><span class="md-preview-kpi-lbl">복식</span></div>'
     +'</div>'
     +(recent.length?'<div class="md-preview-recent"><div class="md-preview-recent-t">최근 10경기</div><div class="md-preview-recent-v">'+rw+'승 '+rl+'패</div></div>':'')
-    +_buildPlayerVideoSectionHtml(m.name)
+    +_buildPlayerVideoSectionHtml(m.id, m.name)
     +aiShell
     +'<details class="player-prof-fold"><summary class="player-prof-fold__sum">🤝 복식 전적</summary><div class="player-prof-fold__body">'
     +_buildProfileModeBlock('🤝 복식',dblRec,dblRank,partner,true,bestPartner)
@@ -415,7 +402,7 @@ export function _renderPlayerProfileHtml(id){
     +'<details class="player-prof-fold"><summary class="player-prof-fold__sum">🏅 보유 배지</summary><div class="player-prof-fold__body">'
     +badgesHtml
     +'</div></details>'
-    +'<details class="player-prof-fold"><summary class="player-prof-fold__sum">⚔️ 상대 전적</summary><div class="player-prof-fold__body">'
+    +'<details class="player-prof-fold" id="player-prof-h2h-fold"><summary class="player-prof-fold__sum">⚔️ 상대 전적</summary><div class="player-prof-fold__body">'
     +'<div class="fg player-prof-h2h-fg"><label>상대 회원 <span class="player-prof-h2h-hint">(단식·복식 통합)</span></label>'
     +'<select id="prof-opp" class="player-prof-h2h-sel" onchange="renderProfileH2H()">'
     +_buildProfileH2hSelectHtml(id)
@@ -458,7 +445,28 @@ export function openMyMemberProfile(){
   var id=getMyPlayerId();
   if(!id){toast('⚠️ 내 선수를 먼저 설정해주세요');return;}
   openPlayerProfile(id);
-};
+}
+function _focusPlayerProfileH2H(){
+  var focus=function(){
+    var fold=g('player-prof-h2h-fold');
+    if(!fold)return;
+    fold.open=true;
+    if(typeof fold.scrollIntoView==='function'){
+      fold.scrollIntoView({block:'nearest',behavior:'smooth'});
+    }
+  };
+  if(typeof requestAnimationFrame==='function'){
+    requestAnimationFrame(function(){requestAnimationFrame(focus);});
+  }else{
+    setTimeout(focus,0);
+  }
+}
+export function openMyMemberH2H(){
+  var id=getMyPlayerId();
+  if(!id){toast('⚠️ 내 선수를 먼저 설정해주세요');return;}
+  openPlayerProfile(id);
+  _focusPlayerProfileH2H();
+}
 export function renderProfileH2H(){
   var m=members().find(function(x){return x.id===_profileMemberId;});
   var box=g('prof-h2h'),sel=g('prof-opp');

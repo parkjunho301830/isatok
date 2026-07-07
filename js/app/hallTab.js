@@ -1,20 +1,20 @@
 /**
  * 통계 탭 (명예의 전당) 렌더링
  */
-import { PT_INIT } from './constants.js?v=2026.06.26.14';
-import { getMyPlayer } from './wizard.js?v=2026.06.26.14';
+import { PT_INIT } from './constants.js?v=2026.07.07.01';
+import { getMyPlayer } from './wizard.js?v=2026.07.07.01';
 import {
   _computeDoublesRecord, _computeSinglesRecord, _getMemberRankPosition,
   _computeTopPartner, _computeBestWinRatePartner, _countTournamentWins,
   _computeRatingHistory, _buildRatingChartSvg
-} from './matchStats.js?v=2026.06.26.14';
-import { _memberPt } from './memberCore.js?v=2026.06.26.14';
-import { _computeClubAvgWinRate, _renderMyRecentMatchesHtml } from './hallReportCore.js?v=2026.06.26.14';
+} from './matchStats.js?v=2026.07.07.01';
+import { _memberPt } from './memberCore.js?v=2026.07.07.01';
+import { _computeClubAvgWinRate, _renderMyRecentMatchesHtml } from './hallReportCore.js?v=2026.07.07.01';
 import {
   renderMonthlyStoryShellHtml, updateMonthlyStoryCard,
   loadMonthlyStoryCache, saveMonthlyStoryCache, fetchMonthlyClubStory,
   getKstMonthKey, formatMonthLabel, yieldToPaint
-} from './aiCoach.js?v=2026.06.26.14';
+} from './aiCoach.js?v=2026.07.07.01';
 
 let C = null;
 let _monthlyStoryReqId = 0;

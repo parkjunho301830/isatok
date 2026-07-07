@@ -1,13 +1,13 @@
 /**
  * DOM·스크롤·토스트 등 앱 공통 유틸
  */
-import { APP_VERSION } from './version.js?v=2026.06.26.10';
+import { APP_VERSION } from './version.js?v=2026.07.07.01';
 import {
   DEEPLINK_POLL_INTERVAL,
   NAV_HEIGHT_MOBILE,
   NAV_HEIGHT_PC,
   COLOR_GRAY
-} from './constants.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
 
 export const g = function(id) { return document.getElementById(id); };
 
@@ -148,6 +148,7 @@ function smoothScrollTo(targetY, duration) {
 export function scrollToElement(el, opts) {
   opts = opts || {};
   var align = opts.align || 'center';
+  var behavior = opts.behavior || 'smooth';
   var navHeight = opts.offsetTop != null
     ? opts.offsetTop
     : (isMobileUa() ? NAV_HEIGHT_MOBILE : NAV_HEIGHT_PC);
@@ -160,7 +161,9 @@ export function scrollToElement(el, opts) {
       : rect.top + scrollTop - (window.innerHeight / 2) + (rect.height / 2) - navHeight;
     targetY = Math.max(0, targetY);
     if ('scrollBehavior' in document.documentElement.style) {
-      window.scrollTo({ top: targetY, behavior: 'smooth' });
+      window.scrollTo({ top: targetY, behavior: behavior });
+    } else if (behavior === 'auto') {
+      window.scrollTo(0, targetY);
     } else {
       smoothScrollTo(targetY, 500);
     }
@@ -173,9 +176,61 @@ export function scrollToElement(el, opts) {
       - (container.clientHeight / 2) + (rect.height / 2);
   targetScroll = Math.max(0, targetScroll);
   if ('scrollBehavior' in document.documentElement.style) {
-    container.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    container.scrollTo({ top: targetScroll, behavior: behavior });
   } else {
     container.scrollTop = targetScroll;
+  }
+}
+
+/** 영상 카드가 상·하단 UI에 가리지 않도록 스크롤 (카톡 딥링크·모바일 bnav 대응) */
+export function scrollVideoCardIntoView(el, opts) {
+  if (!el || !el.isConnected) return;
+  opts = opts || {};
+  var behavior = opts.behavior || 'smooth';
+  var retry = opts.retry !== false;
+
+  function run() {
+    if (!el.isConnected) return;
+    var topInset = getDeepLinkScrollInset() + 8;
+    var bottomInset = getDeepLinkBottomInset();
+    var container = getScrollContainer(el);
+    var rect = el.getBoundingClientRect();
+
+    if (container !== window) {
+      var containerRect = container.getBoundingClientRect();
+      var topLimit = containerRect.top + topInset;
+      var bottomLimit = containerRect.bottom - bottomInset;
+      var delta = 0;
+      if (rect.top < topLimit) delta = rect.top - topLimit;
+      else if (rect.bottom > bottomLimit) delta = rect.bottom - bottomLimit + 8;
+      if (delta) container.scrollBy({ top: delta, behavior: behavior });
+      return;
+    }
+
+    var vh = window.innerHeight;
+    var topLimit = topInset;
+    var bottomLimit = vh - bottomInset;
+    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var targetY = null;
+
+    if (rect.height >= bottomLimit - topLimit) {
+      targetY = rect.top + scrollTop - topLimit;
+    } else if (rect.top < topLimit) {
+      targetY = rect.top + scrollTop - topLimit;
+    } else if (rect.bottom > bottomLimit) {
+      targetY = rect.bottom + scrollTop - bottomLimit + 8;
+    }
+
+    if (targetY != null) {
+      window.scrollTo({ top: Math.max(0, targetY), behavior: behavior });
+    }
+  }
+
+  run();
+  if (retry) {
+    [80, 200, 450].forEach(function(ms) {
+      setTimeout(run, ms);
+    });
   }
 }
 

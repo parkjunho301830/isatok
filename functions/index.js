@@ -4,7 +4,9 @@ const {defineSecret} = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+const youtubeApiKey = defineSecret("YOUTUBE_DATA_API_KEY");
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
 setGlobalOptions({maxInstances: 10, region: "asia-northeast3"});
 
@@ -192,3 +194,108 @@ exports.monthlyClubStory = aiHandler(async (req, res, apiKey) => {
   });
   res.json({ok: true, story});
 });
+
+exports.videoPoseCoach = aiHandler(async (req, res, apiKey) => {
+  const {poseSummary} = req.body || {};
+  if (!poseSummary || typeof poseSummary !== "object") {
+    res.status(400).json({error: "poseSummary required"});
+    return;
+  }
+  const videoType = String(poseSummary.videoType || "레슨");
+  const total = Number(poseSummary.totalScore) || 0;
+  const forehand = Number(poseSummary.forehand) || 0;
+  const backhand = Number(poseSummary.backhand) || 0;
+  const footwork = Number(poseSummary.footwork) || 0;
+  const ready = Number(poseSummary.readyPosition) || 0;
+  const balance = Number(poseSummary.balance) || 0;
+  const frames = Number(poseSummary.frameCount) || 0;
+  const suggested = String(poseSummary.recommendedTraining || "");
+
+  const prompt =
+    "당신은 탁구 동호회 전문 코치입니다.\n" +
+    "MediaPipe 포즈 분석 점수를 바탕으로 선수에게 코칭 코멘트를 한국어로 작성하세요.\n\n" +
+    "규칙:\n" +
+    "- JSON만 출력 (마크다운·코드블록 없음)\n" +
+    "- coachComment: 3~5문장, 사람 코치처럼 자연스럽고 구체적으로\n" +
+    "- 강점 1가지와 개선점 1가지를 반드시 언급\n" +
+    "- recommendedTraining: 오늘 연습할 훈련 1가지 (15자 내외)\n\n" +
+    "{\"coachComment\":\"...\",\"recommendedTraining\":\"...\"}\n\n" +
+    "분석 데이터:\n" +
+    `영상 종류: ${videoType}\n` +
+    `분석 프레임: ${frames}개\n` +
+    `총점: ${total}/100\n` +
+    `포핸드: ${forehand}, 백핸드: ${backhand}, 풋워크: ${footwork}\n` +
+    `준비자세: ${ready}, 밸런스: ${balance}\n` +
+    (suggested ? `시스템 추천 훈련 참고: ${suggested}\n` : "");
+
+  const raw = await callGemini(apiKey, prompt);
+  const parsed = parseJsonResponse(raw, {
+    coachComment: raw,
+    recommendedTraining: suggested || "레디 포지션 연습",
+  });
+  const coachComment = String(parsed.coachComment || "").trim();
+  const recommendedTraining = String(
+      parsed.recommendedTraining || suggested || "풋워크 사이드스텝",
+  ).trim();
+  res.json({ok: true, coachComment, recommendedTraining});
+});
+
+/**
+ * @param {unknown} raw
+ * @return {string[]}
+ */
+function normalizeYouTubeIds(raw) {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set();
+  const out = [];
+  raw.forEach((id) => {
+    const s = String(id || "").trim();
+    if (!YT_ID_RE.test(s) || seen.has(s)) return;
+    seen.add(s);
+    out.push(s);
+  });
+  return out.slice(0, 50);
+}
+
+exports.youtubeVideoStats = onRequest(
+    {secrets: [youtubeApiKey], cors: true},
+    async (req, res) => {
+      if (req.method !== "POST") {
+        res.status(405).json({error: "POST only"});
+        return;
+      }
+      const ids = normalizeYouTubeIds((req.body || {}).ids);
+      if (!ids.length) {
+        res.json({ok: true, views: {}});
+        return;
+      }
+      try {
+        const url =
+          "https://www.googleapis.com/youtube/v3/videos?part=statistics&id=" +
+          encodeURIComponent(ids.join(",")) +
+          "&key=" + encodeURIComponent(youtubeApiKey.value());
+        const response = await fetch(url);
+        const data = await response.json();
+        if (!response.ok) {
+          logger.error("YouTube API failed", response.status, data);
+          res.status(response.status).json({
+            error: "youtube_api_failed",
+            detail: data && data.error,
+          });
+          return;
+        }
+        const views = {};
+        (data.items || []).forEach((item) => {
+          const raw = item.statistics && item.statistics.viewCount;
+          const n = Number(String(raw || "").replace(/,/g, ""));
+          if (item.id && Number.isFinite(n) && n > 0) {
+            views[item.id] = Math.floor(n);
+          }
+        });
+        res.json({ok: true, views});
+      } catch (err) {
+        logger.error("youtubeVideoStats failed", err);
+        res.status(500).json({error: "youtube_proxy_failed"});
+      }
+    },
+);

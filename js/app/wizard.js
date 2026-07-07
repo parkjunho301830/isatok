@@ -2,6 +2,7 @@
  * 대결 신청 / 즉시 대결 — 단계형(Wizard) UX
  * LocalStorage 기반 내 선수 · 최근 조합
  */
+import { inferChallengeType } from './challengeTypeUtils.js?v=2026.07.07.01';
 
 let C = null;
 
@@ -196,10 +197,20 @@ export function isChallengeCreatedByMe(c) {
   return c.createdByPlayerId === getMyPlayerId();
 }
 
-function _resolveType(category, member) {
-  var gnd = member && member.gender;
-  if (category === 'double') return gnd === '여성' ? 'fd' : 'md';
-  return gnd === '여성' ? 'fs' : 'ms';
+function _syncInstantChallengeType() {
+  if (!_isInstantWizard() || !C || !C.setType) return;
+  var st = C.getState();
+  var my = st._my || [];
+  var opp = st._opp || [];
+  if (_category === 'single' && my.length >= 1) {
+    var singlesType = inferChallengeType(my, opp, members());
+    C.setType(singlesType === 'fs' ? 'fs' : 'ms');
+    return;
+  }
+  if (_category === 'double' && my.length >= 2 && opp.length >= 2) {
+    var doublesType = inferChallengeType(my, opp, members());
+    if (doublesType) C.setType(doublesType);
+  }
 }
 
 function _syncToMain() {
@@ -210,15 +221,15 @@ function _syncToMain() {
   }
   if (_category === 'single') {
     C.setMy([me.name]);
-    C.setType(_resolveType('single', me));
-    return;
-  }
-  if (_partner) {
+  } else if (_partner) {
     C.setMy([me.name, _partner]);
-    C.setType(_resolveType('double', me));
   } else {
     C.setMy([me.name]);
   }
+  if (C.inferChallengeTypeFromTeams) {
+    C.inferChallengeTypeFromTeams({ updateUi: false });
+  }
+  _syncInstantChallengeType();
 }
 
 function _getRecentPartners() {
@@ -686,13 +697,15 @@ export function wizResetFlow(instant) {
   var me = getMyPlayer();
   if (me && _category === 'single') {
     C.setMy([me.name]);
-    C.setType(_resolveType('single', me));
   } else if (me) {
     C.setMy([me.name]);
   } else {
     C.setMy([]);
   }
   C.setOpp([]);
+  if (C.inferChallengeTypeFromTeams) {
+    C.inferChallengeTypeFromTeams({ updateUi: false });
+  }
 }
 
 /**
@@ -739,9 +752,10 @@ export function wizValidateStep(from, to) {
       }
       C.setOpp(_oppDraft.slice());
     }
+    _syncInstantChallengeType();
     if (C.isInstantMode && C.isInstantMode() && !isOpen) {
-      var tm = C.TM[C.getState()._type] || C.TM.ms;
-      if ((C.getState()._opp || []).length < tm.maxO) {
+      var needOpp = _category === 'double' ? 2 : 1;
+      if ((C.getState()._opp || []).length < needOpp) {
         toast('⚠️ 즉시 대결은 상대 팀 선택이 필요합니다');
         return false;
       }
@@ -927,23 +941,36 @@ export function renderMyPage() {
     return;
   }
   if (dash && C.renderMyDashboardHtml) {
-    dash.innerHTML = C.renderMyDashboardHtml();
-    if (C.hydrateMyAiCards) {
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(function () { C.hydrateMyAiCards(); });
-      } else {
-        C.hydrateMyAiCards();
+    var dashHtml = C.renderMyDashboardHtml();
+    if (dashHtml) {
+      dash.innerHTML = dashHtml;
+      if (C.hydrateMyAiCards) {
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(function () { C.hydrateMyAiCards(); });
+        } else {
+          C.hydrateMyAiCards();
+        }
       }
+    } else if (!isMyPlayerReady()) {
+      dash.innerHTML = '<div class="my-dash my-dash--setup">'
+        + '<div class="my-dash-setup-card">'
+        + '<div class="my-dash-setup-icon">🏓</div>'
+        + '<div class="my-dash-setup-title">내 선수를 설정하세요</div>'
+        + '<p class="my-dash-setup-desc">설정 후 AI 코칭·추천 상대·성장 분석을 확인할 수 있어요.</p>'
+        + '<button type="button" class="btn btn-p my-dash-setup-btn" onclick="openMyPlayerSetup(true)">내 선수 설정</button>'
+        + '</div></div>';
+    } else if (dash) {
+      dash.innerHTML = _renderMyStatsHtml(false) + (C.renderMyExtrasHtml ? C.renderMyExtrasHtml() : '');
     }
   } else if (dash) {
     dash.innerHTML = _renderMyStatsHtml(false) + (C.renderMyExtrasHtml ? C.renderMyExtrasHtml() : '');
   }
   if (setting) {
     var me = getMyPlayer();
+    var name = me ? me.name : getMyPlayerName();
     setting.innerHTML = '<div class="my-setting-head">설정</div>'
-      + '<div class="my-setting-row"><span>내 선수</span><strong>' + me.name + '</strong></div>'
-      + '<button type="button" class="btn btn-p" style="width:100%;margin-top:12px" onclick="openMyMemberProfile()">내 프로필 자세히 보기</button>'
-      + '<button type="button" class="btn btn-g" style="width:100%;margin-top:8px" onclick="openMyPlayerSetup(false)">내 선수 변경</button>';
+      + '<div class="my-setting-row"><span>내 선수</span><strong>' + (name || '—') + '</strong></div>'
+      + '<button type="button" class="btn btn-g" style="width:100%;margin-top:12px" onclick="openMyPlayerSetup(false)">내 선수 변경</button>';
   }
 }
 
@@ -1050,6 +1077,7 @@ export function initWizard(ctx) {
     _category = cat === 'single' ? 'single' : 'double';
     _partner = null;
     _oppDraft = [];
+    C.setOpp([]);
     _syncToMain();
     if (_isInstantWizard()) {
       if (_category === 'single') {
@@ -1097,6 +1125,7 @@ export function initWizard(ctx) {
     if (!item || !item.team) return;
     _oppDraft = item.team.slice();
     C.setOpp(_oppDraft.slice());
+    _syncInstantChallengeType();
     _renderStep3();
   };
 
@@ -1114,6 +1143,7 @@ export function initWizard(ctx) {
       }
     }
     if (_oppDraft.length >= need) C.setOpp(_oppDraft.slice());
+    _syncInstantChallengeType();
     _renderStep3();
   };
 

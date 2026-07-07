@@ -39,6 +39,11 @@
       var m=sp.get('match');
       if(m)sessionStorage.setItem('isatok_deeplink_match',m);
       if(sp.get('video')==='1')sessionStorage.setItem('isatok_deeplink_video','1');
+      var lesson=sp.get('lesson');
+      if(lesson)sessionStorage.setItem('isatok_deeplink_lesson',lesson);
+      if(sp.get('lessonPlay')==='1')sessionStorage.setItem('isatok_deeplink_lesson_play','1');
+      var matchVideo=sp.get('matchVideo');
+      if(matchVideo)sessionStorage.setItem('isatok_deeplink_match_video',matchVideo);
     }catch(e){}
     var fullUrl='https://isatok.web.app'+(location.search||'')+(location.hash||'');
     var path=fullUrl.replace(/^https?:\/\//,'');

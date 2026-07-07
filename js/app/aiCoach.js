@@ -10,7 +10,7 @@ import {
   POST_MATCH_CACHE_PREFIX,
   OPPONENT_AI_CACHE_PREFIX,
   MONTHLY_STORY_CACHE_PREFIX
-} from './constants.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
 
 function escHtml(s) {
   return String(s || '')

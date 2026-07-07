@@ -1,14 +1,14 @@
 /**
  * 명예의 전당·마이 리포트 공통 데이터·HTML 헬퍼
  */
-import { PT_INIT } from './constants.js?v=2026.06.26.10';
-import { _memberPt, _calcGrade, _renderGradeProgressHtml } from './memberCore.js?v=2026.06.26.10';
+import { PT_INIT } from './constants.js?v=2026.07.07.01';
+import { _memberPt, _calcGrade, _renderGradeProgressHtml } from './memberCore.js?v=2026.07.07.01';
 import {
   _getMatchesForMode, _playerWonAnyMatch, _playerWonMatch,
   _computeDoublesRecord, _computeSinglesRecord, _getMemberRankPosition,
   _computeRatingHistory, _computeBestWinRatePartner, _computeTopPartner,
   _buildRatingChartSvg, _getRecentMatchLines
-} from './matchStats.js?v=2026.06.26.10';
+} from './matchStats.js?v=2026.07.07.01';
 
 let C = null;
 

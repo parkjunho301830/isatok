@@ -4,9 +4,9 @@
 import {
   WEEKLY_COACH_REPORT_URL,
   WEEKLY_REPORT_CACHE_KEY_PREFIX
-} from './constants.js?v=2026.06.26.10';
-import { kstDateKey } from './coaching.js?v=2026.06.26.10';
-import { showAiCardRefreshOverlay, clearAiCardLoadingOverlay, requestAiJson } from './aiCoach.js?v=2026.06.26.10';
+} from './constants.js?v=2026.07.07.01';
+import { kstDateKey } from './coaching.js?v=2026.07.07.01';
+import { showAiCardRefreshOverlay, clearAiCardLoadingOverlay, requestAiJson } from './aiCoach.js?v=2026.07.07.01';
 
 function escHtml(s) {
   return String(s || '')

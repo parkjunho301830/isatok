@@ -41,6 +41,20 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /videos/{videoId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /video_view_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    // AI 영상 분석 결과 (신규 — 기존 videos/challenges와 분리)
+    match /video_analyses/{analysisId} {
+      allow read, write: if true;
+    }
+
     function isValidSeasonWrite() {
       let d = request.resource.data;
       return d.name is string

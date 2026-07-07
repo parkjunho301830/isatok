@@ -3,6 +3,7 @@
 | 문서 | 설명 |
 |------|------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | **메인** 시스템 아키텍처 (전체 개요) |
+| [CURSOR_GUIDE.md](./CURSOR_GUIDE.md) | **Cursor IDE** 사용 가이드 (채팅·에이전트·배포 등) |
 | [deep-dive/](./deep-dive/) | 영역별 심화 문서 (프론트엔드, 데이터, AI, 보안) |
 | [diagrams/](./diagrams/) | Mermaid 다이어그램 소스 (`.mmd`) |
 
